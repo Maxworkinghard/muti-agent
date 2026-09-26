@@ -75,7 +75,7 @@ export const MODES: ModeDef[] = [
     track: 'discuss',
     name: '情感交流',
     tag: 'CARE',
-    desc: '六种回应风格围坐，接住情绪、分清事实、给出一小步',
+    desc: '七种回应风格围坐，接住情绪、分清事实、给出一小步',
     color: 'var(--c-pink)',
     scene: 'roundtable',
     roundLabels: ['回应情绪', '分清事实与感受', '下一步行动'],
