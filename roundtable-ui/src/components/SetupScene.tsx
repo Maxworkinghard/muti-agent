@@ -77,7 +77,6 @@ export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange
               <div className="scene-meta">
                 <strong>{s.name}</strong>
                 <span>{s.maxSeats} 席</span>
-                {s.recommendedMode === draft.mode && <i className="rec">推荐</i>}
               </div>
               <small>{s.description}</small>
             </button>

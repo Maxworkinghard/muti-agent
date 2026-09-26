@@ -137,7 +137,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .scene-card:hover img { filter: none; }
 .scene-meta { display: flex; align-items: center; gap: 8px; padding: 8px 10px 2px; }
 .scene-meta span { color: var(--ink-2); font-size: 12px; }
-.scene-meta .rec { font-style: normal; background: var(--c-yellow); padding: 0 5px; font-size: 11px; margin-left: auto; }
 .scene-card small { padding: 0 10px 10px; color: var(--ink-2); font-size: 12px; }
 .scene-card.on { outline: 4px solid var(--c-yellow); outline-offset: -1px; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
 .scene-card.on img { filter: none; }

@@ -52,7 +52,6 @@ export interface SceneDef {
   name: string;
   image: string;
   description: string;
-  recommendedMode: ModeId;
   maxSeats: number;
   seats: Seat[];
   /** 场景中心：圆桌中心 / 文件交换台 */
