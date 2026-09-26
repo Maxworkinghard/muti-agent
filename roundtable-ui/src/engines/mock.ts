@@ -177,7 +177,7 @@ export function createMockEngine(): DiscussionEngine {
       if (!opened && !targetAgentId) {
         opened = true;
         message({ round: 1, speakerId: 'user', text, kind: 'user' });
-        // 没填主题：模拟引擎直接截取这句话当主题（真实引擎由 omp 起名）
+        // 没填主题：模拟引擎直接截取这句话当主题（真实引擎让模型起名）
         if (!cfg.theme.title.trim()) emit({ type: 'theme', title: text.length > 16 ? text.slice(0, 16) + '…' : text });
         cfg = { ...cfg, theme: { title: text.length > 30 ? text.slice(0, 30) + '…' : text } };
         plan();

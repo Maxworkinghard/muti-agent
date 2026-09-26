@@ -1,10 +1,10 @@
 import type { DiscussionEngine, EngineEvent } from '../types';
 
 /**
- * 真实引擎：每位成员由后端的一个 omp 进程扮演（见 server/），前端只负责发起会话和转发事件。
+ * 真实引擎：每位成员在后端是一段直接发给模型接口的对话（见 server/），前端只负责发起会话和转发事件。
  * 会话配置 POST 给 /api/sessions，事件通过 SSE 推回来。
  */
-export function createOmpEngine(): DiscussionEngine {
+export function createBackendEngine(): DiscussionEngine {
   let emit: (e: EngineEvent) => void = () => {};
   let sessionId: string | null = null;
   let source: EventSource | null = null;
@@ -42,7 +42,7 @@ export function createOmpEngine(): DiscussionEngine {
         })
         .catch((err: Error) => {
           if (stopped) return;
-          notice(`无法启动 omp 引擎：${err.message}。确认用 npm run dev 启动、在 .env.local 配好 ROUNDTABLE_API_KEY；只看界面可在网址后加 ?engine=mock`);
+          notice(`无法启动引擎：${err.message}。确认用 npm run dev 启动、在 .env.local 配好 ROUNDTABLE_API_KEY；只看界面可在网址后加 ?engine=mock`);
           emit({ type: 'session', state: 'stopped' });
         });
     },

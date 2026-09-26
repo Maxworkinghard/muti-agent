@@ -8,10 +8,10 @@
 
 每个文件夹里：
 
-- `index.ts` 导出引擎包。现在三个模式的 `create` 都是 `omp.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
+- `index.ts` 导出引擎包。现在三个模式的 `create` 都是 `backend.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
 - `config.ts` 放可调参数的默认值，开讨论时会复制到 `SessionConfig.engineOptions` 传给引擎。
 
-`omp.ts` 是现在三个模式默认用的真实引擎：浏览器只负责把会话配置交给后端、转发事件，每位成员由一个 omp 进程扮演，各模式的流程写在 `server/session.ts`。`mock.ts` 是模拟引擎，不调用模型，网址加 `?engine=mock` 时所有模式都换成它。前端只通过 `registry.ts` 按模式取引擎。
+`backend.ts` 是现在三个模式默认用的真实引擎：浏览器只负责把会话配置交给后端、转发事件，每位成员在后端是一段直接发给模型接口的对话（`server/llmAgent.ts`，各自保留历史），各模式的流程写在 `server/session.ts`。`mock.ts` 是模拟引擎，不调用模型，网址加 `?engine=mock` 时所有模式都换成它。前端只通过 `registry.ts` 按模式取引擎。
 
 ## 调用 AI
 
@@ -30,7 +30,7 @@ const { text, usage } = await chat([
 await chatStream(messages, (chunk) => { /* 追加到当前发言 */ });
 ```
 
-请求走同源的 `/api/llm/chat`，由 `server/llm-proxy.ts` 补上 Key 后转给服务商。Key、服务商地址和默认模型写在 `roundtable-ui/.env.local` 的 `ROUNDTABLE_*` 里（参考 `.env.example`），和 omp 后端共用一套。
+请求走同源的 `/api/llm/chat`，由 `server/llm-proxy.ts` 补上 Key 后转给服务商。Key、服务商地址和默认模型写在 `roundtable-ui/.env.local` 的 `ROUNDTABLE_*` 里（参考 `.env.example`），和 `/api/sessions` 后端共用一套。
 
 ## 引擎要遵守的几条约定
 

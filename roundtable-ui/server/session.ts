@@ -1,10 +1,8 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { AgentState, ChatMessage, EngineEvent, ModeDef, ModeId, Participant, SessionConfig, TaskEvent } from '../src/types.ts';
 import { modeById, trackById } from '../src/data/modes.ts';
-import { OmpAgent, OmpTurnError } from './ompAgent.ts';
+import { LlmAgent, LlmTurnError } from './llmAgent.ts';
 import { RECORDER_PROMPT, SIDE_NAME, TITLER_PROMPT, agentSystemPrompt, cleanTitle, clip, extractJson, toResult, whoIs } from './prompts.ts';
-import type { Runtime } from './runtime.ts';
+import type { LlmConfig } from './config.ts';
 
 type Listener = (e: EngineEvent, index: number) => void;
 
@@ -20,15 +18,15 @@ let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
 
 /**
- * 一场会话：每位成员一个 omp 进程，按模式的轮次让他们依次发言，事件推给前端。
+ * 一场会话：每位成员一个 LlmAgent（直接调模型接口，各自保留对话历史），按模式的轮次让他们依次发言，事件推给前端。
  * 每次发言前，把这位成员还没看过的新发言（含用户插话）连同本轮指令一起发给他。
  */
 export class RoundtableSession {
   readonly events: EngineEvent[] = [];
   private listeners = new Set<Listener>();
-  private agents = new Map<string, OmpAgent>();
-  private recorder: OmpAgent | null = null;
-  private titler: OmpAgent | null = null;
+  private agents = new Map<string, LlmAgent>();
+  private recorder: LlmAgent | null = null;
+  private titler: LlmAgent | null = null;
   private transcript: ChatMessage[] = [];
   private seen = new Map<string, number>();
   private userQueue: Array<string | undefined> = [];
@@ -44,11 +42,9 @@ export class RoundtableSession {
   private clients = 0;
   private orphanTimer: NodeJS.Timeout | null = null;
   private readonly mode: ModeDef;
-  private readonly dir: string;
 
-  constructor(readonly id: string, private cfg: SessionConfig, private rt: Runtime) {
+  constructor(readonly id: string, private cfg: SessionConfig, private llm: LlmConfig) {
     this.mode = modeById(cfg.mode);
-    this.dir = join(rt.cfg.dir, 'sessions', id);
     this.theme = cfg.theme.title.trim();
   }
 
@@ -61,7 +57,7 @@ export class RoundtableSession {
     return () => { this.listeners.delete(fn); };
   }
 
-  /** 前端全部断开一分钟还没回来，就结束会话，免得 omp 进程一直留着 */
+  /** 前端全部断开一分钟还没回来，就结束会话，免得模型请求一直跑 */
   attach() {
     this.clients++;
     if (this.orphanTimer) { clearTimeout(this.orphanTimer); this.orphanTimer = null; }
@@ -73,9 +69,8 @@ export class RoundtableSession {
 
   async run() {
     this.emit({ type: 'session', state: 'running' });
-    this.cfg.participants.forEach((p) => this.status(p, 'idle', '启动中…'));
     try {
-      await this.spawnAgents();
+      this.seatAgents();
       await this.waitForTask();
       if (this.ended) return;
       if (this.mode.track === 'work') await this.runWork();
@@ -114,27 +109,13 @@ export class RoundtableSession {
     this.dispose();
   }
 
-  /** 服务器退出时同步结束所有进程 */
-  kill() {
-    this.state = 'stopped';
-    this.wake?.();
-    for (const a of this.agents.values()) a.kill();
-    this.recorder?.kill();
-    this.titler?.kill();
-  }
-
-  /** 没填主题：另起一个 omp 进程按用户第一句话起名，不耽误大家开工；起不出来就截取原话 */
+  /** 没填主题：另起一个角色按用户第一句话起名，不耽误大家开工；起不出来就截取原话 */
   private async nameTheme(text: string) {
     let title = '';
+    this.titler = new LlmAgent('起名', this.llm, TITLER_PROMPT);
     try {
-      mkdirSync(this.dir, { recursive: true });
-      const file = join(this.dir, 'titler.md');
-      writeFileSync(file, TITLER_PROMPT);
-      this.titler = new OmpAgent('起名', this.rt, file);
-      await this.titler.start();
       title = cleanTitle(await this.titler.ask(`用户的第一句话：「${text}」\n给这场对话起一个主题。`));
     } catch { /* 用下面的兜底 */ }
-    this.titler?.dispose();
     this.titler = null;
     if (this.ended) return;
     this.theme = title || clip(text.replace(/\s+/g, ' ').trim(), 16);
@@ -246,15 +227,12 @@ export class RoundtableSession {
     if (!this.ended) members.forEach((m) => this.task({ title: '交付物', from: m.agentId, to: lead.agentId, status: 'done' }));
   }
 
-  /** 由单独的记录员 omp 进程把全程整理成共识 / 分歧 / 待验证 / 建议 / 交付物 */
+  /** 由单独的记录员角色把全程整理成共识 / 分歧 / 待验证 / 建议 / 交付物 */
   private async summarize() {
     const work = this.mode.track === 'work';
-    const file = join(this.dir, 'recorder.md');
-    writeFileSync(file, RECORDER_PROMPT);
-    this.recorder = new OmpAgent('记录员', this.rt, file);
+    this.recorder = new LlmAgent('记录员', this.llm, RECORDER_PROMPT);
     const log = this.transcript.filter((m) => m.kind !== 'system' && m.kind !== 'notice').map((m) => this.format(m)).join('\n');
     try {
-      await this.recorder.start();
       const text = await this.recorder.ask(
         `下面是「${this.mode.name}」模式的完整记录，用户提出的问题或任务是「${this.request}」${this.theme ? `（主题「${this.theme}」）` : ''}。\n\n${log}\n\n` +
         '请整理结果，只输出一个 JSON 代码块：\n```json\n{"consensus":[],"disagreements":[],"openQuestions":[],"suggestions":[],"deliverables":[]}\n```\n' +
@@ -267,21 +245,13 @@ export class RoundtableSession {
 
   // ---------- 发言 ----------
 
-  /** 先启动一个进程，避免多个 omp 同时初始化同一个目录；其余并行启动 */
-  private async spawnAgents() {
-    mkdirSync(this.dir, { recursive: true });
+  /** 每位成员一个角色，人格提示词作为 system 消息 */
+  private seatAgents() {
     const bench = trackById(this.mode.track).name;
-    const start = async (p: Participant, i: number) => {
-      const file = join(this.dir, `agent-${i}.md`);
-      writeFileSync(file, agentSystemPrompt(p, this.cfg, this.mode, bench));
-      const agent = new OmpAgent(p.persona.name, this.rt, file);
-      this.agents.set(p.agentId, agent);
-      await agent.start();
-      if (!this.ended) this.status(p, 'idle', '就座');
-    };
-    const [first, ...rest] = this.cfg.participants;
-    await start(first, 0);
-    await Promise.all(rest.map((p, i) => start(p, i + 1)));
+    for (const p of this.cfg.participants) {
+      this.agents.set(p.agentId, new LlmAgent(p.persona.name, this.llm, agentSystemPrompt(p, this.cfg, this.mode, bench)));
+      this.status(p, 'idle', '就座');
+    }
   }
 
   /** 把新发言和本轮指令发给这位成员，拿回他的回答（不发到前端） */
@@ -303,7 +273,7 @@ export class RoundtableSession {
         return this.ended ? null : text || '（没有说话）';
       } catch (e) {
         if (this.ended) return null;
-        const fatal = e instanceof OmpTurnError && e.fatal;
+        const fatal = e instanceof LlmTurnError && e.fatal;
         if (!fatal && attempt === 1) { await sleep(3000); continue; }
         this.status(p, 'idle', '调用失败');
         this.notice(`${p.persona.name} 调用模型失败：${errMsg(e)}`);
@@ -386,10 +356,9 @@ export class RoundtableSession {
   }
 
   private dispose() {
-    for (const a of this.agents.values()) a.dispose();
-    this.recorder?.dispose();
-    this.titler?.dispose();
-    if (this.orphanTimer) clearTimeout(this.orphanTimer);
-    setTimeout(() => rmSync(this.dir, { recursive: true, force: true }), 5000).unref();
+    for (const a of this.agents.values()) a.abort();
+    this.recorder?.abort();
+    this.titler?.abort();
+    clearTimeout(this.orphanTimer ?? undefined);
   }
 }

@@ -1,7 +1,7 @@
 import { loadEnv, type Plugin, type PreviewServer, type ViteDevServer } from 'vite';
 import { createApi } from './api.ts';
 
-/** 把 /api/* 挂到 Vite 开发 / 预览服务器上：npm run dev 一条命令同时启动前端和 omp 后端 */
+/** 把 /api/* 挂到 Vite 开发 / 预览服务器上：npm run dev 一条命令同时启动前端和后端 */
 export function roundtableApi(): Plugin {
   const mount = (server: ViteDevServer | PreviewServer) => {
     const { mode, root, envDir } = server.config;
@@ -18,5 +18,5 @@ export function roundtableApi(): Plugin {
     server.httpServer?.once('close', () => api.dispose());
     process.once('exit', () => api.dispose());
   };
-  return { name: 'roundtable-omp-api', configureServer: mount, configurePreviewServer: mount };
+  return { name: 'roundtable-api', configureServer: mount, configurePreviewServer: mount };
 }

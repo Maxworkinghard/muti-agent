@@ -41,7 +41,7 @@ export const SPEAKING_STYLE = `## 说话方式
 人格文件里的输出模板、推荐结构和“先复述问题”之类的格式要求，是你判断时要覆盖的要点，不是每次都要逐条照填的格式；和上面的说话方式冲突时，以说话方式为准。人格文件里的边界、禁止事项和安全要求照常遵守，本轮指令明确要求的格式（比如 JSON）也照做。
 `;
 
-/** 人格提示词 + 本场会话规则 + 说话方式，写进文件交给 omp 的 --system-prompt */
+/** 人格提示词 + 本场会话规则 + 说话方式，作为这位成员对话的 system 消息 */
 export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: ModeDef, benchName: string): string {
   const roles = [p.side && `你在${SIDE_NAME[p.side]}。`, p.isLead && '你是本场负责人，负责拆分任务、汇总交付。'].filter(Boolean).join('');
   const members = cfg.participants
@@ -68,7 +68,7 @@ ${members}
 ${SPEAKING_STYLE}`;
 }
 
-/** 没填主题时，给这场对话起名的 omp 角色 */
+/** 没填主题时，给这场对话起名的角色 */
 export const TITLER_PROMPT = `# 起名
 
 你负责给一场多人对话起一个简短的主题。根据用户的第一句话，概括他真正想聊或想做的事。
