@@ -1,12 +1,9 @@
-import type { ModeId, Persona } from '../types';
+import type { Persona } from '../types';
 import { isModeId } from './modes';
 
 export const AGENT_COLORS = ['#6f9e6b', '#5f82b0', '#d4b04c', '#d98a4e', '#8a6fb0', '#c0625a', '#4f9a94', '#c47a9a'];
 
-/** 示例人物只出现在最初的三个模式里；人格数据库的模式只显示对应那套人格 */
-const CLASSIC_MODES: ModeId[] = ['entertainment', 'rational', 'product'];
-
-export const SAMPLE_PERSONAS: Persona[] = ([
+export const SAMPLE_PERSONAS: Persona[] = [
   {
     id: 'a-leng',
     name: '阿冷',
@@ -128,7 +125,7 @@ export const SAMPLE_PERSONAS: Persona[] = ([
     boundaries: ['不提供具体法律意见替代律师'],
     visual: { skin: '#f3d2b3', hair: '#3d3550', shirt: '#4f9a94', accent: '#e9e1c8', hairStyle: 'bun' },
   },
-] satisfies Persona[]).map((p) => ({ ...p, modes: CLASSIC_MODES }));
+];
 
 const VERBOSITY: Record<string, string> = { short: '简短', medium: '适中', long: '详细' };
 

@@ -4,13 +4,12 @@ export const SIDE_NAME: Record<Side, string> = { pro: '正方', con: '反方', h
 
 const personalityOf = (p: Participant) => p.persona.personalities.find((k) => k.id === p.personalityId) ?? p.persona.personalities[0];
 
-/** 「名字（性格：身份）」；人格数据库的人物，性格就是它的人格（指责型、产品经理…） */
+/** 「名字（性格：身份）」 */
 export const whoIs = (p: Participant) => `${p.persona.name}（${personalityOf(p)?.label ? personalityOf(p).label + '：' : ''}${p.persona.identity}）`;
 
-/** 人格数据库的人物直接用人格文件全文；示例人物和导入的 JSON 按资料拼一份 */
+/** 按人物资料拼一份人格设定 */
 function personaText(p: Participant): string {
   const x = p.persona;
-  if (x.systemPrompt) return x.systemPrompt;
   const per = personalityOf(p);
   return [
     `# ${x.name}`,

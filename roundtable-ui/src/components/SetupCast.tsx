@@ -47,8 +47,8 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
     if (isDebate && !side) return;
     setPicked({ ...picked, [p.id]: { personalityId: personality[p.id] ?? p.defaultPersonalityId, side } });
     setOrder([...order, p.id]);
-    // 第一个入座的人先当负责人；总控 / 主 Agent 入座时接任
-    if (isWork && (!lead || p.defaultLead)) setLead(p.id);
+    // 第一个入座的人先当负责人，可以再改
+    if (isWork && !lead) setLead(p.id);
   };
 
   const setPer = (p: Persona, id: string) => {
@@ -131,12 +131,6 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
                 </select>
               </label>
               <p className="pc-behavior">▸ {per.behavior}{per.style && `　“${per.style}”`}</p>
-              {p.systemPrompt && (
-                <details className="pc-source">
-                  <summary>人格文件 · {p.sourceFile}</summary>
-                  <pre>{p.systemPrompt}</pre>
-                </details>
-              )}
               <div className="pc-actions">
                 <button className={'px-btn ' + (pk ? 'danger' : 'primary')} onClick={() => toggle(p)}>{pk ? '移出' : '入座'}</button>
                 {pk && isDebate && <button className={'px-btn side-' + pk.side} onClick={() => cycleSide(p.id)}>{sideLabel[pk.side!]} ⇄</button>}

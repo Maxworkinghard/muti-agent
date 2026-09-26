@@ -10,8 +10,6 @@
   --c-orange: #d98a4e;
   --c-purple: #8a6fb0;
   --c-red: #c0625a;
-  --c-teal: #4f9a94;
-  --c-pink: #c47a9a;
   --shadow: 3px 3px 0 var(--ink);
   font-family: 'Zpix', 'Fusion Pixel', 'Cascadia Mono', 'Consolas', 'Microsoft YaHei', monospace;
   color: var(--ink);
@@ -170,12 +168,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pc-select { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .pc-select select { flex: 1; font: inherit; border: 2px solid var(--ink); background: var(--paper); padding: 3px 4px; border-radius: 0; }
 .pc-behavior { margin: 0; font-size: 12px; color: var(--ink-2); min-height: 32px; }
-.pc-source summary { cursor: pointer; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc-source summary:hover { color: var(--ink); }
-.pc-source pre {
-  margin: 6px 0 0; max-height: 260px; overflow: auto; white-space: pre-wrap; font: inherit; font-size: 11px; line-height: 1.5;
-  background: var(--paper); border: 2px solid var(--ink); padding: 6px 8px; scrollbar-width: thin;
-}
 .pc-actions { display: flex; gap: 8px; margin-top: auto; }
 
 /* ---------- 图鉴 ---------- */
@@ -207,7 +199,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .codex-detail dt { background: var(--ink-2); color: var(--cream); text-align: center; height: fit-content; }
 .codex-detail dd { margin: 0; }
 .codex-detail h3 { font-size: 14px; margin: 14px 0 6px; border-bottom: 2px dashed var(--ink-2); padding-bottom: 3px; }
-.codex-detail .pc-source { margin-top: 14px; }
 .codex-pers, .codex-bounds { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
 .codex-pers b { margin-right: 6px; }
 .codex-pers i { display: block; color: var(--ink-2); }

@@ -1,5 +1,4 @@
-/** 后四个模式各对应人格数据库里的一套人格（见 data/personaDb.ts） */
-export type ModeId = 'entertainment' | 'rational' | 'product' | 'emotion' | 'vibe' | 'analysis' | 'resume';
+export type ModeId = 'entertainment' | 'rational' | 'product';
 /** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
 export type Track = 'discuss' | 'work';
 export type SceneId = 'roundtable' | 'debate' | 'office';
@@ -40,12 +39,6 @@ export interface Persona {
   visual: PersonaVisual;
   /** 从人格资料包协议 v1.0 导入时保留的原始 persona，引擎可直接读取 */
   protocol?: Record<string, unknown>;
-  /** 从人格数据库导入：人格文件全文，后面附套装的 README / workflow，引擎可直接当系统提示 */
-  systemPrompt?: string;
-  /** 人格文件在 persona-db 里的路径 */
-  sourceFile?: string;
-  /** 工作模式里入座即担任负责人（总控 / 主 Agent） */
-  defaultLead?: boolean;
 }
 
 export interface Seat {

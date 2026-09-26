@@ -143,13 +143,6 @@ function PersonaDetail({ p, onClose }: { p: Persona; onClose: () => void }) {
           ))}
         </ul>
         {p.boundaries.length > 0 && (<><h3>底线</h3><ul className="codex-bounds">{p.boundaries.map((b) => <li key={b}>{b}</li>)}</ul></>)}
-        {/* 人格数据库的人物：人格文件全文就是它的系统提示词 */}
-        {p.systemPrompt && (
-          <details className="pc-source">
-            <summary>人格文件 · {p.sourceFile}</summary>
-            <pre>{p.systemPrompt}</pre>
-          </details>
-        )}
       </article>
     </div>
   );

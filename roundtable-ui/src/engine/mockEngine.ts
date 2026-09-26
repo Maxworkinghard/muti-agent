@@ -1,31 +1,7 @@
 import type {
-  ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, ModeId, Participant, SessionConfig, TaskEvent,
+  ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Participant, SessionConfig, TaskEvent,
 } from '../types';
 import { modeById } from '../data/modes';
-
-/** 人格数据库四个模式的占位结论，取自各套人格 README 的通用原则 */
-const DB_RESULTS: Partial<Record<ModeId, Pick<DiscussionResult, 'consensus' | 'openQuestions' | 'suggestions'>>> = {
-  emotion: {
-    consensus: ['先接住情绪，再分清事实、感受和猜测', '建议要和当下的需要匹配，只想倾诉时不急着解决问题'],
-    openQuestions: ['事情背后的原因目前还不能确定', '你现在更需要倾诉、理解，还是具体建议？'],
-    suggestions: ['选一种最贴近现在需要的回应方式', '只定一到三个今天就能做的小行动'],
-  },
-  vibe: {
-    consensus: ['需求、交付形式和验收标准先对齐，再开工', '只执行主 Agent 审核后的最终 Prompt'],
-    openQuestions: ['按推荐答案处理的需求假设需要用户确认', '部分结果还没有在真实环境验证'],
-    suggestions: ['对照验收标准逐项检查产物', '不满足的部分走修正循环，只重做受影响的阶段'],
-  },
-  analysis: {
-    consensus: ['先确认要解决的真实问题，再讨论方案', '只启用被需求命中的专业角色'],
-    openQuestions: ['关键的用户、市场和技术假设还缺证据', '成功指标和停止条件需要确认'],
-    suggestions: ['为最关键的假设设计最小成本的验证', '把冲突整理成决策记录，写明取舍理由'],
-  },
-  resume: {
-    consensus: ['先拆目标岗位要求，再逐项映射简历证据', '简历未写的记为未知，不当成没有'],
-    openQuestions: ['缺少岗位描述时只能给临时判断', '量化成果的口径、基线和本人贡献待核验'],
-    suggestions: ['把关键未知项转成面试追问', '按进入面试 / 有条件进入 / 补充材料给出建议动作'],
-  },
-};
 
 let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
@@ -42,30 +18,6 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
   const t = cfg.theme.title;
   const opener = per.opener ?? '';
   const edge = p.persona.boundaries[0] ?? '注意边界';
-  if (cfg.mode === 'emotion') {
-    // 知识里存的是人格文件的「推荐回应结构」，按轮次往下走
-    const steps = p.persona.knowledge.length ? p.persona.knowledge : ['回应'];
-    const lines = [
-      [`${opener}关于「${t}」，我先做「${steps[0]}」：${p.persona.thinking}。`,
-       `${opener}听到「${t}」，我会这样回应：${per.style}。${per.behavior}。`],
-      [`${opener}${p.persona.values}。接下来做「${steps[1] ?? steps[0]}」：把能确认的事实和猜测分开。`,
-       `${opener}我的第二步是「${steps[1] ?? steps[0]}」。发生了什么、感受如何、还不知道什么，要分开说。`],
-      [`${opener}最后是「${steps[steps.length - 1]}」：先只做一小步。`,
-       `${opener}提醒一句：${edge}。`],
-    ];
-    return pick(pick(lines, round - 1), turn);
-  }
-  if (cfg.mode !== 'product' && modeById(cfg.mode).track === 'work') {
-    // 人格数据库的工作模式；第 1 轮由负责人拆分派发，不走这里
-    const lines = [
-      [`${opener}「${t}」我认领「${k}」这块：${p.persona.thinking}。`],
-      [`${opener}「${k}」这部分看完了。${p.persona.thinking}。结果已放到交换台。`,
-       `${opener}接过上一位的文件，补上「${k}」的部分，再往下传。`],
-      [`${opener}复核完毕，我坚持一条：${p.persona.values}。`,
-       `${opener}交付前提醒一句：${edge}。`],
-    ];
-    return pick(pick(lines, round - 1), turn);
-  }
   if (cfg.mode === 'product') {
     const lines = [
       [`${opener}关于「${t}」，我从${k}的角度先认领一块：${p.persona.thinking}。`,
@@ -146,8 +98,8 @@ export function createMockEngine(): DiscussionEngine {
 
   const task = (t: Omit<TaskEvent, 'id'>) => emit({ type: 'task', task: { ...t, id: uid('t') } });
 
-  /** 产品开发模式沿用「xx 模块 / xx 文档」，人格数据库的工作模式直接用知识条目当任务名 */
-  const taskName = (p: Participant, suffix: string) => (p.persona.knowledge[0] ?? p.persona.name) + (cfg.mode === 'product' ? suffix : '');
+  /** 任务名：知识第一项 + 「模块 / 文档」；导入的人物没写知识时用名字 */
+  const taskName = (p: Participant, suffix: string) => (p.persona.knowledge[0] ?? p.persona.name) + suffix;
 
   function plan() {
     const mode = modeById(cfg.mode);
@@ -201,16 +153,6 @@ export function createMockEngine(): DiscussionEngine {
   function buildResult(): DiscussionResult {
     const t = cfg.theme.title;
     const names = cfg.participants.map((p) => p.persona.name);
-    const db = DB_RESULTS[cfg.mode];
-    if (db) {
-      return {
-        ...db,
-        disagreements: cfg.participants.slice(0, 2).map((p) => `${p.persona.name} 更看重：${p.persona.values}`),
-        deliverables: modeById(cfg.mode).track === 'work'
-          ? cfg.participants.map((p) => p.persona.name + '：' + p.persona.knowledge.slice(0, 2).join('、'))
-          : undefined,
-      };
-    }
     return {
       consensus: [`大家都认可「${t}」值得认真对待`, '先从小范围试点开始，再根据反馈调整'],
       disagreements: [`${names[0]} 更看重${cfg.participants[0].persona.values}`, `${names[1] ?? names[0]} 担心执行成本和风险`],
