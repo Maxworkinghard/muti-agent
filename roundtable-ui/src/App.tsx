@@ -48,7 +48,6 @@ export default function App() {
         <SetupCast
           draft={draft}
           personas={personas}
-          onBack={() => setStep(1)}
           onStart={(cfg) => { setSession(cfg); setStep(3); }}
         />
       )}

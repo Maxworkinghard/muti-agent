@@ -102,9 +102,7 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
         </div>
       </section>
       <footer className="setup-foot">
-        <button className="px-btn" onClick={onClose}>◀ 返回</button>
         <span>导入的人物会出现在对应模式的「选择人物」里</span>
-        <i />
       </footer>
       {open && <PersonaDetail p={open} onClose={() => setOpen(null)} />}
     </main>

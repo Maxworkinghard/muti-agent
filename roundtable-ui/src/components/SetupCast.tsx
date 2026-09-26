@@ -9,10 +9,9 @@ import { PixelAvatar } from './PixelAvatar';
 
 interface Pick { personalityId: string; side?: Side }
 
-export function SetupCast({ draft, personas, onBack, onStart }: {
+export function SetupCast({ draft, personas, onStart }: {
   draft: Draft;
   personas: Persona[];
-  onBack: () => void;
   onStart: (cfg: SessionConfig) => void;
 }) {
   const scene = SCENES[draft.sceneId];
@@ -142,7 +141,6 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
       </div>
 
       <footer className="setup-foot">
-        <button className="px-btn" onClick={onBack}>◀ 返回</button>
         <span>「{draft.theme}」{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
         <button className="px-btn primary" disabled={!canStart} onClick={start}>进入对话 ▶</button>
       </footer>
