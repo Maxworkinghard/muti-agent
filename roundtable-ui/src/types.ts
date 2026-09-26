@@ -22,7 +22,10 @@ export interface PersonaVisual {
   hair: string;
   shirt: string;
   accent: string;
-  hairStyle?: 'short' | 'long' | 'bun' | 'cap';
+  /** cap、hood 用衣服颜色画帽子，beanie 用 accent 颜色画毛线帽 */
+  hairStyle?: 'short' | 'long' | 'bun' | 'cap' | 'spiky' | 'curly' | 'side' | 'middle' | 'hood' | 'beanie';
+  /** 表情和配饰，可以叠加；围巾用 accent 颜色 */
+  extras?: Array<'brows' | 'glasses' | 'sleepy' | 'happy' | 'grin' | 'blush' | 'sweat' | 'ears' | 'scarf'>;
 }
 
 /** 人物资料：知识和思想固定，性格可选 */
