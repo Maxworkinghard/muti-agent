@@ -42,7 +42,9 @@ export default function App() {
       {step < 3 && (
         <header className="topbar">
           <div className="topbar-left">
-            <button className="back-btn" disabled={!canBack} onClick={back} title={codex ? '关闭图鉴' : '返回上一步'}>◀ 返回</button>
+            {canBack && (
+              <button className="back-btn" onClick={back} title={codex ? '关闭图鉴' : '返回上一步'}>◀ 返回</button>
+            )}
             <span className="logo">多人格讨论工作台</span>
           </div>
           <ol className="steps">
