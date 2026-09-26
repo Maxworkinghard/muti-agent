@@ -1,17 +1,16 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
 import { SCENES } from '../data/scenes';
-import { modeById, trackById } from '../data/modes';
-import { AGENT_COLORS, normalizePersona } from '../data/personas';
+import { modeById } from '../data/modes';
+import { AGENT_COLORS } from '../data/personas';
 import { PixelAvatar } from './PixelAvatar';
 
 interface Pick { personalityId: string; side?: Side }
 
-export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
+export function SetupCast({ draft, personas, onBack, onStart }: {
   draft: Draft;
   personas: Persona[];
-  onImport: (list: Persona[]) => void;
   onBack: () => void;
   onStart: (cfg: SessionConfig) => void;
 }) {
@@ -25,8 +24,6 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
   const [order, setOrder] = useState<string[]>([]);
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
-  const [importMsg, setImportMsg] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const sideCount = (s: Side) => order.filter((id) => picked[id]?.side === s).length;
   const nextSide = (): Side | undefined => {
@@ -69,19 +66,6 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
     }
   };
 
-  const onFile = async (f: File) => {
-    try {
-      const data = JSON.parse(await f.text());
-      const arr = Array.isArray(data) ? data : [data];
-      const ok: Persona[] = []; const bad: string[] = [];
-      arr.forEach((raw, i) => { const r = normalizePersona(raw, personas.length + i); typeof r === 'string' ? bad.push(r) : ok.push(r); });
-      onImport(ok);
-      setImportMsg(`导入 ${ok.length} 个人物${bad.length ? '，失败：' + bad.join('；') : ''}`);
-    } catch {
-      setImportMsg('文件不是合法的 JSON');
-    }
-  };
-
   const minCount = isDebate ? 2 : 2;
   const debateOk = !isDebate || (sideCount('pro') >= 1 && sideCount('con') >= 1);
   const canStart = order.length >= minCount && debateOk;
@@ -117,11 +101,7 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
       <section className="panel cast-head">
         <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{scene.maxSeats}
           {isDebate && `（正方 ${sideCount('pro')}/3 · 反方 ${sideCount('con')}/3 · 主持 ${sideCount('host')}/1）`}</small></h2>
-        <div className="cast-tools">
-          <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-          <button className="px-btn" onClick={() => fileRef.current?.click()}>{trackById(draft.track).importLabel}</button>
-          {importMsg && <span className="hint">{importMsg}</span>}
-        </div>
+        <span className="hint">想加新人物？到右上角「图鉴」里导入</span>
       </section>
 
       <div className="persona-grid">

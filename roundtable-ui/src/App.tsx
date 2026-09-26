@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { ModeId, SceneId, SessionConfig, Track } from './types';
+import type { ModeId, Persona, SceneId, SessionConfig, Track } from './types';
 import { SetupScene } from './components/SetupScene';
 import { SetupCast } from './components/SetupCast';
 import { DiscussionView } from './components/DiscussionView';
+import { PersonaCodex } from './components/PersonaCodex';
 import { SAMPLE_PERSONAS } from './data/personas';
 import { DB_PERSONAS } from './data/personaDb';
 import { modeById } from './data/modes';
@@ -21,31 +22,43 @@ export default function App() {
   // 示例人物 + 人格数据库里的四套人格，每个模式只显示属于自己的人物
   const [personas, setPersonas] = useState(() => [...SAMPLE_PERSONAS, ...DB_PERSONAS]);
   const [session, setSession] = useState<SessionConfig | null>(null);
+  const [codex, setCodex] = useState(false);
+  const canBack = codex || step === 2;
+  const back = () => (codex ? setCodex(false) : setStep(1));
+  const importPersonas = (list: Persona[]) =>
+    setPersonas((old) => [...old.filter((o) => !list.some((n) => n.id === o.id)), ...list]);
 
   return (
     <div className="app">
       {step < 3 && (
         <header className="topbar">
-          <button className="logo" onClick={() => setStep(1)} title="回到第一步">▣ 多人格讨论工作台</button>
+          <div className="topbar-left">
+            <button className="back-btn" disabled={!canBack} onClick={back} title={codex ? '关闭图鉴' : '返回上一步'}>◀ 返回</button>
+            <span className="logo">多人格讨论工作台</span>
+          </div>
           <ol className="steps">
             {['模式 · 主题 · 场景', '选择人物', '讨论'].map((s, i) => (
-              <li key={s} className={step === i + 1 ? 'on' : step > i + 1 ? 'done' : ''}>
+              <li key={s} className={codex ? '' : step === i + 1 ? 'on' : step > i + 1 ? 'done' : ''}>
                 <span>{i + 1}</span>{s}
               </li>
             ))}
           </ol>
+          <button className={'codex-btn' + (codex ? ' on' : '')} onClick={() => setCodex(!codex)} title="查看各模式的人物模板">▤ 图鉴</button>
         </header>
       )}
-      {step === 1 && <SetupScene draft={draft} onChange={setDraft} onNext={() => setStep(2)} />}
-      {step === 2 && (
-        <SetupCast
-          draft={draft}
-          personas={personas}
-          onImport={(list) => setPersonas((old) => [...old.filter((o) => !list.some((n) => n.id === o.id)), ...list])}
-          onBack={() => setStep(1)}
-          onStart={(cfg) => { setSession(cfg); setStep(3); }}
-        />
-      )}
+      {codex && step < 3 && <PersonaCodex personas={personas} initialMode={draft.mode} onImport={importPersonas} onClose={() => setCodex(false)} />}
+      {/* 打开图鉴时第 1、2 步只是藏起来，不卸载，关掉图鉴后已选的人物还在 */}
+      <div className="screen" hidden={codex}>
+        {step === 1 && <SetupScene draft={draft} onChange={setDraft} onNext={() => setStep(2)} />}
+        {step === 2 && (
+          <SetupCast
+            draft={draft}
+            personas={personas}
+            onBack={() => setStep(1)}
+            onStart={(cfg) => { setSession(cfg); setStep(3); }}
+          />
+        )}
+      </div>
       {step === 3 && session && <DiscussionView key={session.sessionId} config={session} onExit={() => setStep(2)} />}
     </div>
   );
