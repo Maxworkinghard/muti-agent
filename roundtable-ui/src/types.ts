@@ -68,6 +68,7 @@ export interface ModeDef {
   color: string;
   scene: SceneId;
   roundLabels: string[];
+  /** 推荐主题库，第一步每次随机挑几个显示 */
   presets: string[];
 }
 
