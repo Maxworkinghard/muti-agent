@@ -1,4 +1,4 @@
-export type ModeId = 'entertainment' | 'rational' | 'product';
+export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
 /** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
 export type Track = 'discuss' | 'work';
 export type SceneId = 'roundtable' | 'debate' | 'office';

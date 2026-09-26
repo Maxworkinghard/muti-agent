@@ -2,12 +2,14 @@ import type { EngineModule, ModeId } from '../types';
 import { createMockEngine } from './mock';
 import { entertainmentEngine } from './entertainment';
 import { rationalEngine } from './rational';
+import { emotionEngine } from './emotion';
 import { productEngine } from './product';
 
 /** 每个模式一个独立引擎，前端只通过这里按 mode 取用 */
 export const ENGINES: Record<ModeId, EngineModule> = {
   entertainment: entertainmentEngine,
   rational: rationalEngine,
+  emotion: emotionEngine,
   product: productEngine,
 };
 

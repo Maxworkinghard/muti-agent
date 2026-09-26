@@ -9,6 +9,7 @@ type Listener = (e: EngineEvent, index: number) => void;
 /** 讨论类模式每一轮的发言要点，和 modes.ts 里的 roundLabels 一一对应 */
 const TALK_GUIDE: Partial<Record<ModeId, string[]>> = {
   entertainment: ['轻松开场，抛出你的第一个想法', '接上别人的想法继续发挥', '选出你最喜欢的一个想法并说理由'],
+  emotion: ['先回应这件事里最重要的情绪或问题', '区分事实、感受、解释和还不知道的部分', '给出一到三个现在就能做的下一步'],
 };
 const DEBATE_GUIDE = ['陈述你方立场和主要论据', '针对对方的论点提出质询或反驳', '做总结陈词'];
 

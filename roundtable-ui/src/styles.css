@@ -10,6 +10,7 @@
   --c-orange: #d98a4e;
   --c-purple: #8a6fb0;
   --c-red: #c0625a;
+  --c-pink: #c47a9a;
   --shadow: 3px 3px 0 var(--ink);
   font-family: 'Zpix', 'Fusion Pixel', 'Cascadia Mono', 'Consolas', 'Microsoft YaHei', monospace;
   color: var(--ink);
