@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Draft } from '../App';
 import type { Participant, SessionConfig } from '../types';
-import { SCENES } from '../data/scenes';
+import { sceneById } from '../data/scenes';
 import { modeById } from '../data/modes';
 import { engineFor } from '../engines/registry';
 import { loadOptions, toPersona, type Options } from '../data/backendPersonas';
@@ -10,8 +10,8 @@ import { PixelAvatar } from './PixelAvatar';
 const clamp = (v: number, [lo, hi]: [number, number]) => Math.max(lo, Math.min(hi, v));
 
 /** 理性讨论的选人页：人物和性格来自 backend 的人格数据库，每人必须选一种性格；轮数和字数上限在这里设 */
-export function DiscussionCast({ draft, onBack, onStart }: { draft: Draft; onBack: () => void; onStart: (cfg: SessionConfig) => void }) {
-  const scene = SCENES[draft.sceneId];
+export function DiscussionCast({ draft, onStart }: { draft: Draft; onStart: (cfg: SessionConfig) => void }) {
+  const scene = sceneById(draft.sceneId);
   const mode = modeById(draft.mode);
   const [opt, setOpt] = useState<Options | null>(null);
   const [err, setErr] = useState('');
@@ -33,11 +33,6 @@ export function DiscussionCast({ draft, onBack, onStart }: { draft: Draft; onBac
           <p>{err || '正在读取人格数据库…'}</p>
           {err && <button className="px-btn" onClick={load}>重试</button>}
         </section>
-        <footer className="setup-foot">
-          <button className="px-btn" onClick={onBack}>◀ 返回</button>
-          <span />
-          <i />
-        </footer>
       </main>
     );
   }
@@ -132,7 +127,6 @@ export function DiscussionCast({ draft, onBack, onStart }: { draft: Draft; onBac
       </div>
 
       <footer className="setup-foot">
-        <button className="px-btn" onClick={onBack}>◀ 返回</button>
         <span>
           {draft.theme.trim() ? `「${draft.theme.trim()}」` : '主题会按你的第一句话自动生成'}
           {order.length < opt.limits.members[0] && ` · 至少选 ${opt.limits.members[0]} 人`}

@@ -1,7 +1,8 @@
 export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'discussion' | 'product';
 /** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
 export type Track = 'discuss' | 'work';
-export type SceneId = 'roundtable' | 'debate' | 'office';
+/** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
+export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
 /** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
 export type Facing = 'S' | 'SE' | 'E' | 'NE' | 'N' | 'NW' | 'W' | 'SW';
@@ -63,6 +64,8 @@ export interface SceneDef {
   seats: Seat[];
   /** 场景中心：圆桌中心 / 文件交换台 */
   center?: { x: number; y: number };
+  /** 用户自己添加的场景 */
+  custom?: boolean;
 }
 
 export interface ModeDef {

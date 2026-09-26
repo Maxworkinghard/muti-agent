@@ -15,6 +15,8 @@
 
 `backend.ts` 是现在所有模式默认用的真实引擎：浏览器只负责把会话配置交给后端、转发事件，每位成员在后端是一段直接发给模型接口的对话（`server/llmAgent.ts`，各自保留历史），各模式的流程写在 `server/session.ts`。`mock.ts` 是模拟引擎，不调用模型，网址加 `?engine=mock` 时所有模式都换成它。前端只通过 `registry.ts` 按模式取引擎。
 
+辩论的设置由用户在选人页调整：`maxRounds` 为 2–6 轮（默认 3），第 1 轮立论陈述、最后一轮总结陈词、中间轮都是交锋质询，轮次名用 `modes.ts` 的 `roundLabel()` 取；`engineOptions.maxChars` 为每次发言的字数上限（50–400，默认 150，范围见 `DEBATE_CHARS`），引擎生成发言时要遵守，后端 `POST /api/sessions` 会拒绝超出范围的值。
+
 理性讨论（来自 #5）的流程在 `server/discussion.ts`，按原来的 Python 版逐条移植，提示词和流程不变：开场每人一次，交锋时被质疑的人优先回应，收尾每人一次，轮与轮之间主持人写前情摘要，最后写总结；插话由被点名的人（没点名时是说得最少的人）先回应。和其他模式不同，这里每次调用只发 system 和一条拼好的消息（议题、前情摘要、最近几条发言、本轮任务），不带历史。人物、性格和提示词每次现读 `backend/` 的人格数据库（`server/personaDb.ts`），选人页和图鉴通过 `GET /api/discussion/options` 取；每条发言的立场、回应和质疑放在 `ChatMessage.meta`，主持人总结放在 `DiscussionResult.summary`。
 
 ## 调用 AI

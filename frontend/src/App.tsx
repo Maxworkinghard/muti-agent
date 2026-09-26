@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ModeId, Persona, SceneId, SessionConfig, Track } from './types';
+import type { ModeId, Persona, SceneDef, SceneId, SessionConfig, Track } from './types';
 import { SetupScene } from './components/SetupScene';
 import { SetupCast } from './components/SetupCast';
 import { DiscussionCast } from './components/DiscussionCast';
@@ -8,6 +8,8 @@ import { PersonaCodex } from './components/PersonaCodex';
 import { SAMPLE_PERSONAS } from './data/personas';
 import { MODES, modeById } from './data/modes';
 import { loadOptions, toPersona } from './data/backendPersonas';
+import { loadCustomScenes, saveCustomScenes } from './data/scenes';
+import { SoundToggle } from './sound';
 
 export interface Draft {
   track: Track;
@@ -23,6 +25,19 @@ export default function App() {
   const [personas, setPersonas] = useState(SAMPLE_PERSONAS);
   const [session, setSession] = useState<SessionConfig | null>(null);
   const [codex, setCodex] = useState(false);
+  // 用户自己添加的场景存在浏览器本地；图片太大存不下时只在本次打开时可用
+  const [customScenes, setCustomScenes] = useState<SceneDef[]>(loadCustomScenes);
+  const [sceneMsg, setSceneMsg] = useState('');
+  const updateScenes = (list: SceneDef[]) => {
+    setCustomScenes(list);
+    setSceneMsg(saveCustomScenes(list) ? '' : '图片太大，浏览器存不下；这个场景只在本次打开时可用');
+  };
+  const saveScene = (s: SceneDef) => updateScenes([...customScenes.filter((x) => x.id !== s.id), s]);
+  const deleteScene = (id: string) => {
+    updateScenes(customScenes.filter((x) => x.id !== id));
+    if (draft.sceneId === id) setDraft({ ...draft, sceneId: modeById(draft.mode).scene });
+  };
+  // 第一页没有上一步，不显示返回键
   const canBack = codex || step === 2;
   const back = () => (codex ? setCodex(false) : setStep(1));
   const importPersonas = (list: Persona[]) =>
@@ -43,7 +58,7 @@ export default function App() {
       {step < 3 && (
         <header className="topbar">
           <div className="topbar-left">
-            <button className="back-btn" disabled={!canBack} onClick={back} title={codex ? '关闭图鉴' : '返回上一步'}>◀ 返回</button>
+            {canBack && <button className="back-btn" onClick={back} title={codex ? '关闭图鉴' : '返回上一步'}>◀ 返回</button>}
             <span className="logo">多人格讨论工作台</span>
           </div>
           <ol className="steps">
@@ -53,20 +68,33 @@ export default function App() {
               </li>
             ))}
           </ol>
-          <button className={'codex-btn' + (codex ? ' on' : '')} onClick={() => setCodex(!codex)} title="查看各模式的人物模板">▤ 图鉴</button>
+          <div className="topbar-right">
+            <SoundToggle className="top" />
+            <button className={'codex-btn' + (codex ? ' on' : '')} onClick={() => setCodex(!codex)} title="查看各模式的人物模板">▤ 图鉴</button>
+          </div>
         </header>
       )}
+      {sceneMsg && step === 1 && !codex && <p className="scene-warn" onClick={() => setSceneMsg('')}>{sceneMsg}（点击关闭）</p>}
       {codex && step < 3 && <PersonaCodex personas={personas} initialMode={draft.mode} onImport={importPersonas} onClose={() => setCodex(false)} />}
       {/* 打开图鉴时第 1、2 步只是藏起来，不卸载，关掉图鉴后已选的人物还在 */}
       <div className="screen" hidden={codex}>
-        {step === 1 && <SetupScene draft={draft} onChange={setDraft} onNext={() => setStep(2)} />}
+        {step === 1 && (
+          <SetupScene
+            draft={draft}
+            onChange={setDraft}
+            onNext={() => setStep(2)}
+            customScenes={customScenes}
+            onSaveScene={saveScene}
+            onDeleteScene={deleteScene}
+          />
+        )}
+        {/* 返回统一用顶栏左上角的按钮，页脚不再放返回 */}
         {step === 2 && (modeById(draft.mode).backendPersonas
-          ? <DiscussionCast draft={draft} onBack={() => setStep(1)} onStart={(cfg) => { setSession(cfg); setStep(3); }} />
+          ? <DiscussionCast draft={draft} onStart={(cfg) => { setSession(cfg); setStep(3); }} />
           : (
             <SetupCast
               draft={draft}
               personas={personas}
-              onBack={() => setStep(1)}
               onStart={(cfg) => { setSession(cfg); setStep(3); }}
             />
           ))}

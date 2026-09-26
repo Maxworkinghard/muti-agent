@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { SessionConfig } from '../src/types.ts';
-import { isModeId } from '../src/data/modes.ts';
+import { DEBATE_CHARS, DEBATE_ROUNDS, isModeId } from '../src/data/modes.ts';
 import { readConfig } from './config.ts';
 import { RoundtableSession } from './session.ts';
 import { DiscussionSession, LIMITS, prepareDiscussion } from './discussion.ts';
@@ -101,6 +101,12 @@ function validate(b: any): string {
   if (!Array.isArray(b.participants) || b.participants.length === 0) return '至少需要一位成员';
   for (const p of b.participants) {
     if (!p?.agentId || !p.persona?.name || !Array.isArray(p.persona.personalities)) return '成员资料不完整';
+  }
+  // 辩论的轮数和每次发言字数上限由选人页设置
+  if (b.mode === 'rational') {
+    const chars = Number(b.engineOptions?.maxChars ?? DEBATE_CHARS.default);
+    if (!Number.isInteger(b.maxRounds) || b.maxRounds < DEBATE_ROUNDS.min || b.maxRounds > DEBATE_ROUNDS.max) return `辩论轮数要在 ${DEBATE_ROUNDS.min} 到 ${DEBATE_ROUNDS.max} 之间`;
+    if (!(chars >= DEBATE_CHARS.min && chars <= DEBATE_CHARS.max)) return `每次发言字数上限要在 ${DEBATE_CHARS.min} 到 ${DEBATE_CHARS.max} 之间`;
   }
   return '';
 }

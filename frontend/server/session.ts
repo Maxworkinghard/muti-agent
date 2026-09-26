@@ -1,5 +1,5 @@
 import type { AgentState, ChatMessage, EngineEvent, ModeDef, ModeId, Participant, SessionConfig, TaskEvent } from '../src/types.ts';
-import { modeById, trackById } from '../src/data/modes.ts';
+import { modeById, roundLabel, trackById } from '../src/data/modes.ts';
 import { LlmAgent, LlmTurnError } from './llmAgent.ts';
 import { RECORDER_PROMPT, SIDE_NAME, TITLER_PROMPT, agentSystemPrompt, cleanTitle, clip, extractJson, toResult, whoIs } from './prompts.ts';
 import type { LlmConfig } from './config.ts';
@@ -11,6 +11,7 @@ const TALK_GUIDE: Partial<Record<ModeId, string[]>> = {
   entertainment: ['轻松开场，抛出你的第一个想法', '接上别人的想法继续发挥', '选出你最喜欢的一个想法并说理由'],
   emotion: ['先回应这件事里最重要的情绪或问题', '区分事实、感受、解释和还不知道的部分', '给出一到三个现在就能做的下一步'],
 };
+/** 辩论三个阶段的发言要点：第 1 轮立论，最后一轮总结，中间几轮都是交锋（轮数在选人页调，2~6 轮） */
 const DEBATE_GUIDE = ['陈述你方立场和主要论据', '针对对方的论点提出质询或反驳', '做总结陈词'];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -158,20 +159,24 @@ export class RoundtableSession {
     for (let i = 0; i < Math.max(pro.length, con.length); i++) { if (pro[i]) order.push(pro[i]); if (con[i]) order.push(con[i]); }
     order.push(...ps.filter((p) => !p.side));
     const last = this.cfg.maxRounds;
+    const cap = this.maxChars(150);
     for (let r = 1; r <= last && !this.ended; r++) {
       this.beginRound(r);
       if (host && r === 1) {
         await this.drainUser();
-        await this.speak(host, `第 1 轮「${this.label(1)}」：你是主持人。辩题以用户刚才说的为准${this.theme ? `（用户只是让大家开始的话，就用主题「${this.theme}」）` : ''}，宣布辩题和发言规则，请双方陈述，不超过 100 字。`);
+        await this.speak(host, `第 1 轮「${this.label(1)}」：你是主持人。辩题以用户刚才说的为准${this.theme ? `（用户只是让大家开始的话，就用主题「${this.theme}」）` : ''}，宣布辩题和发言规则（本场共 ${last} 轮，每人每次不超过 ${cap} 字），请双方陈述，不超过 ${Math.min(cap, 100)} 字。`);
       }
+      // 中间轮数可能不止一轮交锋，后面几轮要接着对方最新的说法往下走
+      const phase = r <= 1 ? 0 : r >= last ? 2 : 1;
+      const guide = phase === 1 && r > 2 ? DEBATE_GUIDE[1] + '，抓住对方最新的说法，别重复你已经说过的' : DEBATE_GUIDE[phase];
       for (const p of order) {
         await this.drainUser();
         const side = p.side ? `你是${SIDE_NAME[p.side]}，` : '';
-        await this.speak(p, `第 ${r} 轮「${this.label(r)}」：${side}${DEBATE_GUIDE[r - 1] ?? '继续发言'}，不超过 150 字。`);
+        await this.speak(p, `第 ${r} 轮「${this.label(r)}」：${side}${guide}，不超过 ${cap} 字。`);
       }
       if (host && r === last) {
         await this.drainUser();
-        await this.speak(host, `第 ${r} 轮「${this.label(r)}」：作为主持人收尾，点出双方真正的分歧、已有的共识和还要验证的问题，只挑最关键的，不超过 150 字。`);
+        await this.speak(host, `第 ${r} 轮「${this.label(r)}」：作为主持人收尾，点出双方真正的分歧、已有的共识和还要验证的问题，只挑最关键的，不超过 ${cap} 字。`);
       }
     }
   }
@@ -296,7 +301,7 @@ export class RoundtableSession {
       const target = this.userQueue.shift();
       const ps = this.cfg.participants;
       const p = (target && this.byId(target)) || ps.find((x) => x.isLead) || ps.find((x) => x.side === 'host') || ps[0];
-      await this.speak(p, `用户${target ? '对你' : '对全体'}说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 300 字。`, true);
+      await this.speak(p, `用户${target ? '对你' : '对全体'}说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 ${this.maxChars(300)} 字。`, true);
     }
   }
 
@@ -317,7 +322,11 @@ export class RoundtableSession {
     this.message({ round: r, speakerId: 'system', text: `第 ${r} 轮 · ${label}`, kind: 'system' });
   }
 
-  protected label(r: number) { return this.mode.roundLabels[r - 1] ?? `第 ${r} 轮`; }
+  /** 轮次名：辩论的轮数可调，多出来的中间轮都叫交锋质询 */
+  protected label(r: number) { return roundLabel(this.cfg.mode, r, this.cfg.maxRounds); }
+
+  /** 选人页设了每次发言的字数上限（engineOptions.maxChars）就用它，没设用各处原来的默认值 */
+  private maxChars(fallback: number) { return Math.trunc(Number(this.cfg.engineOptions?.maxChars)) || fallback; }
 
   private format(m: ChatMessage) {
     if (m.speakerId === 'user') return `用户${m.targetId ? '对' + this.byId(m.targetId)?.persona.name : '对全体'}说：${m.text}`;

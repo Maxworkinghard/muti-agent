@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { Draft } from '../App';
+import type { SceneDef } from '../types';
 import { MODES, TRACKS, trackById } from '../data/modes';
 import { SCENE_LIST } from '../data/scenes';
+import { SceneEditor } from './SceneEditor';
 
 /** 推荐主题一次显示几个 */
 const PICKS = 3;
@@ -16,8 +18,18 @@ function sample(list: string[], n: number) {
   return a.slice(0, n);
 }
 
-export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange: (d: Draft) => void; onNext: () => void }) {
+export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene, onDeleteScene }: {
+  draft: Draft;
+  onChange: (d: Draft) => void;
+  onNext: () => void;
+  customScenes: SceneDef[];
+  onSaveScene: (s: SceneDef) => void;
+  onDeleteScene: (id: string) => void;
+}) {
   const mode = MODES.find((m) => m.id === draft.mode)!;
+  const scenes = [...SCENE_LIST, ...customScenes];
+  // null：关闭；'new'：添加；其他：编辑这个场景
+  const [editing, setEditing] = useState<SceneDef | 'new' | null>(null);
   // 每次进入这一步、切换模式或点「换一批」都重新随机
   const [picks, setPicks] = useState(() => sample(mode.presets, PICKS));
   const reshuffle = () => {
@@ -69,25 +81,42 @@ export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange
       </section>
 
       <section className="panel">
-        <h2><b>03</b> 场景图</h2>
+        <h2><b>03</b> 场景图 <small>也可以上传自己的场景图</small></h2>
         <div className="scene-grid">
-          {SCENE_LIST.map((s) => (
+          {scenes.map((s) => (
             <button key={s.id} className={'scene-card' + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id })}>
               <img src={s.image} alt={s.name} />
               <div className="scene-meta">
                 <strong>{s.name}</strong>
                 <span>{s.maxSeats} 席</span>
+                {s.custom && <i className="mine">自定义</i>}
               </div>
               <small>{s.description}</small>
+              {s.custom && (
+                <span className="scene-edit" role="button" title="编辑场景" onClick={(e) => { e.stopPropagation(); setEditing(s); }}>✎ 编辑</span>
+              )}
             </button>
           ))}
+          <button className="scene-card scene-add" onClick={() => setEditing('new')}>
+            <b>＋</b>
+            <strong>添加场景</strong>
+            <small>上传一张图，点出座位就能用</small>
+          </button>
         </div>
       </section>
 
       <footer className="setup-foot">
-        <span>{trackById(mode.track).name} / {mode.name} · {SCENE_LIST.find((s) => s.id === draft.sceneId)!.name}</span>
+        <span>{trackById(mode.track).name} / {mode.name} · {scenes.find((s) => s.id === draft.sceneId)?.name}</span>
         <button className="px-btn primary" onClick={onNext}>下一步：选择人物 ▶</button>
       </footer>
+      {editing && (
+        <SceneEditor
+          initial={editing === 'new' ? undefined : editing}
+          onClose={() => setEditing(null)}
+          onSave={(s) => { onSaveScene(s); onChange({ ...draft, sceneId: s.id }); setEditing(null); }}
+          onDelete={editing === 'new' ? undefined : () => { onDeleteScene(editing.id); setEditing(null); }}
+        />
+      )}
     </main>
   );
 }
