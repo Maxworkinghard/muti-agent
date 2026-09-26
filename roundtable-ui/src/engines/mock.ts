@@ -3,6 +3,8 @@ import type {
 } from '../types';
 import { modeById } from '../data/modes';
 
+/** 演示用的模拟引擎，三个模式暂时共用。真实引擎到位后各自替换 */
+
 let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
 const pick = <T,>(arr: T[], n: number) => arr[Math.abs(n) % arr.length];
@@ -65,7 +67,8 @@ export function createMockEngine(): DiscussionEngine {
   let busy = false;
 
   const later = (fn: () => void, ms: number) => {
-    const id = window.setTimeout(() => { if (!stopped) fn(); }, ms);
+    const speed = Number(cfg?.engineOptions?.speed ?? 1) || 1;
+    const id = window.setTimeout(() => { if (!stopped) fn(); }, ms / speed);
     timers.push(id);
   };
   /** 队列里每一步返回自己需要占用的毫秒数 */
@@ -185,11 +188,3 @@ function interleave<T>(a: T[], b: T[]) {
   for (let i = 0; i < Math.max(a.length, b.length); i++) { if (a[i]) out.push(a[i]); if (b[i]) out.push(b[i]); }
   return out;
 }
-
-/** 其他小组的引擎在这里注册；前端通过 mode 取对应引擎 */
-export const ENGINE_REGISTRY: Record<string, () => DiscussionEngine> = {
-  entertainment: createMockEngine,
-  rational: createMockEngine,
-  product: createMockEngine,
-};
-

@@ -14,7 +14,8 @@ export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange
               key={m.id}
               className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
               style={{ ['--mc' as string]: m.color }}
-              onClick={() => onChange({ ...draft, track: m.track, mode: m.id, sceneId: m.scene })}
+              // 换模式时，上一个模式的预设主题不再适用，清空；用户手写的主题保留
+              onClick={() => onChange({ ...draft, mode: m.id, sceneId: m.scene, theme: mode.presets.includes(draft.theme) ? '' : draft.theme })}
             >
               <span className="tag">{m.tag}</span>
               <strong>{m.name}</strong>

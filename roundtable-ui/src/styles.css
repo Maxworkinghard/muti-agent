@@ -57,25 +57,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .logo { font-weight: bold; letter-spacing: 1px; }
 button.logo { background: none; border: 0; color: inherit; padding: 0; }
-.track-tag { color: var(--cream); padding: 2px 8px; border: 2px solid var(--cream); font-size: 12px; }
-
-/* ---------- 首页：两大入口 ---------- */
-.home { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; }
-.home-title { margin: 0; font-size: 28px; letter-spacing: 2px; }
-.home-sub { margin: 0 0 12px; color: var(--ink-2); }
-.home-grid { display: grid; grid-template-columns: repeat(2, minmax(240px, 360px)); gap: 24px; }
-.home-card {
-  --mc: var(--c-green); position: relative; text-align: left; border: 3px solid var(--ink); background: var(--cream);
-  padding: 28px 22px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: 6px 6px 0 var(--ink);
-  border-top: 12px solid var(--mc); transition: transform .06s, box-shadow .06s;
-}
-.home-card:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--ink); background: #fff; }
-.home-card:active { transform: translate(4px, 4px); box-shadow: none; }
-.home-card .tag { position: absolute; right: 10px; top: 10px; background: var(--mc); color: var(--cream); padding: 1px 6px; font-size: 11px; }
-.home-card strong { font-size: 24px; }
-.home-card small { color: var(--ink-2); line-height: 1.6; }
-.home-card em { font-style: normal; font-size: 12px; border-top: 2px dashed var(--ink-2); padding-top: 8px; color: var(--ink-2); }
-@media (max-width: 640px) { .home-grid { grid-template-columns: 1fr; } }
 .steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
 .steps li { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 2px solid var(--ink-2); color: #a99db5; }
 .steps li span { background: var(--ink-2); color: var(--cream); padding: 0 5px; }
@@ -287,6 +268,13 @@ button.logo { background: none; border: 0; color: inherit; padding: 0; }
 .res-purple b { background: var(--c-purple); } .res-yellow b { background: var(--c-yellow); color: var(--ink); }
 .send { display: flex; gap: 8px; padding: 8px 10px; border-top: 3px solid var(--ink); background: var(--sand); }
 .send .px-input { flex: 1; }
+.send.brief { flex-direction: column; }
+.send.brief textarea { resize: vertical; min-height: 96px; font: inherit; line-height: 1.5; }
+.brief-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.brief-foot small { color: var(--ink-2); }
+.brief-tip { margin: 16px 8px; padding: 12px; border: 3px dashed var(--ink); background: var(--sand); animation: blink 1.6s steps(2) 3; }
+.brief-tip p { margin: 6px 0 0; font-size: 13px; line-height: 1.6; }
+.live.waiting { color: #d4b04c; animation: blink 1.6s steps(2) infinite; }
 
 /* 成员栏 */
 .members { grid-area: members; display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
@@ -317,3 +305,21 @@ button.logo { background: none; border: 0; color: inherit; padding: 0; }
   .mode-grid, .scene-grid { grid-template-columns: 1fr; }
   .room { --work-w: 300px; }
 }
+
+/* 发言失败 */
+.err-line { border: 2px solid #c0625a; background: #fbe9e4; padding: 6px 8px; margin: 6px 0; font-size: 12px; animation: linein .3s steps(3); }
+.err-line b { color: #a2463e; }
+.err-line p { margin: 3px 0 6px; line-height: 1.5; word-break: break-all; }
+.err-actions { display: flex; gap: 6px; }
+.seat.err .body { outline: 2px dashed #c0625a; outline-offset: 2px; }
+.err-badge { position: absolute; top: -6px; right: -6px; z-index: 3; background: #c0625a; color: #fff; font-size: 11px; font-weight: bold; width: 16px; height: 16px; line-height: 16px; text-align: center; border: 2px solid var(--ink); }
+
+/* 人物导入检查结果 */
+.import-report { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow: auto; font-size: 12px; }
+.ir-item { border: 2px solid var(--ink); padding: 6px 8px; background: #fff; }
+.ir-item.bad { border-color: #c0625a; background: #fbe9e4; }
+.ir-item.warn { border-color: var(--c-yellow); background: #fdf6dc; }
+.ir-item ul { margin: 4px 0 0; padding-left: 18px; line-height: 1.6; }
+.ir-item li.e { color: #a2463e; }
+.ir-item li.w { color: var(--ink-2); }
+
