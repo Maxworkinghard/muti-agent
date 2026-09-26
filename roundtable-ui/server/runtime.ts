@@ -12,7 +12,7 @@ import { delimiter, join } from 'node:path';
 export interface RuntimeConfig {
   baseUrl: string;
   apiKey: string;
-  /** 上游模型 id，例如 deepseek/deepseek-v4.1-flash */
+  /** 上游模型 id，例如 cline-pass/deepseek-v4.1-flash */
   model: string;
   ompBin: string;
   dir: string;
@@ -34,7 +34,7 @@ export function readConfig(env: Record<string, string | undefined>): RuntimeConf
   return {
     baseUrl: env.ROUNDTABLE_API_BASE_URL || 'https://api.cline.bot/api/v1',
     apiKey: env.ROUNDTABLE_API_KEY ?? '',
-    model: env.ROUNDTABLE_MODEL || 'deepseek/deepseek-v4.1-flash',
+    model: env.ROUNDTABLE_MODEL || 'cline-pass/deepseek-v4.1-flash',
     ompBin: env.ROUNDTABLE_OMP_BIN || findOmp(),
     dir: env.ROUNDTABLE_RUNTIME_DIR || join(tmpdir(), 'roundtable-omp'),
   };
