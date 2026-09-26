@@ -1,6 +1,6 @@
 import type { ModeId, Persona } from '../types';
 
-/** /api/options 返回的人物（来自 backend/人物/理性/*.json） */
+/** /api/discussion/options 返回的人物（来自 backend/人物/理性/ 下的 JSON） */
 export interface ApiPersona {
   id: string; name: string; role: string; profession: string; description: string;
   domains: string[]; tradition: string; coreValues: string[]; coreConviction: string; color: string;
@@ -11,8 +11,7 @@ export interface ApiPersonality { id: string; name: string; description: string 
 export interface Options {
   personas: ApiPersona[];
   personalities: ApiPersonality[];
-  dryRun: boolean;
-  model: string | null;
+  model: string;
   configError: string | null;
   limits: { members: [number, number]; rounds: [number, number]; maxChars: [number, number] };
 }
@@ -40,9 +39,10 @@ export function toPersona(p: ApiPersona, i: number, personalities: ApiPersonalit
 let cache: Promise<Options> | null = null;
 /** 人物、性格只向后端要一次；失败了下次再要 */
 export function loadOptions(): Promise<Options> {
-  cache ??= fetch('/api/options').then((r) => {
-    if (!r.ok) throw new Error(String(r.status));
-    return r.json();
+  cache ??= fetch('/api/discussion/options').then(async (r) => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error ?? 'HTTP ' + r.status);
+    return data;
   }).catch((e) => { cache = null; throw e; });
   return cache;
 }

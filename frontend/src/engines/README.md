@@ -5,17 +5,17 @@
 - `entertainment/` 娱乐引擎（娱乐组）
 - `rational/` 辩论引擎（辩论组）
 - `emotion/` 情感交流引擎（情感组）
-- `discussion/` 理性讨论引擎：流程在仓库根目录的 `backend/`（Python），见下文
+- `discussion/` 理性讨论引擎：流程在 `server/discussion.ts`，人物、性格和提示词读仓库根目录的 `backend/`，见下文
 - `product/` 工作引擎（工作部分导入后合并到这里）
 
 每个文件夹里：
 
-- `index.ts` 导出引擎包。除理性讨论外，现在各模式的 `create` 都是 `backend.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
+- `index.ts` 导出引擎包。现在所有模式的 `create` 都是 `backend.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
 - `config.ts` 放可调参数的默认值，开讨论时会复制到 `SessionConfig.engineOptions` 传给引擎。
 
-`backend.ts` 是娱乐、辩论、情感交流、工作这几个模式现在用的真实引擎：浏览器只负责把会话配置交给后端、转发事件，每位成员在后端是一段直接发给模型接口的对话（`server/llmAgent.ts`，各自保留历史），各模式的流程写在 `server/session.ts`。`mock.ts` 是模拟引擎，不调用模型，网址加 `?engine=mock` 时所有模式都换成它。前端只通过 `registry.ts` 按模式取引擎。
+`backend.ts` 是现在所有模式默认用的真实引擎：浏览器只负责把会话配置交给后端、转发事件，每位成员在后端是一段直接发给模型接口的对话（`server/llmAgent.ts`，各自保留历史），各模式的流程写在 `server/session.ts`。`mock.ts` 是模拟引擎，不调用模型，网址加 `?engine=mock` 时所有模式都换成它。前端只通过 `registry.ts` 按模式取引擎。
 
-`discussion/apiEngine.ts` 接的是 `backend/服务.py`：人物和性格从 `/api/options` 读，开讨论时 `POST /api/discuss` 用 SSE 逐条推发言，插话和停止走 `/api/discuss/<会话>/say`、`/stop`。讨论流程（开场、交锋、收尾，被质疑的人优先回应，主持人总结）在 `backend/讨论引擎.py`。开发时先在 `backend` 里运行 `python 服务.py`（不想花额度加 `--试跑`），`npm run dev` 会把这两个接口转过去。
+理性讨论（来自 #5）的流程在 `server/discussion.ts`，按原来的 Python 版逐条移植，提示词和流程不变：开场每人一次，交锋时被质疑的人优先回应，收尾每人一次，轮与轮之间主持人写前情摘要，最后写总结；插话由被点名的人（没点名时是说得最少的人）先回应。和其他模式不同，这里每次调用只发 system 和一条拼好的消息（议题、前情摘要、最近几条发言、本轮任务），不带历史。人物、性格和提示词每次现读 `backend/` 的人格数据库（`server/personaDb.ts`），选人页和图鉴通过 `GET /api/discussion/options` 取；每条发言的立场、回应和质疑放在 `ChatMessage.meta`，主持人总结放在 `DiscussionResult.summary`。
 
 ## 调用 AI
 

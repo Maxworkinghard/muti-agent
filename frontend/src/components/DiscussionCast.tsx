@@ -22,7 +22,7 @@ export function DiscussionCast({ draft, onBack, onStart }: { draft: Draft; onBac
 
   const load = () => {
     setErr('');
-    loadOptions().then(setOpt).catch(() => setErr('连不上 backend。请先在 backend 文件夹运行 python 服务.py，再点重试。'));
+    loadOptions().then(setOpt).catch((e: Error) => setErr(`读不到人格数据库：${e.message}。确认是用 npm run dev 启动的，再点重试。`));
   };
   useEffect(load, []);
 
@@ -50,7 +50,7 @@ export function DiscussionCast({ draft, onBack, onStart }: { draft: Draft; onBac
   };
   const missing = order.filter((id) => !pickOf(id));
   const names = (ids: string[]) => ids.map((id) => opt.personas.find((p) => p.id === id)!.name).join('、');
-  const canStart = order.length >= opt.limits.members[0] && !missing.length && !opt.configError;
+  const canStart = order.length >= opt.limits.members[0] && !missing.length;
 
   const start = () => {
     const participants: Participant[] = order.map((id, i) => {
@@ -74,7 +74,7 @@ export function DiscussionCast({ draft, onBack, onStart }: { draft: Draft; onBac
       <section className="panel cast-head">
         <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{maxSeats} · 每人选 1 种性格</small></h2>
         <span className="hint">
-          {opt.dryRun ? '试跑模式：不调用模型，只显示示例发言' : opt.configError ? '⚠ ' + opt.configError : '模型：' + opt.model}
+          {opt.configError ? '⚠ ' + opt.configError : '模型：' + opt.model}
         </span>
       </section>
 

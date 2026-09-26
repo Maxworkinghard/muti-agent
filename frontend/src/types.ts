@@ -76,7 +76,7 @@ export interface ModeDef {
   roundLabels: string[];
   /** 推荐主题库，第一步每次随机挑几个显示 */
   presets: string[];
-  /** 人物和性格来自 backend/ 的人格数据库（/api/options），不用前端的人物列表，也不能导入 */
+  /** 人物和性格来自 backend/ 的人格数据库（/api/discussion/options），不用前端的人物列表，也不能导入 */
   backendPersonas?: boolean;
 }
 

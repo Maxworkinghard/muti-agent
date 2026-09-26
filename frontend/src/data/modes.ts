@@ -70,7 +70,7 @@ export const MODES: ModeDef[] = [
       '城市应该优先发展公共交通吗？',
     ],
   },
-  // 人物和性格来自 backend/ 的人格数据库，流程由 backend/讨论引擎.py 决定（见 src/engines/discussion/）
+  // 人物和性格来自 backend/ 的人格数据库，流程在 server/discussion.ts（见 src/engines/discussion/）
   {
     id: 'discussion',
     track: 'discuss',

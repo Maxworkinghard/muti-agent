@@ -88,7 +88,7 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
             ))}
           </div>
         )}
-        {list.length === 0 && <p className="empty">{m.backendPersonas ? '这个模式的人物在 backend 的人格数据库里，先在 backend 文件夹运行 python 服务.py' : '这个模式还没有人物模板'}</p>}
+        {list.length === 0 && <p className="empty">{m.backendPersonas ? '这个模式的人物来自 backend/ 的人格数据库，现在没读到：确认 backend/ 还在，并且是用 npm run dev 启动的' : '这个模式还没有人物模板'}</p>}
         {m.backendPersonas && list.length > 0 && <p className="hint">人物来自 backend 的人格数据库，每个人在开讨论前自选一种性格</p>}
         <div className="codex-grid">
           {list.map((p, i) => (

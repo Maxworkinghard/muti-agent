@@ -25,26 +25,26 @@ const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toS
 export class RoundtableSession {
   readonly events: EngineEvent[] = [];
   private listeners = new Set<Listener>();
-  private agents = new Map<string, LlmAgent>();
+  protected agents = new Map<string, LlmAgent>();
   private recorder: LlmAgent | null = null;
   private titler: LlmAgent | null = null;
   private transcript: ChatMessage[] = [];
   private seen = new Map<string, number>();
   private userQueue: Array<string | undefined> = [];
   /** 用户对全体说的第一句话：这一场要处理的问题或任务，主题只作背景 */
-  private request = '';
+  protected request = '';
   /** 用户填的主题；没填时按第一句话生成 */
   private theme: string;
   private wake: (() => void) | null = null;
   private state: 'running' | 'finished' | 'stopped' = 'running';
-  private round = 0;
+  protected round = 0;
   private speaking: Participant | null = null;
   private failures = 0;
   private clients = 0;
   private orphanTimer: NodeJS.Timeout | null = null;
   private readonly mode: ModeDef;
 
-  constructor(readonly id: string, private cfg: SessionConfig, private llm: LlmConfig) {
+  constructor(readonly id: string, protected cfg: SessionConfig, protected llm: LlmConfig) {
     this.mode = modeById(cfg.mode);
     this.theme = cfg.theme.title.trim();
   }
@@ -124,7 +124,7 @@ export class RoundtableSession {
   }
 
   /** 进房间后不自动开始，等用户对全体开口；这期间单独点名的话照常回应 */
-  private async waitForTask() {
+  protected async waitForTask() {
     this.emit({ type: 'round', round: 0, label: '等你开口' });
     while (!this.request && !this.ended) {
       if (this.userQueue.length) { await this.drainUser(); continue; }
@@ -309,7 +309,7 @@ export class RoundtableSession {
     this.speaking = p;
   }
 
-  private beginRound(r: number) {
+  protected beginRound(r: number) {
     if (this.ended) return;
     this.round = r;
     const label = this.label(r);
@@ -317,7 +317,7 @@ export class RoundtableSession {
     this.message({ round: r, speakerId: 'system', text: `第 ${r} 轮 · ${label}`, kind: 'system' });
   }
 
-  private label(r: number) { return this.mode.roundLabels[r - 1] ?? `第 ${r} 轮`; }
+  protected label(r: number) { return this.mode.roundLabels[r - 1] ?? `第 ${r} 轮`; }
 
   private format(m: ChatMessage) {
     if (m.speakerId === 'user') return `用户${m.targetId ? '对' + this.byId(m.targetId)?.persona.name : '对全体'}说：${m.text}`;
@@ -325,19 +325,19 @@ export class RoundtableSession {
     return m.kind === 'task' ? `（${who} ${m.text}）` : `${who}：${m.text}`;
   }
 
-  private byId(id: string) { return this.cfg.participants.find((p) => p.agentId === id); }
+  protected byId(id: string) { return this.cfg.participants.find((p) => p.agentId === id); }
 
-  private message(m: Omit<ChatMessage, 'id' | 'at'>) {
+  protected message(m: Omit<ChatMessage, 'id' | 'at'>) {
     const msg = { ...m, id: uid('m'), at: Date.now() };
     this.transcript.push(msg);
     this.emit({ type: 'message', message: msg });
   }
 
-  private notice(text: string) {
+  protected notice(text: string) {
     this.emit({ type: 'message', message: { id: uid('n'), round: this.round, speakerId: 'system', text, kind: 'notice', at: Date.now() } });
   }
 
-  private status(p: Participant, state: AgentState, action: string) {
+  protected status(p: Participant, state: AgentState, action: string) {
     this.emit({ type: 'status', agentId: p.agentId, state, action });
   }
 
@@ -345,18 +345,18 @@ export class RoundtableSession {
     this.emit({ type: 'task', task: { ...t, id: uid('t') } });
   }
 
-  private emit(e: EngineEvent) {
+  protected emit(e: EngineEvent) {
     const i = this.events.push(e) - 1;
     for (const fn of this.listeners) fn(e, i);
   }
 
-  private finish(state: 'finished' | 'stopped') {
+  protected finish(state: 'finished' | 'stopped') {
     if (this.ended) return;
     this.state = state;
     this.emit({ type: 'session', state });
   }
 
-  private dispose() {
+  protected dispose() {
     for (const a of this.agents.values()) a.abort();
     this.recorder?.abort();
     this.titler?.abort();

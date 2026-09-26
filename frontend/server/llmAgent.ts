@@ -33,6 +33,13 @@ function parse(raw: string): Completion | null {
   }
 }
 
+export interface AgentOptions {
+  /** 采样温度；不填用模型服务的默认值 */
+  temperature?: number;
+  /** false：不保留历史，每次只发 system 和这一条消息（上下文由调用方拼进消息里） */
+  remember?: boolean;
+}
+
 /**
  * 一个 Agent 角色 = 一段直接发给模型接口（OpenAI 兼容 /chat/completions）的对话。
  * 整场会话里保留自己的历史，所以每个角色都记得自己说过的话；只有答成的轮次才记进历史，失败重试不会重复。
@@ -41,7 +48,7 @@ export class LlmAgent {
   private history: Message[] = [];
   private ctrl: AbortController | null = null;
 
-  constructor(readonly name: string, private cfg: LlmConfig, private system: string) {}
+  constructor(readonly name: string, private cfg: LlmConfig, private system: string, private opts: AgentOptions = {}) {}
 
   /** 发一条消息，等这一轮回答完，返回回答文本 */
   async ask(message: string, timeoutMs = 180_000): Promise<string> {
@@ -58,6 +65,7 @@ export class LlmAgent {
           model: this.cfg.model,
           messages: [{ role: 'system', content: this.system }, ...this.history, turn],
           max_tokens: MAX_TOKENS,
+          temperature: this.opts.temperature,
         }),
         signal: ctrl.signal,
       });
@@ -71,7 +79,7 @@ export class LlmAgent {
       const choice = data?.choices?.[0];
       const text = String(choice?.message?.content ?? '').trim();
       if (!text) throw new LlmTurnError(choice?.finish_reason === 'length' ? '模型把输出额度都用在思考上了，没写出回复' : '模型返回了空内容');
-      this.history.push(turn, { role: 'assistant', content: text });
+      if (this.opts.remember !== false) this.history.push(turn, { role: 'assistant', content: text });
       return text;
     } catch (e) {
       if (e instanceof LlmTurnError) throw e;
