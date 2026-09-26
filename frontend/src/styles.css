@@ -447,6 +447,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .seat.st-speaking.arrive .body { animation: standup .35s steps(3) both, talk .5s steps(2) .35s infinite; }
 .seat.st-thinking.arrive .body { animation: sway 0.8s steps(2) infinite; }
 .seat.st-working.arrive .body { animation: type .3s steps(2) infinite; }
+/* 发言结束：从站立高度直接缩回座位 */
+.seat.sitdown .body { animation: sitdown .3s steps(3) both, idle 2.4s steps(2) .3s infinite; }
+@keyframes sitdown { 0% { transform: translateY(-6px) scale(1.2); } 100% { transform: none; } }
 .landing {
   position: absolute; left: 50%; bottom: 10px; width: 56px; height: 14px; margin-left: -28px; z-index: -1; pointer-events: none;
   border: 3px dotted var(--cream); border-radius: 50%; opacity: 0; animation: dust .5s steps(4) .45s;

@@ -48,6 +48,27 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   }, [seated, allSeated]);
   const skipIntro = () => setSeated(config.participants.length);
   const entering = !allSeated && seated > 0 ? config.participants[seated - 1] : null;
+  // 只有刚落座的人带落地动画；动画播完就去掉，之后状态切换不会再从天上掉一次
+  const [landing, setLanding] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (seated === 0) return;
+    const ids = config.participants.slice(0, seated).map((p) => p.agentId);
+    setLanding((s) => new Set([...s, ...ids.filter((id) => !s.has(id))]));
+    const t = window.setTimeout(() => setLanding(new Set()), 1000);
+    return () => clearTimeout(t);
+  }, [seated]);
+  // 发言结束的人播放一次坐下（缩回座位）动画
+  const prevState = useRef<Record<string, AgentState>>({});
+  const [sitting, setSitting] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const ended = Object.entries(status)
+      .filter(([id, s]) => prevState.current[id] === 'speaking' && s.state !== 'speaking')
+      .map(([id]) => id);
+    prevState.current = Object.fromEntries(Object.entries(status).map(([id, s]) => [id, s.state]));
+    if (!ended.length) return;
+    setSitting((s) => new Set([...s, ...ended]));
+    window.setTimeout(() => setSitting((s) => new Set([...s].filter((id) => !ended.includes(id)))), 400);
+  }, [status]);
   // 辩论、理性讨论在选人页设了字数上限时，开场前提示一下
   const charCap = Number(config.engineOptions?.maxChars) || 0;
 
@@ -147,11 +168,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             return (
               <button
                 key={p.agentId}
-                className={`seat st-${st} arrive${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}${hasError(p.agentId) ? ' err' : ''}`}
+                className={`seat st-${st}${landing.has(p.agentId) ? ' arrive' : ''}${sitting.has(p.agentId) && st !== 'speaking' ? ' sitdown' : ''}${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}${hasError(p.agentId) ? ' err' : ''}`}
                 style={{ left: seat.x + '%', top: seat.y + '%', ['--ac' as string]: p.color }}
                 onClick={() => setFocus(focus === p.agentId ? null : p.agentId)}
               >
-                <span className="landing" />
+                {landing.has(p.agentId) && <span className="landing" />}
                 {hasError(p.agentId) && <span className="err-badge" title="发言失败，在右侧工作区可以重试">!</span>}
                 {st === 'thinking' && <span className="think">•••</span>}
                 {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
