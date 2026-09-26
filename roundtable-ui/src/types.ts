@@ -1,5 +1,6 @@
 export type ModeId = 'entertainment' | 'rational' | 'product';
-export type SceneId = 'roundtable' | 'debate' | 'office';
+/** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
+export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
 
 export interface Personality {
@@ -57,6 +58,8 @@ export interface SceneDef {
   seats: Seat[];
   /** 场景中心：圆桌中心 / 文件交换台 */
   center?: { x: number; y: number };
+  /** 用户自己添加的场景 */
+  custom?: boolean;
 }
 
 export interface ModeDef {
@@ -90,6 +93,8 @@ export interface SessionConfig {
   /** brief：用户在讨论开始前发的第一句话，即对项目的详细理解 */
   theme: { title: string; brief?: string };
   maxRounds: number;
+  /** 每次发言的字数上限；不填表示不限制 */
+  maxChars?: number;
   participants: Participant[];
   /** 引擎可调参数，默认值在各引擎文件夹的 config.ts 里 */
   engineOptions: Record<string, unknown>;

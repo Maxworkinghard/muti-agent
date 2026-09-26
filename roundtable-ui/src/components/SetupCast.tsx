@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
-import { SCENES } from '../data/scenes';
-import { modeById } from '../data/modes';
+import { sceneById } from '../data/scenes';
+import { DEBATE_CHARS, DEBATE_ROUNDS, modeById, roundLabel } from '../data/modes';
 import { AGENT_COLORS } from '../data/personas';
 import { engineFor } from '../engines/registry';
+import { playLeave, playSeat } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
 
 interface Pick { personalityId: string; side?: Side }
@@ -14,8 +15,9 @@ export function SetupCast({ draft, personas, onStart }: {
   personas: Persona[];
   onStart: (cfg: SessionConfig) => void;
 }) {
-  const scene = SCENES[draft.sceneId];
+  const scene = sceneById(draft.sceneId);
   const isDebate = draft.sceneId === 'debate';
+  const isRational = draft.mode === 'rational';
   const isProduct = draft.mode === 'product';
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
   const available = personas.filter((p) => !p.modes || p.modes.includes(draft.mode));
@@ -23,6 +25,10 @@ export function SetupCast({ draft, personas, onStart }: {
   const [order, setOrder] = useState<string[]>([]);
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
+  const [rounds, setRounds] = useState(DEBATE_ROUNDS.default);
+  const [maxChars, setMaxChars] = useState(DEBATE_CHARS.default);
+  // 刚入座的卡片播一次落座动画
+  const [landed, setLanded] = useState<string | null>(null);
 
   const sideCount = (s: Side) => order.filter((id) => picked[id]?.side === s).length;
   const nextSide = (): Side | undefined => {
@@ -39,6 +45,7 @@ export function SetupCast({ draft, personas, onStart }: {
       setPicked(rest);
       setOrder(order.filter((x) => x !== p.id));
       if (lead === p.id) setLead(null);
+      playLeave();
       return;
     }
     if (order.length >= scene.maxSeats) return;
@@ -47,6 +54,8 @@ export function SetupCast({ draft, personas, onStart }: {
     setPicked({ ...picked, [p.id]: { personalityId: personality[p.id] ?? p.defaultPersonalityId, side } });
     setOrder([...order, p.id]);
     if (isProduct && !lead) setLead(p.id);
+    setLanded(p.id);
+    playSeat(order.length);
   };
 
   const setPer = (p: Persona, id: string) => {
@@ -86,7 +95,8 @@ export function SetupCast({ draft, personas, onStart }: {
       sessionId: 's-' + Date.now().toString(36),
       mode: draft.mode, sceneId: draft.sceneId,
       theme: { title: draft.theme.trim() },
-      maxRounds: modeById(draft.mode).roundLabels.length,
+      maxRounds: isRational ? rounds : modeById(draft.mode).roundLabels.length,
+      maxChars: isRational ? maxChars : undefined,
       participants,
       engineOptions: { ...engineFor(draft.mode).defaults },
       createdAt: new Date().toISOString(),
@@ -109,7 +119,12 @@ export function SetupCast({ draft, personas, onStart }: {
           const perId = pk?.personalityId ?? personality[p.id] ?? p.defaultPersonalityId;
           const per = p.personalities.find((x) => x.id === perId) ?? p.personalities[0];
           return (
-            <article key={p.id} className={'persona-card' + (pk ? ' on' : '')} style={{ ['--ac' as string]: p.visual.shirt }}>
+            <article
+              key={p.id}
+              className={'persona-card' + (pk ? ' on' : '') + (pk && landed === p.id ? ' landed' : '')}
+              style={{ ['--ac' as string]: p.visual.shirt }}
+              onAnimationEnd={() => landed === p.id && setLanded(null)}
+            >
               <div className="pc-top" onClick={() => toggle(p)}>
                 <div className="pc-avatar"><PixelAvatar v={p.visual} size={56} /></div>
                 <div>
@@ -140,8 +155,32 @@ export function SetupCast({ draft, personas, onStart }: {
         })}
       </div>
 
+      {isRational && (
+        <section className="panel rt-settings">
+          <h2><b>05</b> 辩论设置 <small>选好人物后，定下几轮、每人每次说多少</small></h2>
+          <div className="rt-rows">
+            <label>
+              <span>辩论轮数</span>
+              <input type="range" min={DEBATE_ROUNDS.min} max={DEBATE_ROUNDS.max} value={rounds} onChange={(e) => setRounds(+e.target.value)} />
+              <b>{rounds} 轮</b>
+            </label>
+            <label>
+              <span>每次发言上限</span>
+              <input type="range" min={DEBATE_CHARS.min} max={DEBATE_CHARS.max} step={DEBATE_CHARS.step} value={maxChars} onChange={(e) => setMaxChars(+e.target.value)} />
+              <b>{maxChars} 字</b>
+            </label>
+          </div>
+          <ol className="rt-flow">
+            {Array.from({ length: rounds }, (_, i) => (
+              <li key={i}><i>{i + 1}</i>{roundLabel('rational', i + 1, rounds)}</li>
+            ))}
+          </ol>
+          <p className="hint">第 1 轮开场立论，最后一轮总结陈词，中间都是交锋；主持人只在开场和收尾发言。</p>
+        </section>
+      )}
+
       <footer className="setup-foot">
-        <span>「{draft.theme}」{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
+        <span>「{draft.theme}」{isRational && ` · ${rounds} 轮 · 每次 ≤${maxChars} 字`}{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
         <button className="px-btn primary" disabled={!canStart} onClick={start}>进入对话 ▶</button>
       </footer>
     </main>

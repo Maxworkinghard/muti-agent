@@ -38,3 +38,18 @@ export const MODES: ModeDef[] = [
 ];
 
 export const modeById = (id: ModeId) => MODES.find((m) => m.id === id)!;
+
+/** 任意轮数的轮次名：第 1 轮用第一个名字，最后一轮用最后一个，中间都是交锋 */
+export function roundLabel(mode: ModeId, round: number, total: number): string {
+  const labels = modeById(mode).roundLabels;
+  if (total === labels.length) return labels[round - 1] ?? '第 ' + round + ' 轮';
+  if (round <= 1) return labels[0];
+  if (round >= total) return labels[labels.length - 1];
+  const mid = labels.slice(1, -1);
+  const name = mid[(round - 2) % Math.max(mid.length, 1)] ?? labels[0];
+  return total > 3 ? name + ' ' + (round - 1) : name;
+}
+
+/** 辩论设置的范围和默认值 */
+export const DEBATE_ROUNDS = { min: 2, max: 6, default: 3 };
+export const DEBATE_CHARS = { min: 50, max: 400, step: 10, default: 150 };

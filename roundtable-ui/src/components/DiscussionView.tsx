@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Participant, SessionConfig, TaskEvent,
 } from '../types';
-import { SCENES } from '../data/scenes';
-import { modeById } from '../data/modes';
+import { sceneById } from '../data/scenes';
+import { modeById, roundLabel } from '../data/modes';
 import { engineFor } from '../engines/registry';
+import { playReady, playSeat, SoundToggle } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
 
 interface Status { state: AgentState; action: string }
@@ -12,9 +13,11 @@ interface Flight { id: string; from: { x: number; y: number }; to: { x: number; 
 interface ErrorItem { id: string; agentId?: string; message: string; retry?: () => void }
 
 const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
+/** 入场时每个人落座的间隔 */
+const SEAT_GAP = 750;
 
 export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
-  const scene = SCENES[config.sceneId];
+  const scene = sceneById(config.sceneId);
   const mode = modeById(config.mode);
   const engineRef = useRef<DiscussionEngine | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -28,7 +31,18 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
   const [errors, setErrors] = useState<ErrorItem[]>([]);
+  // 已经落座的人数；进入讨论页时大家依次入座
+  const [seated, setSeated] = useState(0);
+  const allSeated = seated >= config.participants.length;
   const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (allSeated) { const t = window.setTimeout(playReady, 300); return () => clearTimeout(t); }
+    const t = window.setTimeout(() => { playSeat(seated); setSeated(seated + 1); }, seated === 0 ? 400 : SEAT_GAP);
+    return () => clearTimeout(t);
+  }, [seated, allSeated]);
+  const skipIntro = () => setSeated(config.participants.length);
+  const entering = !allSeated && seated > 0 ? config.participants[seated - 1] : null;
 
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
   const seatOf = (id: string) => scene.seats[byId[id]?.seatIndex ?? 0];
@@ -81,6 +95,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     const text = draft.trim();
     if (session === 'waiting') {
       if (!text) return;
+      skipIntro();
       startWith(text);
       setDraft('');
       return;
@@ -110,6 +125,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <button className="px-btn tiny" onClick={onExit}>◀</button>
         <span className="mode-tag" style={{ background: mode.color }} title={engineFor(config.mode).name + ' · ' + engineFor(config.mode).owner}>{mode.name}</span>
         <h1 title={config.theme.title}>主题：{config.theme.title}</h1>
+        <SoundToggle />
         <span className="round-tag">R{round.n}/{config.maxRounds} · {round.label}</span>
         <span className={'live ' + session}>{session === 'waiting' ? '○ 等你开场' : session === 'running' ? '● LIVE' : session === 'finished' ? '■ 已结束' : '■ 已停止'}</span>
       </header>
@@ -119,17 +135,19 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <div className="stage-inner">
           <img className="stage-bg" src={scene.image} alt={scene.name} draggable={false} />
           {config.sceneId === 'debate' && <div className="debate-board">{config.theme.title}</div>}
-          {config.participants.map((p) => {
+          {config.participants.map((p, i) => {
+            if (i >= seated) return null;
             const st = status[p.agentId]?.state ?? 'idle';
             const seat = scene.seats[p.seatIndex];
             const msg = st === 'speaking' ? lastSpeech(p.agentId) : undefined;
             return (
               <button
                 key={p.agentId}
-                className={`seat st-${st}${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}${hasError(p.agentId) ? ' err' : ''}`}
+                className={`seat st-${st} arrive${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}${hasError(p.agentId) ? ' err' : ''}`}
                 style={{ left: seat.x + '%', top: seat.y + '%', ['--ac' as string]: p.color }}
                 onClick={() => setFocus(focus === p.agentId ? null : p.agentId)}
               >
+                <span className="landing" />
                 {hasError(p.agentId) && <span className="err-badge" title="发言失败，在右侧工作区可以重试">!</span>}
                 {st === 'thinking' && <span className="think">•••</span>}
                 {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
@@ -154,7 +172,19 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             </span>
           ))}
           {session === 'finished' && <div className="stage-banner">讨论结束 · 结果已写入工作区</div>}
-          {session === 'waiting' && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
+          {entering && (
+            <div key={entering.agentId} className="intro-card" style={{ ['--ac' as string]: entering.color }}>
+              <em>{String(seated).padStart(2, '0')}</em>
+              <span className="pc-avatar"><PixelAvatar v={entering.persona.visual} size={44} /></span>
+              <div>
+                <i>{entering.side ? { pro: '正方', con: '反方', host: '主持' }[entering.side] : entering.isLead ? '负责人' : '入座'}</i>
+                <strong>{entering.persona.name}</strong>
+                <small>{entering.persona.identity}</small>
+              </div>
+            </div>
+          )}
+          {!allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
+          {session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
         </div>
       </section>
 
@@ -176,14 +206,15 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <div className="log" ref={logRef}>
           {session === 'waiting' && !focused && (
             <div className="brief-tip">
-              <b>大家已就座，等你开口</b>
+              <b>{allSeated ? '大家已就座，等你开口' : '大家正在入座…'}</b>
               <p>想说什么都可以，发出去讨论就开始。</p>
+              {config.maxChars && <p>本场 {config.maxRounds} 轮，每人每次发言不超过 {config.maxChars} 字。</p>}
             </div>
           )}
           {rounds.length === 0 && session !== 'waiting' && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : '等待第一位发言…'}</p>}
           {rounds.map(([r, ms]) => (
             <div key={r} className="round-block">
-              <div className="round-sep">{r === 0 ? '开场 · 你的理解' : `第 ${r} 轮 · ${mode.roundLabels[r - 1] ?? ''}`}</div>
+              <div className="round-sep">{r === 0 ? '开场 · 你的理解' : `第 ${r} 轮 · ${roundLabel(config.mode, r, config.maxRounds)}`}</div>
               {ms.map((m) => <Line key={m.id} m={m} byId={byId} />)}
             </div>
           ))}

@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import type { ModeId, SceneId, SessionConfig } from './types';
+import type { ModeId, SceneDef, SceneId, SessionConfig } from './types';
 import { SetupScene } from './components/SetupScene';
 import { SetupCast } from './components/SetupCast';
 import { DiscussionView } from './components/DiscussionView';
 import { PersonaCodex } from './components/PersonaCodex';
 import { LIBRARY_PERSONAS } from './data/personas';
+import { loadCustomScenes, saveCustomScenes } from './data/scenes';
+import { SoundToggle } from './sound';
 
 export interface Draft {
   mode: ModeId;
@@ -19,6 +21,17 @@ export default function App() {
   const [personas, setPersonas] = useState(LIBRARY_PERSONAS);
   const [session, setSession] = useState<SessionConfig | null>(null);
   const [codex, setCodex] = useState(false);
+  const [customScenes, setCustomScenes] = useState<SceneDef[]>(loadCustomScenes);
+  const [sceneMsg, setSceneMsg] = useState('');
+  const updateScenes = (list: SceneDef[]) => {
+    setCustomScenes(list);
+    setSceneMsg(saveCustomScenes(list) ? '' : '图片太大，浏览器存不下；这个场景只在本次打开时可用');
+  };
+  const saveScene = (s: SceneDef) => updateScenes([...customScenes.filter((x) => x.id !== s.id), s]);
+  const deleteScene = (id: string) => {
+    updateScenes(customScenes.filter((x) => x.id !== id));
+    if (draft.sceneId === id) setDraft({ ...draft, sceneId: 'roundtable' });
+  };
   const canBack = codex || step === 2;
   const back = () => (codex ? setCodex(false) : setStep(1));
   const importPersonas = (list: typeof personas) =>
@@ -39,11 +52,22 @@ export default function App() {
               </li>
             ))}
           </ol>
+          <SoundToggle className="top" />
           <button className={'codex-btn' + (codex ? ' on' : '')} onClick={() => setCodex(!codex)} title="查看各模式的人物模板">▤ 图鉴</button>
         </header>
       )}
+      {sceneMsg && step === 1 && !codex && <p className="scene-warn" onClick={() => setSceneMsg('')}>{sceneMsg}（点击关闭）</p>}
       {codex && step < 3 && <PersonaCodex personas={personas} initialMode={draft.mode} onImport={importPersonas} onClose={() => setCodex(false)} />}
-      {!codex && step === 1 && <SetupScene draft={draft} onChange={setDraft} onNext={() => setStep(2)} />}
+      {!codex && step === 1 && (
+        <SetupScene
+          draft={draft}
+          onChange={setDraft}
+          onNext={() => setStep(2)}
+          customScenes={customScenes}
+          onSaveScene={saveScene}
+          onDeleteScene={deleteScene}
+        />
+      )}
       {!codex && step === 2 && (
         <SetupCast
           draft={draft}
