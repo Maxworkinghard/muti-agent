@@ -4,6 +4,7 @@ import { SetupScene } from './components/SetupScene';
 import { SetupCast } from './components/SetupCast';
 import { DiscussionView } from './components/DiscussionView';
 import { SAMPLE_PERSONAS } from './data/personas';
+import { DB_PERSONAS } from './data/personaDb';
 import { modeById } from './data/modes';
 
 export interface Draft {
@@ -17,7 +18,8 @@ export default function App() {
   // 1 模式·主题·场景 → 2 选人物 → 3 讨论室
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [draft, setDraft] = useState<Draft>({ track: modeById('entertainment').track, mode: 'entertainment', theme: '', sceneId: 'roundtable' });
-  const [personas, setPersonas] = useState(SAMPLE_PERSONAS);
+  // 示例人物 + 人格数据库里的四套人格，每个模式只显示属于自己的人物
+  const [personas, setPersonas] = useState(() => [...SAMPLE_PERSONAS, ...DB_PERSONAS]);
   const [session, setSession] = useState<SessionConfig | null>(null);
 
   return (

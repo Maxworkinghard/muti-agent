@@ -1,5 +1,5 @@
 import type { Draft } from '../App';
-import { MODES } from '../data/modes';
+import { MODES, TRACKS, trackById } from '../data/modes';
 import { SCENE_LIST } from '../data/scenes';
 
 export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange: (d: Draft) => void; onNext: () => void }) {
@@ -7,29 +7,34 @@ export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange
   return (
     <main className="setup">
       <section className="panel">
-        <h2><b>01</b> 选择模式</h2>
-        <div className="mode-grid">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
-              style={{ ['--mc' as string]: m.color }}
-              onClick={() => onChange({ ...draft, track: m.track, mode: m.id, sceneId: m.scene })}
-            >
-              <span className="tag">{m.tag}</span>
-              <strong>{m.name}</strong>
-              <small>{m.desc}</small>
-              <em>{m.roundLabels.join(' → ')}</em>
-            </button>
-          ))}
-        </div>
+        <h2><b>01</b> 选择模式 <small>按工作台分组</small></h2>
+        {TRACKS.map((t) => (
+          <div key={t.id} className="bench" style={{ ['--tc' as string]: t.color }}>
+            <div className="bench-head"><strong>{t.name}</strong><small>{t.desc}</small></div>
+            <div className="mode-grid">
+              {MODES.filter((m) => m.track === t.id).map((m) => (
+                <button
+                  key={m.id}
+                  className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
+                  style={{ ['--mc' as string]: m.color }}
+                  onClick={() => onChange({ ...draft, track: m.track, mode: m.id, sceneId: m.scene })}
+                >
+                  <span className="tag">{m.tag}</span>
+                  <strong>{m.name}</strong>
+                  <small>{m.desc}</small>
+                  <em>{m.roundLabels.join(' → ')}</em>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
       <section className="panel">
-        <h2><b>02</b> 讨论主题</h2>
+        <h2><b>02</b> 讨论主题 <small>可以不填，进入对话后按你的第一句话自动生成</small></h2>
         <input
           className="px-input big"
-          placeholder="输入你想讨论的问题…"
+          placeholder="输入你想讨论的问题…（可不填）"
           value={draft.theme}
           maxLength={60}
           onChange={(e) => onChange({ ...draft, theme: e.target.value })}
@@ -59,8 +64,8 @@ export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange
       </section>
 
       <footer className="setup-foot">
-        <span>{mode.name} · {SCENE_LIST.find((s) => s.id === draft.sceneId)!.name} · {draft.theme || '（还没有主题）'}</span>
-        <button className="px-btn primary" disabled={!draft.theme.trim()} onClick={onNext}>下一步：选择人物 ▶</button>
+        <span>{trackById(mode.track).name} / {mode.name} · {SCENE_LIST.find((s) => s.id === draft.sceneId)!.name}</span>
+        <button className="px-btn primary" onClick={onNext}>下一步：选择人物 ▶</button>
       </footer>
     </main>
   );

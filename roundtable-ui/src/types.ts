@@ -1,4 +1,5 @@
-export type ModeId = 'entertainment' | 'rational' | 'product';
+/** 后四个模式各对应人格数据库里的一套人格（见 data/personaDb.ts） */
+export type ModeId = 'entertainment' | 'rational' | 'product' | 'emotion' | 'vibe' | 'analysis' | 'resume';
 /** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
 export type Track = 'discuss' | 'work';
 export type SceneId = 'roundtable' | 'debate' | 'office';
@@ -39,6 +40,12 @@ export interface Persona {
   visual: PersonaVisual;
   /** 从人格资料包协议 v1.0 导入时保留的原始 persona，引擎可直接读取 */
   protocol?: Record<string, unknown>;
+  /** 从人格数据库导入：人格文件全文，后面附套装的 README / workflow，引擎可直接当系统提示 */
+  systemPrompt?: string;
+  /** 人格文件在 persona-db 里的路径 */
+  sourceFile?: string;
+  /** 工作模式里入座即担任负责人（总控 / 主 Agent） */
+  defaultLead?: boolean;
 }
 
 export interface Seat {
@@ -100,7 +107,8 @@ export interface ChatMessage {
   /** agentId，或 'user' / 'system' */
   speakerId: string;
   text: string;
-  kind: 'speech' | 'user' | 'reply' | 'system' | 'task';
+  /** notice：引擎提示（如模型调用失败），在工作区里显示 */
+  kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice';
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
   at: number;
@@ -129,7 +137,9 @@ export type EngineEvent =
   | { type: 'status'; agentId: string; state: AgentState; action: string }
   | { type: 'message'; message: ChatMessage }
   | { type: 'task'; task: TaskEvent }
-  | { type: 'result'; result: DiscussionResult };
+  | { type: 'result'; result: DiscussionResult }
+  /** 没填主题时，引擎按用户对全体说的第一句话生成的主题 */
+  | { type: 'theme'; title: string };
 
 /** 各小组实现的讨论引擎都遵守这个接口 */
 export interface DiscussionEngine {

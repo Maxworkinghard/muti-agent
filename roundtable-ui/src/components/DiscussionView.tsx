@@ -4,7 +4,7 @@ import type {
 } from '../types';
 import { SCENES } from '../data/scenes';
 import { modeById } from '../data/modes';
-import { ENGINE_REGISTRY } from '../engine/mockEngine';
+import { ENGINE_REGISTRY } from '../engine/registry';
 import { PixelAvatar } from './PixelAvatar';
 
 interface Status { state: AgentState; action: string }
@@ -19,6 +19,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [round, setRound] = useState({ n: 0, label: '准备中' });
+  // 没填主题时由引擎按用户第一句话生成，收到 theme 事件后更新
+  const [theme, setTheme] = useState(config.theme.title);
   const [session, setSession] = useState<'running' | 'finished' | 'stopped'>('running');
   const [result, setResult] = useState<DiscussionResult | null>(null);
   const [tasks, setTasks] = useState<TaskEvent[]>([]);
@@ -41,6 +43,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         case 'status': setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } })); break;
         case 'message': setMessages((m) => [...m, e.message]); break;
         case 'result': setResult(e.result); break;
+        case 'theme': setTheme(e.title); break;
         case 'task': {
           setTasks((t) => [...t, e.task]);
           const p = byId[e.task.from];
@@ -69,6 +72,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   };
 
   const focused = focus ? byId[focus] : null;
+  // 进房间后不自动开始，用户对全体说了第一句话才开始
+  const opened = messages.some((m) => m.kind === 'user' && !m.targetId);
   const visible = focused
     ? messages.filter((m) => m.speakerId === focus || (m.speakerId === 'user' && m.targetId === focus))
     : messages;
@@ -87,7 +92,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
       <header className="room-theme">
         <button className="px-btn tiny" onClick={onExit}>◀</button>
         <span className="mode-tag" style={{ background: mode.color }}>{mode.name}</span>
-        <h1 title={config.theme.title}>主题：{config.theme.title}</h1>
+        <h1 title={theme}>主题：{theme || '说出第一句话后自动生成'}</h1>
         <span className="round-tag">R{round.n}/{config.maxRounds} · {round.label}</span>
         <span className={'live ' + session}>{session === 'running' ? '● LIVE' : session === 'finished' ? '■ 已结束' : '■ 已停止'}</span>
       </header>
@@ -96,7 +101,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
       <section className="stage">
         <div className="stage-inner">
           <img className="stage-bg" src={scene.image} alt={scene.name} draggable={false} />
-          {config.sceneId === 'debate' && <div className="debate-board">{config.theme.title}</div>}
+          {config.sceneId === 'debate' && <div className="debate-board">{theme || '辩题待定'}</div>}
           {config.participants.map((p) => {
             const st = status[p.agentId]?.state ?? 'idle';
             const seat = scene.seats[p.seatIndex];
@@ -150,14 +155,14 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         </div>
         {focused && <PersonaStrip p={focused} status={status[focused.agentId]} />}
         <div className="log" ref={logRef}>
-          {rounds.length === 0 && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : '等待第一位发言…'}</p>}
+          {rounds.length === 0 && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : opened ? '等待第一位发言…' : '在下面说出你的问题或任务，大家收到后才开始'}</p>}
           {rounds.map(([r, ms]) => (
             <div key={r} className="round-block">
-              <div className="round-sep">第 {r} 轮 · {mode.roundLabels[r - 1] ?? ''}</div>
+              <div className="round-sep">{r === 0 ? '准备' : `第 ${r} 轮 · ${mode.roundLabels[r - 1] ?? ''}`}</div>
               {ms.map((m) => <Line key={m.id} m={m} byId={byId} />)}
             </div>
           ))}
-          {!focused && tasks.length > 0 && config.mode === 'product' && (
+          {!focused && tasks.length > 0 && mode.track === 'work' && (
             <div className="task-board">
               <div className="round-sep">任务流转</div>
               {tasks.slice(-6).map((t) => (
@@ -174,7 +179,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           <input
             className="px-input"
             value={draft}
-            placeholder={session !== 'running' ? '讨论已结束' : focused ? `对 ${focused.persona.name} 说…` : '对全体说…（点成员可以单独对话）'}
+            placeholder={session !== 'running' ? '讨论已结束' : focused ? `对 ${focused.persona.name} 说…` : opened ? '对全体说…（点成员可以单独对话）' : '对全体说出问题或任务后才开始…'}
             disabled={session !== 'running'}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
@@ -214,6 +219,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 }
 
 function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }) {
+  if (m.kind === 'notice') return <div className="line notice"><p>⚠ {m.text}</p></div>;
   if (m.speakerId === 'user') {
     const to = m.targetId ? byId[m.targetId]?.persona.name : '全体';
     return <div className="line user"><div className="who">你 → {to}</div><p>{m.text}</p></div>;

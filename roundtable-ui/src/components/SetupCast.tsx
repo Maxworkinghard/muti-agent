@@ -17,7 +17,8 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
 }) {
   const scene = SCENES[draft.sceneId];
   const isDebate = draft.sceneId === 'debate';
-  const isProduct = draft.mode === 'product';
+  // 「工作 · 创造项目」工作台的模式都有负责人：负责拆任务、收交付
+  const isWork = modeById(draft.mode).track === 'work';
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
   const available = personas.filter((p) => !p.modes || p.modes.includes(draft.mode));
   const [picked, setPicked] = useState<Record<string, Pick>>({});
@@ -49,7 +50,8 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
     if (isDebate && !side) return;
     setPicked({ ...picked, [p.id]: { personalityId: personality[p.id] ?? p.defaultPersonalityId, side } });
     setOrder([...order, p.id]);
-    if (isProduct && !lead) setLead(p.id);
+    // 第一个入座的人先当负责人；总控 / 主 Agent 入座时接任
+    if (isWork && (!lead || p.defaultLead)) setLead(p.id);
   };
 
   const setPer = (p: Persona, id: string) => {
@@ -94,7 +96,7 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
       if (isDebate && pk.side) { seatIndex = pk.side === 'pro' ? used.pro : pk.side === 'con' ? 3 + used.con : 6; used[pk.side]++; }
       return {
         agentId: id, seatIndex, color: persona.visual.shirt ?? AGENT_COLORS[i % 8],
-        side: pk.side, isLead: isProduct ? id === lead : undefined,
+        side: pk.side, isLead: isWork ? id === lead : undefined,
         personalityId: pk.personalityId, persona,
       };
     });
@@ -148,11 +150,17 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
                   {p.personalities.map((x) => <option key={x.id} value={x.id}>{x.label}{x.id === p.defaultPersonalityId ? '（默认）' : ''}</option>)}
                 </select>
               </label>
-              <p className="pc-behavior">▸ {per.behavior}　“{per.style}”</p>
+              <p className="pc-behavior">▸ {per.behavior}{per.style && `　“${per.style}”`}</p>
+              {p.systemPrompt && (
+                <details className="pc-source">
+                  <summary>人格文件 · {p.sourceFile}</summary>
+                  <pre>{p.systemPrompt}</pre>
+                </details>
+              )}
               <div className="pc-actions">
                 <button className={'px-btn ' + (pk ? 'danger' : 'primary')} onClick={() => toggle(p)}>{pk ? '移出' : '入座'}</button>
                 {pk && isDebate && <button className={'px-btn side-' + pk.side} onClick={() => cycleSide(p.id)}>{sideLabel[pk.side!]} ⇄</button>}
-                {pk && isProduct && <button className={'px-btn' + (lead === p.id ? ' lead' : '')} onClick={() => setLead(p.id)}>{lead === p.id ? '★ 负责人' : '设为负责人'}</button>}
+                {pk && isWork && <button className={'px-btn' + (lead === p.id ? ' lead' : '')} onClick={() => setLead(p.id)}>{lead === p.id ? '★ 负责人' : '设为负责人'}</button>}
               </div>
             </article>
           );
@@ -161,7 +169,7 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
 
       <footer className="setup-foot">
         <button className="px-btn" onClick={onBack}>◀ 返回</button>
-        <span>「{draft.theme}」{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
+        <span>{draft.theme.trim() ? `「${draft.theme.trim()}」` : '主题会按你的第一句话自动生成'}{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
         <button className="px-btn primary" disabled={!canStart} onClick={start}>进入对话 ▶</button>
       </footer>
     </main>
