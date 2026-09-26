@@ -1,7 +1,7 @@
 import type {
-  AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, ModeId, Participant, SessionConfig, TaskEvent,
+  ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, ModeId, Participant, SessionConfig, TaskEvent,
 } from '../types';
-import { modeById, roleName } from '../data/modes';
+import { modeById } from '../data/modes';
 
 /** 人格数据库四个模式的占位结论，取自各套人格 README 的通用原则 */
 const DB_RESULTS: Partial<Record<ModeId, Pick<DiscussionResult, 'consensus' | 'openQuestions' | 'suggestions'>>> = {
@@ -55,8 +55,8 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
     ];
     return pick(pick(lines, round - 1), turn);
   }
-  if (modeById(cfg.mode).flow === 'dispatch') {
-    // 总控点名的模式；第 1 轮由总控点名，不走这里
+  if (cfg.mode !== 'product' && modeById(cfg.mode).track === 'work') {
+    // 人格数据库的工作模式；第 1 轮由负责人拆分派发，不走这里
     const lines = [
       [`${opener}「${t}」我认领「${k}」这块：${p.persona.thinking}。`],
       [`${opener}「${k}」这部分看完了。${p.persona.thinking}。结果已放到交换台。`,
@@ -111,10 +111,6 @@ export function createMockEngine(): DiscussionEngine {
   let emit: (e: EngineEvent) => void;
   let currentRound = 0;
   let opened = false;
-  /** 主 Agent 在等用户回答时，回答到了就接着 resume */
-  let awaiting: { agentId: string; resume: () => void } | null = null;
-  /** 用户对全体插话时由谁回应；情感交流里是主持挑中的主风格 */
-  let responder: Participant | undefined;
   const queue: Array<() => number> = [];
   let busy = false;
 
@@ -153,38 +149,10 @@ export function createMockEngine(): DiscussionEngine {
   /** 产品开发模式沿用「xx 模块 / xx 文档」，人格数据库的工作模式直接用知识条目当任务名 */
   const taskName = (p: Participant, suffix: string) => (p.persona.knowledge[0] ?? p.persona.name) + (cfg.mode === 'product' ? suffix : '');
 
-  const beginRound = (r: number) => push(() => {
-    currentRound = r;
-    const label = modeById(cfg.mode).roundLabels[r - 1] ?? '第 ' + r + ' 轮';
-    emit({ type: 'round', round: r, label });
-    message({ round: r, speakerId: 'system', text: '第 ' + r + ' 轮 · ' + label, kind: 'system' });
-    return 600;
-  });
-  const note = (text: string) => push(() => { message({ round: currentRound, speakerId: 'system', text, kind: 'note' }); return 900; });
-  const status = (p: Participant, state: AgentState, action: string) => emit({ type: 'status', agentId: p.agentId, state, action });
-  const names = (ps: Participant[]) => ps.map((p) => p.persona.name).join('、');
-  /** 收尾：全员完成，workers 的交付物交回 lead，给出结论（直接回答的不给） */
-  const finish = (lead?: Participant, workers: Participant[] = [], withResult = true) => push(() => {
-    cfg.participants.forEach((p) => status(p, 'done', '完成'));
-    if (lead) workers.forEach((p) => task({ title: '交付物', from: p.agentId, to: lead.agentId, status: 'done' }));
-    if (withResult) emit({ type: 'result', result: buildResult() });
-    emit({ type: 'session', state: 'finished' });
-    return 10;
-  });
-
-  function plan(opening: string) {
-    const flow = modeById(cfg.mode).flow;
-    if (flow === 'pick') return planPick();
-    if (flow === 'dispatch') return planDispatch();
-    if (flow === 'pipeline') return planPipeline(opening);
-    planClassic();
-  }
-
-  /** 轮流发言、辩论、负责人给每人派活 */
-  function planClassic() {
+  function plan() {
     const mode = modeById(cfg.mode);
-    // 通用工作流程：负责人拆分派发 → 并行执行、交接 → 复核交付
-    const isWork = mode.flow === 'work';
+    // 「工作 · 创造项目」工作台：负责人拆分派发 → 并行执行、交接 → 复核交付
+    const isWork = mode.track === 'work';
     const ps = cfg.participants;
     const ordered = cfg.mode === 'rational'
       ? [...ps.filter((p) => p.side === 'host'), ...interleave(ps.filter((p) => p.side === 'pro'), ps.filter((p) => p.side === 'con'))]
@@ -192,14 +160,15 @@ export function createMockEngine(): DiscussionEngine {
     const lead = ps.find((p) => p.isLead) ?? ps[0];
 
     for (let r = 1; r <= cfg.maxRounds; r++) {
-      beginRound(r);
+      const label = mode.roundLabels[r - 1] ?? '第 ' + r + ' 轮';
+      push(() => { currentRound = r; emit({ type: 'round', round: r, label }); message({ round: r, speakerId: 'system', text: '第 ' + r + ' 轮 · ' + label, kind: 'system' }); return 600; });
 
       if (isWork && r === 1) {
         push(...speakStep(lead, `我来拆分「${cfg.theme.title}」：每人认领一块，文件统一经过中央交换台流转。`, r));
         ps.filter((p) => p !== lead).forEach((p) => push(() => {
           task({ title: taskName(p, ' 模块'), from: lead.agentId, to: p.agentId, status: 'assigned' });
           message({ round: r, speakerId: lead.agentId, text: '→ 派给 ' + p.persona.name + '：' + taskName(p, ' 模块'), kind: 'task', targetId: p.agentId });
-          status(p, 'working', '处理 ' + taskName(p, ''));
+          emit({ type: 'status', agentId: p.agentId, state: 'working', action: '处理 ' + taskName(p, '') });
           return 1500;
         }));
         continue;
@@ -213,103 +182,18 @@ export function createMockEngine(): DiscussionEngine {
           const next = ps[(ps.indexOf(p) + 1) % ps.length];
           push(() => {
             task({ title: taskName(p, ' 文档'), from: p.agentId, to: next.agentId, status: 'handoff' });
-            status(p, 'working', '交接给 ' + next.persona.name);
+            emit({ type: 'status', agentId: p.agentId, state: 'working', action: '交接给 ' + next.persona.name });
             return 1500;
           });
         }
       });
     }
-    finish(isWork ? lead : undefined, ps.filter((p) => p !== lead));
-  }
 
-  /** 情感交流：模拟主持按座位挑前两位，第 1、3 步主风格回应，第 2 步副风格；其余旁听 */
-  function planPick() {
-    const ps = cfg.participants;
-    const [main, second = main] = ps;
-    const steps = [[main], [second], [main]];
-    responder = main;
-    push(() => { ps.forEach((p) => status(p, 'idle', steps.flat().includes(p) ? '倾听' : '旁听')); return 10; });
-    steps.forEach((speakers, i) => {
-      const r = i + 1;
-      beginRound(r);
-      if (r === 1) note(`主持安排：${modeById(cfg.mode).roundLabels.map((l, j) => `${l} → ${names(steps[j])}`).join('；')}（模拟引擎按座位挑选）`);
-      speakers.forEach((p, j) => push(...speakStep(p, speak(p, cfg, r, j), r)));
-    });
-    finish();
-  }
-
-  /** 总控按需点名：模拟总控点前两位候选，第二位等第一位的结论；其余旁听 */
-  function planDispatch() {
-    const mode = modeById(cfg.mode);
-    const ps = cfg.participants;
-    const lead = ps.find((p) => p.role === 'coordinator') ?? ps.find((p) => p.isLead) ?? ps[0];
-    const pool = ps.filter((p) => p !== lead);
-    const calls = pool.slice(0, 2);
-    const who = roleName(mode, 'coordinator') ?? '负责人';
-
-    beginRound(1);
-    push(...speakStep(lead, calls.length ? `这个需求用得上 ${names(calls)}，其他人先旁听。（模拟引擎按座位点名）` : '这个需求我直接处理，不用叫其他成员。', 1));
-    calls.forEach((p, i) => push(() => {
-      const t = taskName(p, '');
-      task({ title: t, from: lead.agentId, to: p.agentId, status: 'assigned' });
-      message({ round: 1, speakerId: lead.agentId, text: `→ 请 ${p.persona.name}：${t}${i > 0 ? `（等 ${calls[0].persona.name} 的结论）` : ''}`, kind: 'task', targetId: p.agentId });
-      status(p, 'working', '处理 ' + t);
-      return 1500;
-    }));
-    push(() => { pool.filter((p) => !calls.includes(p)).forEach((p) => status(p, 'idle', '旁听')); return 10; });
-    if (!calls.length) note(`${who}判断这次用不上其他成员，直接处理`);
-
-    if (calls.length) {
-      beginRound(2);
-      calls.forEach((p, i) => {
-        push(...speakStep(p, speak(p, cfg, 2, i), 2));
-        const to = i === 0 && calls[1] ? calls[1] : lead;
-        push(() => { task({ title: taskName(p, ''), from: p.agentId, to: to.agentId, status: 'handoff' }); return 1500; });
-      });
-    }
-    beginRound(3);
-    push(...speakStep(lead, calls.length
-      ? `汇总：${names(calls)} 的结论我都看了。先定方向，${lead.persona.values}；有冲突的地方写进决策记录，还没验证的列成待办。`
-      : `直接给结论：${lead.persona.thinking}。`, 3));
-    finish(lead, calls);
-  }
-
-  /** Vibe Coding：模拟主 Agent 先问一轮，用户回答后按「写 Prompt → 审核 → 执行 → 检查交付」串行；问句直接回答 */
-  function planPipeline(opening: string) {
-    const ps = cfg.participants;
-    const main = ps.find((p) => p.role === 'coordinator') ?? ps[0];
-    const writer = ps.find((p) => p.role === 'writer');
-    const executor = ps.find((p) => p.role === 'executor');
-    if (!writer || !executor) return planClassic();
-    const reviewers = ps.filter((p) => p !== main && p !== writer && p !== executor);
-    // 用户回答之后的部分：写 Prompt → 审核 → 执行 → 检查交付
-    const rest = () => {
-      push(...speakStep(main, `好，需求总结：单页网页、适配手机，验收标准是三个核心功能都能用。没问完的按推荐答案处理。交给${writer.persona.name}写 Prompt。`, 1));
-      push(() => { task({ title: '需求说明', from: main.agentId, to: writer.agentId, status: 'assigned' }); status(writer, 'working', '写 Prompt'); return 1500; });
-      beginRound(2);
-      push(...speakStep(writer, '最终 Prompt：目标、输入、步骤、约束、异常处理和验收标准都写清了；关键假设：用户用手机访问为主。', 2));
-      push(() => { task({ title: 'Prompt 草稿', from: writer.agentId, to: main.agentId, status: 'handoff' }); return 1500; });
-      push(...speakStep(main, '审核通过，补了一条验收标准：窄屏下不出现横向滚动。这就是最终 Prompt。', 2));
-      push(() => { task({ title: '最终 Prompt', from: main.agentId, to: executor.agentId, status: 'assigned' }); status(executor, 'working', '执行中'); return 1500; });
-      push(...speakStep(executor, '执行报告：状态 已完成（模拟）。产物是一份页面代码；三个功能按验收标准逐项检查过，真实浏览器里还没验证。', 2));
-      push(() => { task({ title: '执行报告', from: executor.agentId, to: main.agentId, status: 'handoff' }); return 1500; });
-      beginRound(3);
-      reviewers.forEach((p, i) => push(...speakStep(p, speak(p, cfg, 3, i), 3)));
-      push(...speakStep(main, '检查完毕：验收标准都满足，可以交付；真实浏览器验证留给你确认。', 3));
-      finish(main, [executor]);
-    };
-
-    beginRound(1);
-    if (/[?？]\s*$/.test(opening)) {
-      push(...speakStep(main, `这是个提问，我直接回答：${main.persona.thinking}。（模拟回答，不启动工作流）`, 1));
-      finish(undefined, [], false);
-      return;
-    }
-    push(...speakStep(main, '开工前确认两件事：\n1. 交付形式？推荐：一个单页网页。\n2. 要适配手机吗？推荐：要。\n可以按编号回答，也可以直接说“按推荐”或“开始吧”。', 1));
     push(() => {
-      status(main, 'idle', '等你回答');
-      emit({ type: 'awaiting', hint: '回答主 Agent 的问题：可以按编号回答，也可以说“按推荐”或“开始吧”' });
-      awaiting = { agentId: main.agentId, resume: rest };
+      ps.forEach((p) => emit({ type: 'status', agentId: p.agentId, state: 'done', action: '完成' }));
+      if (isWork) ps.filter((p) => p !== lead).forEach((p) => task({ title: '交付物', from: p.agentId, to: lead.agentId, status: 'done' }));
+      emit({ type: 'result', result: buildResult() });
+      emit({ type: 'session', state: 'finished' });
       return 10;
     });
   }
@@ -352,21 +236,12 @@ export function createMockEngine(): DiscussionEngine {
         // 没填主题：模拟引擎直接截取这句话当主题（真实引擎由 omp 起名）
         if (!cfg.theme.title.trim()) emit({ type: 'theme', title: text.length > 16 ? text.slice(0, 16) + '…' : text });
         cfg = { ...cfg, theme: { title: text.length > 30 ? text.slice(0, 30) + '…' : text } };
-        plan(text);
-        return;
-      }
-      // 主 Agent 在等回答：对全体说的或点名它的话就是回答，接着往下走
-      if (awaiting && (!targetAgentId || targetAgentId === awaiting.agentId)) {
-        const { resume } = awaiting;
-        awaiting = null;
-        message({ round: currentRound, speakerId: 'user', text, kind: 'user', targetId: targetAgentId });
-        emit({ type: 'awaiting', hint: null });
-        resume();
+        plan();
         return;
       }
       message({ round: currentRound, speakerId: 'user', text, kind: 'user', targetId: targetAgentId });
       const target = cfg.participants.find((p) => p.agentId === targetAgentId)
-        ?? responder ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
+        ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
       const per = personalityOf(target);
       const reply = `${per.opener ?? ''}你说“${text.slice(0, 18)}${text.length > 18 ? '…' : ''}”，我记下了。从「${target.persona.knowledge[0] ?? target.persona.name}」的角度，我的看法是：${target.persona.thinking}。`;
       pushFront(...speakStep(target, reply, currentRound, 'reply', 'user'));

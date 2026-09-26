@@ -1,5 +1,4 @@
 import type { DiscussionResult, ModeDef, Participant, SessionConfig, Side } from '../src/types.ts';
-import { roleName } from '../src/data/modes.ts';
 
 export const SIDE_NAME: Record<Side, string> = { pro: '正方', con: '反方', host: '主持人' };
 
@@ -45,14 +44,7 @@ export const SPEAKING_STYLE = `## 说话方式
 
 /** 人格提示词 + 本场会话规则 + 说话方式，写进文件交给 omp 的 --system-prompt */
 export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: ModeDef, benchName: string): string {
-  const roles = [
-    p.side && `你在${SIDE_NAME[p.side]}。`,
-    p.isLead && '你是本场负责人，负责拆分任务、汇总交付。',
-    // 流程按角色安排发言，先告诉成员自己在流程里的位置
-    mode.flow === 'pick' && '不出场的主持人会按用户的需要挑一两种风格来回应，被挑中时才发言。',
-    mode.flow === 'dispatch' && !p.isLead && `${roleName(mode, 'coordinator') ?? '负责人'}会按需求点名，点到你时才发言，没点到就旁听。`,
-    mode.flow === 'pipeline' && !p.role && '你不在这套工作流的固定分工里，检查交付时从你的角度提意见。',
-  ].filter(Boolean).join('');
+  const roles = [p.side && `你在${SIDE_NAME[p.side]}。`, p.isLead && '你是本场负责人，负责拆分任务、汇总交付。'].filter(Boolean).join('');
   const members = cfg.participants
     .map((m) => `- ${whoIs(m)}${m.side ? '，' + SIDE_NAME[m.side] : ''}${m.isLead ? '，负责人' : ''}`)
     .join('\n');
@@ -88,16 +80,6 @@ export const TITLER_PROMPT = `# 起名
 export const cleanTitle = (s: string) => clip((s.split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? '')
   .replace(/^(?:主题|标题)[：:]\s*/, '')
   .replace(/^[「『“"'《【\s]+|[」』”"'》】。.！!？?，,\s]+$/g, ''), 20);
-
-/** 情感交流里不出场的主持人：看用户的话，安排由哪一两种风格来回应 */
-export const HOST_PROMPT = `# 主持
-
-你是「多人格工作台」情感交流场的主持人。你自己不出场说话，只负责安排由谁来回应用户。
-先判断用户当下最需要什么：倾诉、被理解、被安慰鼓励、只想吐槽被附和、理清事实，还是要具体建议；再从在座的回应风格里挑最合适的。
-可以组合两种，但主风格要清楚，不要为了覆盖所有风格而叠加。用户只想吐槽或被附和时，一句接住就够了，后面的步骤可以不展开。
-用户的话里有自伤、他伤、虐待或即时危险的信号时，优先安排能稳住情绪、引导联系身边可信任的人或专业机构的风格。
-只输出要求的 JSON。
-`;
 
 export const RECORDER_PROMPT = `# 记录员
 
