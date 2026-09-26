@@ -68,8 +68,8 @@ export function useMuted() {
 export function SoundToggle({ className = '' }: { className?: string }) {
   const m = useMuted();
   return (
-    <button className={'sound-btn ' + className} onClick={() => setMuted(!m)} title={m ? '打开音效' : '关闭音效'}>
-      {m ? '♪ 静音' : '♪ 音效'}
+    <button className={'sound-btn ' + (m ? 'off ' : '') + className} onClick={() => setMuted(!m)} title={m ? '打开音效' : '关闭音效'}>
+      ♪<span>{m ? ' 静音' : ' 音效'}</span>
     </button>
   );
 }

@@ -413,6 +413,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .sound-btn { background: transparent; color: var(--cream); border: 2px solid var(--cream); padding: 2px 8px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
 .sound-btn:hover { background: rgba(255,255,255,.12); }
 .sound-btn.top { padding: 4px 10px; }
+/* 手机宽度只留 ♪，静音时变淡，顶栏不超出屏幕 */
+@media (max-width: 520px) {
+  .sound-btn span { display: none; }
+  .sound-btn.off { opacity: .5; }
+}
 
 /* ---------- 辩论设置（选人页） ---------- */
 .rt-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 28px; }
