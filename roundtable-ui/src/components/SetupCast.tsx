@@ -1,18 +1,17 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
 import { SCENES } from '../data/scenes';
 import { modeById } from '../data/modes';
-import { AGENT_COLORS, LIBRARY_ISSUES, checkPersona, type PersonaCheck } from '../data/personas';
+import { AGENT_COLORS } from '../data/personas';
 import { engineFor } from '../engines/registry';
 import { PixelAvatar } from './PixelAvatar';
 
 interface Pick { personalityId: string; side?: Side }
 
-export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
+export function SetupCast({ draft, personas, onBack, onStart }: {
   draft: Draft;
   personas: Persona[];
-  onImport: (list: Persona[]) => void;
   onBack: () => void;
   onStart: (cfg: SessionConfig) => void;
 }) {
@@ -25,11 +24,6 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
   const [order, setOrder] = useState<string[]>([]);
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
-  const [importMsg, setImportMsg] = useState('');
-  // 导入和人物库里有错误或提醒的文件，逐条列出来
-  const [checks, setChecks] = useState<PersonaCheck[]>(LIBRARY_ISSUES);
-  const [showChecks, setShowChecks] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const sideCount = (s: Side) => order.filter((id) => picked[id]?.side === s).length;
   const nextSide = (): Side | undefined => {
@@ -71,34 +65,6 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
     }
   };
 
-  const onFile = async (f: File) => {
-    let data: unknown;
-    try {
-      data = JSON.parse((await f.text()).replace(/^\uFEFF/, ''));
-    } catch (e) {
-      setImportMsg('导入失败：' + f.name + ' 不是合法的 JSON');
-      setChecks([{ source: f.name, errors: ['JSON 格式错误：' + (e as Error).message], warnings: [] }]);
-      setShowChecks(true);
-      return;
-    }
-    const arr = Array.isArray(data) ? data : [data];
-    const results = arr.map((raw, i) => checkPersona(raw, personas.length + i, arr.length > 1 ? f.name + ' 第 ' + (i + 1) + ' 项' : f.name));
-    const ok = results.flatMap((r) => (r.persona ? [r.persona] : []));
-    // 导入的人物如果没写 modes，默认放进当前模式
-    ok.forEach((p) => { if (!p.modes?.length) p.modes = [draft.mode]; });
-    onImport(ok);
-    const failed = results.filter((r) => !r.persona).length;
-    const warned = results.filter((r) => r.persona && r.warnings.length).length;
-    const wrongMode = ok.filter((p) => p.modes && !p.modes.includes(draft.mode)).map((p) => p.name);
-    setImportMsg(
-      `导入 ${ok.length} 个人物` + (failed ? `，${failed} 个失败` : '') + (warned ? `，${warned} 个有提醒` : '')
-      + (wrongMode.length ? `；${wrongMode.join('、')} 不属于当前模式，不会显示在这里` : ''),
-    );
-    const issues = results.filter((r) => r.errors.length || r.warnings.length);
-    setChecks(issues);
-    setShowChecks(issues.some((r) => r.errors.length > 0));
-  };
-
   const minCount = isDebate ? 2 : 2;
   const debateOk = !isDebate || (sideCount('pro') >= 1 && sideCount('con') >= 1);
   const canStart = order.length >= minCount && debateOk;
@@ -135,31 +101,8 @@ export function SetupCast({ draft, personas, onImport, onBack, onStart }: {
       <section className="panel cast-head">
         <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{scene.maxSeats}
           {isDebate && `（正方 ${sideCount('pro')}/3 · 反方 ${sideCount('con')}/3 · 主持 ${sideCount('host')}/1）`}</small></h2>
-        <div className="cast-tools">
-          <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-          <button className="px-btn" onClick={() => fileRef.current?.click()}>{modeById(draft.mode).importLabel}</button>
-          {importMsg && <span className="hint">{importMsg}</span>}
-          {checks.length > 0 && (
-            <button className="px-btn tiny" onClick={() => setShowChecks(!showChecks)}>
-              {showChecks ? '收起' : '查看'}问题（{checks.length}）
-            </button>
-          )}
-        </div>
+        <span className="hint">想加新人物？到右上角「图鉴」里导入</span>
       </section>
-
-      {showChecks && checks.length > 0 && (
-        <section className="panel import-report">
-          {checks.map((c, i) => (
-            <div key={c.source + i} className={'ir-item' + (c.persona ? ' warn' : ' bad')}>
-              <b>{c.persona ? '⚠ 已加载，有提醒' : '✕ 未加载'} · {c.source}{c.persona ? '（' + c.persona.name + '）' : ''}</b>
-              <ul>
-                {c.errors.map((e) => <li key={e} className="e">{e}</li>)}
-                {c.warnings.map((w) => <li key={w} className="w">{w}</li>)}
-              </ul>
-            </div>
-          ))}
-        </section>
-      )}
 
       <div className="persona-grid">
         {available.map((p) => {

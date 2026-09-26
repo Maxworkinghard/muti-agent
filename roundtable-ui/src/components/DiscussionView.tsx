@@ -12,7 +12,6 @@ interface Flight { id: string; from: { x: number; y: number }; to: { x: number; 
 interface ErrorItem { id: string; agentId?: string; message: string; retry?: () => void }
 
 const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
-const BRIEF_MIN = 15;
 
 export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
   const scene = SCENES[config.sceneId];
@@ -81,7 +80,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const send = () => {
     const text = draft.trim();
     if (session === 'waiting') {
-      if (text.length < BRIEF_MIN) return;
+      if (!text) return;
       startWith(text);
       setDraft('');
       return;
@@ -155,7 +154,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             </span>
           ))}
           {session === 'finished' && <div className="stage-banner">讨论结束 · 结果已写入工作区</div>}
-          {session === 'waiting' && <div className="stage-banner wait">大家已就座 · 等你先说说对这个项目的理解</div>}
+          {session === 'waiting' && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
         </div>
       </section>
 
@@ -177,8 +176,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <div className="log" ref={logRef}>
           {session === 'waiting' && !focused && (
             <div className="brief-tip">
-              <b>开场前，请先说说你的理解</b>
-              <p>详细写下你对「{config.theme.title}」的理解：背景、目标、你关心的点和已有的想法。大家会基于这段话开始讨论。</p>
+              <b>大家已就座，等你开口</b>
+              <p>想说什么都可以，发出去讨论就开始。</p>
             </div>
           )}
           {rounds.length === 0 && session !== 'waiting' && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : '等待第一位发言…'}</p>}
@@ -218,13 +217,13 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               rows={5}
               autoFocus
               value={draft}
-              placeholder={`详细说说你对「${config.theme.title}」的理解…（Ctrl+Enter 发送）`}
+              placeholder={`可以说说你对「${config.theme.title}」的理解、背景或关心的点，大家会围绕它讨论；也可以只说一句“OK，开始吧”。（Ctrl+Enter 发送）`}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(); }}
             />
             <div className="brief-foot">
-              <small>{draft.trim().length < BRIEF_MIN ? `至少 ${BRIEF_MIN} 个字，还差 ${BRIEF_MIN - draft.trim().length} 个` : `${draft.trim().length} 字`}</small>
-              <button className="px-btn primary" onClick={send} disabled={draft.trim().length < BRIEF_MIN}>发送并开始讨论</button>
+              <small />
+              <button className="px-btn primary" onClick={send} disabled={!draft.trim()}>发送</button>
             </div>
           </div>
         ) : (
