@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Participant, SessionConfig, TaskEvent,
 } from '../types';
-import { SCENES } from '../data/scenes';
+import { SCENES, facingOf } from '../data/scenes';
 import { modeById } from '../data/modes';
 import { engineFor } from '../engines/registry';
 import { PixelAvatar } from './PixelAvatar';
@@ -132,7 +132,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
                 {st === 'thinking' && <span className="think">•••</span>}
                 {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
                 {st === 'working' && <span className="work-icon">⌨</span>}
-                <span className="body"><PixelAvatar v={p.persona.visual} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} /></span>
+                <span className="body"><PixelAvatar v={p.persona.visual} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} facing={facingOf(scene, seat)} /></span>
                 <span className="nameplate">{p.isLead ? '★' : ''}{p.persona.name}</span>
               </button>
             );

@@ -3,6 +3,8 @@ export type ModeId = 'entertainment' | 'rational' | 'product';
 export type Track = 'discuss' | 'work';
 export type SceneId = 'roundtable' | 'debate' | 'office';
 export type Side = 'pro' | 'con' | 'host';
+/** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
+export type Facing = 'S' | 'SE' | 'E' | 'NE' | 'N' | 'NW' | 'W' | 'SW';
 
 export interface Personality {
   id: string;
@@ -45,6 +47,8 @@ export interface Seat {
   x: number; // 占底图宽度的百分比
   y: number; // 占底图高度的百分比
   group?: Side;
+  /** 坐在这里的人朝哪边，和底图里椅子的朝向一致；不写就看向场景中心 */
+  face?: Facing;
 }
 
 export interface SceneDef {
