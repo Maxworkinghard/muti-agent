@@ -105,6 +105,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .steps li { font-size: 0; gap: 0; padding: 4px 6px; }
   .steps li span { font-size: 12px; }
 }
+/* 手机宽度再去掉标题、收紧间距，顶栏不超出屏幕 */
+@media (max-width: 520px) {
+  .topbar { gap: 8px; padding: 8px 12px; }
+  .topbar-left .logo { display: none; }
+}
 
 /* ---------- 设置页 ---------- */
 .setup { flex: 1; overflow: auto; padding: 20px 24px 90px; display: flex; flex-direction: column; gap: 18px; max-width: 1280px; width: 100%; margin: 0 auto; }
