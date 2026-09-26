@@ -34,7 +34,7 @@ export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange
         <h2><b>02</b> 讨论主题 <small>可以不填，进入对话后按你的第一句话自动生成</small></h2>
         <input
           className="px-input big"
-          placeholder="输入你想讨论的问题…（可不填）"
+          placeholder="输入你想讨论的问题…"
           value={draft.theme}
           maxLength={60}
           onChange={(e) => onChange({ ...draft, theme: e.target.value })}
