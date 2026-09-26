@@ -1,4 +1,4 @@
-export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
+export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'discussion' | 'product';
 /** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
 export type Track = 'discuss' | 'work';
 export type SceneId = 'roundtable' | 'debate' | 'office';
@@ -76,6 +76,8 @@ export interface ModeDef {
   roundLabels: string[];
   /** 推荐主题库，第一步每次随机挑几个显示 */
   presets: string[];
+  /** 人物和性格来自 backend/ 的人格数据库（/api/options），不用前端的人物列表，也不能导入 */
+  backendPersonas?: boolean;
 }
 
 /** 前端交给引擎的会话配置 */
@@ -114,6 +116,8 @@ export interface ChatMessage {
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
   at: number;
+  /** 理性讨论引擎给出的发言标注：立场、回应了谁、质疑了谁 */
+  meta?: { stance?: string; respondsTo?: string | null; challenge?: string | null; challengeTarget?: string | null; answered?: string | null };
 }
 
 export interface TaskEvent {
@@ -130,6 +134,8 @@ export interface DiscussionResult {
   openQuestions: string[];
   suggestions: string[];
   deliverables?: string[];
+  /** 主持人总结原文（理性讨论引擎直接给一段话） */
+  summary?: string;
 }
 
 /** 引擎回传给前端的事件 */

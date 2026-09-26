@@ -19,7 +19,8 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
   const [failures, setFailures] = useState<ImportFailure[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const m = MODES.find((x) => x.id === mode)!;
-  const inMode = (id: ModeId) => personas.filter((p) => !p.modes || p.modes.includes(id));
+  // 人物来自 backend 的模式只列 backend 的人物；其他模式里没写 modes 的人物处处可用
+  const inMode = (id: ModeId) => personas.filter((p) => (MODES.find((x) => x.id === id)?.backendPersonas ? p.modes?.includes(id) : !p.modes || p.modes.includes(id)));
   const list = inMode(mode);
 
   const onFile = async (f: File) => {
@@ -71,11 +72,13 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
       <section className="panel">
         <div className="codex-head">
           <h2><b>{m.tag}</b> {m.name}模式 · {list.length} 位人物</h2>
-          <div className="cast-tools">
-            <input ref={fileRef} type="file" accept=".json,application/json" hidden
-              onChange={(e) => { if (e.target.files?.[0]) onFile(e.target.files[0]); e.target.value = ''; }} />
-            <button className="px-btn primary" onClick={() => fileRef.current?.click()}>{trackById(m.track).importLabel}</button>
-          </div>
+          {!m.backendPersonas && (
+            <div className="cast-tools">
+              <input ref={fileRef} type="file" accept=".json,application/json" hidden
+                onChange={(e) => { if (e.target.files?.[0]) onFile(e.target.files[0]); e.target.value = ''; }} />
+              <button className="px-btn primary" onClick={() => fileRef.current?.click()}>{trackById(m.track).importLabel}</button>
+            </div>
+          )}
         </div>
         {importMsg && <p className="hint">{importMsg}</p>}
         {failures.length > 0 && (
@@ -85,7 +88,8 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
             ))}
           </div>
         )}
-        {list.length === 0 && <p className="empty">这个模式还没有人物模板</p>}
+        {list.length === 0 && <p className="empty">{m.backendPersonas ? '这个模式的人物在 backend 的人格数据库里，先在 backend 文件夹运行 python 服务.py' : '这个模式还没有人物模板'}</p>}
+        {m.backendPersonas && list.length > 0 && <p className="hint">人物来自 backend 的人格数据库，每个人在开讨论前自选一种性格</p>}
         <div className="codex-grid">
           {list.map((p, i) => (
             <button key={p.id} className="codex-card" style={{ ['--ac' as string]: p.visual.shirt, animationDelay: i * 40 + 'ms' }} onClick={() => setOpen(p)}>

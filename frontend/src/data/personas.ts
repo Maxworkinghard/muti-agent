@@ -4,7 +4,7 @@ import { MODES, isModeId } from './modes';
 export const AGENT_COLORS = ['#6f9e6b', '#5f82b0', '#d4b04c', '#d98a4e', '#8a6fb0', '#c0625a', '#4f9a94', '#c47a9a'];
 
 /** 情感交流的几个人物只在「讨论与辩论」工作台的模式里出现 */
-const TALK_MODES = MODES.filter((m) => m.track === 'discuss').map((m) => m.id);
+const TALK_MODES = MODES.filter((m) => m.track === 'discuss' && !m.backendPersonas).map((m) => m.id);
 
 export const SAMPLE_PERSONAS: Persona[] = [
   {

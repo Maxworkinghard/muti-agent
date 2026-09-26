@@ -21,6 +21,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [round, setRound] = useState({ n: 0, label: '准备中' });
+  // 每一轮的名字以引擎发来的为准（轮数可变的引擎，比如理性讨论，中间几轮都叫交锋）
+  const [roundNames, setRoundNames] = useState<Record<number, string>>({});
   // 没填主题时由引擎按用户第一句话生成，收到 theme 事件后更新
   const [theme, setTheme] = useState(config.theme.title);
   const [session, setSession] = useState<'running' | 'finished' | 'stopped'>('running');
@@ -42,7 +44,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     const onEvent = (e: EngineEvent) => {
       switch (e.type) {
         case 'session': setSession(e.state); break;
-        case 'round': setRound({ n: e.round, label: e.label }); break;
+        case 'round': setRound({ n: e.round, label: e.label }); setRoundNames((x) => ({ ...x, [e.round]: e.label })); break;
         case 'status': setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } })); break;
         case 'message': setMessages((m) => [...m, e.message]); break;
         case 'message_update': setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text } : x))); break;
@@ -90,7 +92,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   // 进房间后不自动开始，用户对全体说了第一句话才开始
   const opened = messages.some((m) => m.kind === 'user' && !m.targetId);
   const visible = focused
-    ? messages.filter((m) => m.speakerId === focus || (m.speakerId === 'user' && m.targetId === focus))
+    // 引擎提示（比如调用失败、还没开场）在只看某个人时也显示
+    ? messages.filter((m) => m.kind === 'notice' || m.speakerId === focus || (m.speakerId === 'user' && m.targetId === focus))
     : messages;
   // 按轮次分组
   const rounds = useMemo(() => {
@@ -174,7 +177,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           {rounds.length === 0 && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : opened ? '等待第一位发言…' : '在下面说出你的问题或任务，大家收到后才开始'}</p>}
           {rounds.map(([r, ms]) => (
             <div key={r} className="round-block">
-              <div className="round-sep">{r === 0 ? '准备' : `第 ${r} 轮 · ${mode.roundLabels[r - 1] ?? ''}`}</div>
+              <div className="round-sep">{r === 0 ? '准备' : `第 ${r} 轮 · ${roundNames[r] ?? mode.roundLabels[r - 1] ?? ''}`}</div>
               {ms.map((m) => <Line key={m.id} m={m} byId={byId} />)}
             </div>
           ))}
@@ -258,6 +261,13 @@ function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }
       <div>
         <div className="who">{p.persona.name}{m.kind === 'reply' && <i>回复你</i>}</div>
         <p>{m.text}</p>
+        {m.meta && (m.meta.respondsTo || m.meta.answered || m.meta.challenge) && (
+          <div className="meta-row">
+            {m.meta.stance && m.meta.respondsTo && m.meta.respondsTo !== '用户' && <span>{String(m.meta.stance)} → {String(m.meta.respondsTo)}</span>}
+            {m.meta.answered && <span>回应了 {String(m.meta.answered)} 的质疑</span>}
+            {m.meta.challenge && <span className="ch">质疑{m.meta.challengeTarget ? ' ' + String(m.meta.challengeTarget) : ''}：{String(m.meta.challenge)}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -284,6 +294,7 @@ function ResultCard({ r }: { r: DiscussionResult }) {
   return (
     <div className="result">
       <div className="round-sep">讨论结果</div>
+      {r.summary && <div className="res res-blue"><b>主持人总结</b><p className="summary-text">{r.summary}</p></div>}
       {sec.filter(([, v]) => v?.length).map(([k, v, c]) => (
         <div key={k} className={'res res-' + c}><b>{k}</b><ul>{v!.map((x) => <li key={x}>{x}</li>)}</ul></div>
       ))}

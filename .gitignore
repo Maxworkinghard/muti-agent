@@ -1,0 +1,7 @@
+__pycache__/
+
+# backend：模型密钥、讨论记录和运行日志只留在本机
+backend/模型配置.json
+backend/讨论记录/
+backend/服务日志.txt
+backend/服务错误.txt

@@ -7,7 +7,7 @@ export interface LlmConfig {
   model: string;
 }
 
-/** 读 roundtable-ui/.env.local 里的 ROUNDTABLE_* 配置 */
+/** 读 frontend/.env.local 里的 ROUNDTABLE_* 配置 */
 export function readConfig(env: Record<string, string | undefined>): LlmConfig {
   return {
     baseUrl: (env.ROUNDTABLE_API_BASE_URL || 'https://api.cline.bot/api/v1').replace(/\/+$/, ''),

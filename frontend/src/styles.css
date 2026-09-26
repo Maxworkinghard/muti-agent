@@ -392,3 +392,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .err-actions { display: flex; gap: 6px; }
 .seat.err .body { outline: 2px dashed #c0625a; outline-offset: 2px; }
 .err-badge { position: absolute; top: -6px; right: -6px; z-index: 3; background: #c0625a; color: #fff; font-size: 11px; font-weight: bold; width: 16px; height: 16px; line-height: 16px; text-align: center; border: 2px solid var(--ink); }
+
+/* 理性讨论：讨论设置、发言标注、主持人总结 */
+.rt-settings { display: flex; flex-wrap: wrap; gap: 24px; }
+.rt-settings label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.rt-settings .px-input { width: 120px; }
+.rt-settings small { color: var(--ink-2); font-size: 12px; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; font-size: 11px; }
+.meta-row span { border: 1px solid var(--ink-2); padding: 0 4px; }
+.meta-row .ch { border-style: dashed; }
+.summary-text { white-space: pre-wrap; font-size: 13px; line-height: 1.6; margin: 0; padding: 4px 8px; }
