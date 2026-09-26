@@ -4,18 +4,17 @@ import { SCENE_LIST } from '../data/scenes';
 
 export function SetupScene({ draft, onChange, onNext }: { draft: Draft; onChange: (d: Draft) => void; onNext: () => void }) {
   const mode = MODES.find((m) => m.id === draft.mode)!;
-  const modes = MODES.filter((m) => m.track === draft.track);
   return (
     <main className="setup">
       <section className="panel">
         <h2><b>01</b> 选择模式</h2>
         <div className="mode-grid">
-          {modes.map((m) => (
+          {MODES.map((m) => (
             <button
               key={m.id}
               className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
               style={{ ['--mc' as string]: m.color }}
-              onClick={() => onChange({ ...draft, mode: m.id, sceneId: m.scene })}
+              onClick={() => onChange({ ...draft, track: m.track, mode: m.id, sceneId: m.scene })}
             >
               <span className="tag">{m.tag}</span>
               <strong>{m.name}</strong>

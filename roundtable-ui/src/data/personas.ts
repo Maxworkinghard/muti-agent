@@ -126,10 +126,55 @@ export const SAMPLE_PERSONAS: Persona[] = [
   },
 ];
 
-/** 校验并补全导入的人物 JSON，返回错误说明或人物对象 */
+const VERBOSITY: Record<string, string> = { short: '简短', medium: '适中', long: '详细' };
+
+/** 人格资料包协议 v1.0（{ schemaVersion, persona }）转成前端人物结构 */
+function fromProtocol(p: Record<string, any>, index: number): Persona | string {
+  const name = p.name ?? p.id ?? '第 ' + (index + 1) + ' 项';
+  if (!p.id || !p.name) return name + ' 缺少 id 或 name';
+  const traits: any[] = p.personality?.traitOptions ?? [];
+  if (traits.length === 0) return name + ' 缺少 personality.traitOptions';
+  const cs = p.communicationStyle ?? {};
+  const style = [cs.tone, cs.sentenceStyle, cs.verbosity && '篇幅' + (VERBOSITY[cs.verbosity] ?? cs.verbosity)].filter(Boolean).join('；');
+  const catchphrase: string | undefined = cs.catchphrases?.[0];
+  const b = p.boundaries ?? {};
+  const id = p.identity ?? {};
+  const kn = p.knowledge ?? {};
+  const wv = p.worldview ?? {};
+  return {
+    id: String(p.id),
+    name: String(p.name),
+    modes: Array.isArray(p.modes) ? p.modes.filter((m: unknown) => m === 'entertainment' || m === 'rational' || m === 'product') : undefined,
+    identity: [id.profession, id.role].filter(Boolean).join(' · ') || String(p.description ?? ''),
+    knowledge: [...(kn.domains ?? []), ...(kn.strong ?? [])].map(String),
+    thinking: (wv.judgmentFocus ?? wv.valuePriority ?? []).join('；'),
+    values: (wv.coreValues ?? []).join('、'),
+    personalities: traits.map((t) => ({
+      id: String(t.id),
+      label: String(t.label ?? t.id),
+      behavior: (t.behaviors ?? []).join('；'),
+      style,
+      opener: catchphrase,
+    })),
+    defaultPersonalityId: String(p.personality?.defaultTraits?.[0] ?? traits[0].id),
+    boundaries: [
+      ...(b.mustNot ?? []).map((t: string) => (String(t).startsWith('不') ? String(t) : '不' + t)),
+      ...(b.forbiddenTopics ?? []).map((t: string) => '不涉及' + t),
+    ],
+    // 协议里没有像素形象，用 visual.color 作衣服颜色；avatar 为空时前端画像素占位头像
+    visual: { skin: '#f1c9a5', hair: '#2b2136', shirt: p.visual?.color ?? AGENT_COLORS[index % AGENT_COLORS.length], accent: '#fbf5e4', hairStyle: 'short' },
+    protocol: p,
+  };
+}
+
+/** 校验并补全导入的人物 JSON，返回错误说明或人物对象；同时接受协议 v1.0 格式 */
 export function normalizePersona(raw: unknown, index: number): Persona | string {
   if (!raw || typeof raw !== 'object') return '第 ' + (index + 1) + ' 项不是对象';
   const r = raw as Record<string, any>;
+  if (r.schemaVersion !== undefined && r.persona) {
+    if (r.schemaVersion !== '1.0') return '不支持的 schemaVersion：' + r.schemaVersion;
+    return fromProtocol(r.persona, index);
+  }
   if (!r.id || !r.name) return '第 ' + (index + 1) + ' 项缺少 id 或 name';
   if (!Array.isArray(r.personalities) || r.personalities.length === 0) return r.name + ' 缺少 personalities';
   const color = AGENT_COLORS[index % AGENT_COLORS.length];

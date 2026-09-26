@@ -37,6 +37,8 @@ export interface Persona {
   defaultPersonalityId: string;
   boundaries: string[];
   visual: PersonaVisual;
+  /** 从人格资料包协议 v1.0 导入时保留的原始 persona，引擎可直接读取 */
+  protocol?: Record<string, unknown>;
 }
 
 export interface Seat {
