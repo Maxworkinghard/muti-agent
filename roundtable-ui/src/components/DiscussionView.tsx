@@ -4,17 +4,19 @@ import type {
 } from '../types';
 import { SCENES } from '../data/scenes';
 import { modeById } from '../data/modes';
-import { ENGINE_REGISTRY } from '../engine/registry';
+import { engineFor } from '../engines/registry';
 import { PixelAvatar } from './PixelAvatar';
 
 interface Status { state: AgentState; action: string }
 interface Flight { id: string; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
+interface ErrorItem { id: string; agentId?: string; message: string; retry?: () => void }
 
 const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
 
 export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
   const scene = SCENES[config.sceneId];
   const mode = modeById(config.mode);
+  const engineInfo = engineFor(config.mode);
   const engineRef = useRef<DiscussionEngine | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Record<string, Status>>({});
@@ -28,13 +30,14 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [focus, setFocus] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
+  const [errors, setErrors] = useState<ErrorItem[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
 
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
   const seatOf = (id: string) => scene.seats[byId[id]?.seatIndex ?? 0];
 
   useEffect(() => {
-    const engine = (ENGINE_REGISTRY[config.mode] ?? ENGINE_REGISTRY.entertainment)();
+    const engine = engineInfo.create();
     engineRef.current = engine;
     const onEvent = (e: EngineEvent) => {
       switch (e.type) {
@@ -42,8 +45,12 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         case 'round': setRound({ n: e.round, label: e.label }); break;
         case 'status': setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } })); break;
         case 'message': setMessages((m) => [...m, e.message]); break;
+        case 'message_update': setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text } : x))); break;
         case 'result': setResult(e.result); break;
         case 'theme': setTheme(e.title); break;
+        case 'error':
+          setErrors((es) => [...es.filter((x) => x.id !== e.id), { id: e.id, agentId: e.agentId, message: e.message, retry: e.retry }]);
+          break;
         case 'task': {
           setTasks((t) => [...t, e.task]);
           const p = byId[e.task.from];
@@ -56,13 +63,21 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         }
       }
     };
-    engine.start(config, onEvent);
+    try {
+      engine.start(config, onEvent);
+    } catch (err) {
+      onEvent({ type: 'error', id: 'start', message: '引擎启动失败：' + (err as Error).message });
+    }
     return () => engine.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
   // 自动滚到底部
-  useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, focus, result]);
+  useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, focus, result, errors]);
+
+  const dismiss = (id: string) => setErrors((es) => es.filter((x) => x.id !== id));
+  const retry = (e: ErrorItem) => { dismiss(e.id); e.retry?.(); };
+  const hasError = (agentId: string) => errors.some((x) => x.agentId === agentId);
 
   const send = () => {
     const text = draft.trim();
@@ -91,7 +106,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
       {/* 顶部：主题 */}
       <header className="room-theme">
         <button className="px-btn tiny" onClick={onExit}>◀</button>
-        <span className="mode-tag" style={{ background: mode.color }}>{mode.name}</span>
+        <span className="mode-tag" style={{ background: mode.color }} title={engineInfo.name + ' · ' + engineInfo.owner}>{mode.name}</span>
         <h1 title={theme}>主题：{theme || '说出第一句话后自动生成'}</h1>
         <span className="round-tag">R{round.n}/{config.maxRounds} · {round.label}</span>
         <span className={'live ' + session}>{session === 'running' ? '● LIVE' : session === 'finished' ? '■ 已结束' : '■ 已停止'}</span>
@@ -109,10 +124,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             return (
               <button
                 key={p.agentId}
-                className={`seat st-${st}${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}`}
+                className={`seat st-${st}${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}${hasError(p.agentId) ? ' err' : ''}`}
                 style={{ left: seat.x + '%', top: seat.y + '%', ['--ac' as string]: p.color }}
                 onClick={() => setFocus(focus === p.agentId ? null : p.agentId)}
               >
+                {hasError(p.agentId) && <span className="err-badge" title="发言失败，在右侧工作区可以重试">!</span>}
                 {st === 'thinking' && <span className="think">•••</span>}
                 {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
                 {st === 'working' && <span className="work-icon">⌨</span>}
@@ -174,6 +190,16 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             </div>
           )}
           {result && !focused && <ResultCard r={result} />}
+          {errors.filter((e) => !focused || !e.agentId || e.agentId === focus).map((e) => (
+            <div key={e.id} className="err-line" role="alert">
+              <b>{e.agentId ? (byId[e.agentId]?.persona.name ?? e.agentId) + ' 这次发言失败' : '讨论出错'}</b>
+              <p>{e.message}</p>
+              <div className="err-actions">
+                {e.retry && session === 'running' && <button className="px-btn tiny primary" onClick={() => retry(e)}>重试</button>}
+                <button className="px-btn tiny" onClick={() => dismiss(e.id)}>知道了</button>
+              </div>
+            </div>
+          ))}
         </div>
         <div className="send">
           <input

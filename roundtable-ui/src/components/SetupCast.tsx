@@ -4,6 +4,7 @@ import type { Persona, SessionConfig, Side } from '../types';
 import { SCENES } from '../data/scenes';
 import { modeById } from '../data/modes';
 import { AGENT_COLORS } from '../data/personas';
+import { engineFor } from '../engines/registry';
 import { PixelAvatar } from './PixelAvatar';
 
 interface Pick { personalityId: string; side?: Side }
@@ -90,6 +91,7 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
       theme: { title: draft.theme.trim() },
       maxRounds: modeById(draft.mode).roundLabels.length,
       participants,
+      engineOptions: { ...engineFor(draft.mode).defaults },
       createdAt: new Date().toISOString(),
     });
   };

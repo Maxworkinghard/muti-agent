@@ -5,3 +5,4 @@ dist/
 
 # 本地密钥（ROUNDTABLE_API_KEY 等），不要提交
 *.local
+.env

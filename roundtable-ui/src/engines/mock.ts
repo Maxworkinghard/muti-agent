@@ -67,7 +67,9 @@ export function createMockEngine(): DiscussionEngine {
   let busy = false;
 
   const later = (fn: () => void, ms: number) => {
-    const id = window.setTimeout(() => { if (!stopped) fn(); }, ms);
+    // 发言速度倍率来自 engineOptions.speed（默认值在各引擎的 config.ts）
+    const speed = Number(cfg?.engineOptions?.speed ?? 1) || 1;
+    const id = window.setTimeout(() => { if (!stopped) fn(); }, ms / speed);
     timers.push(id);
   };
   /** 队列里每一步返回自己需要占用的毫秒数 */

@@ -4,6 +4,7 @@ import type { SessionConfig } from '../src/types.ts';
 import { isModeId } from '../src/data/modes.ts';
 import { prepareRuntime, readConfig, modelRef, type Runtime } from './runtime.ts';
 import { RoundtableSession } from './session.ts';
+import { createLlmHandler } from './llm-proxy.ts';
 
 /**
  * 后端接口（挂在 Vite 开发 / 预览服务器上，Key 只在这里读取，不会进前端代码）：
@@ -12,6 +13,7 @@ import { RoundtableSession } from './session.ts';
  *   GET  /api/sessions/:id/events        SSE 推送 EngineEvent，断线重连按 Last-Event-ID 补发
  *   POST /api/sessions/:id/messages      用户插话 { text, targetAgentId? }
  *   POST /api/sessions/:id/stop          停止会话并结束所有 omp 进程
+ *   POST /api/llm/chat                   转发给模型服务（OpenAI 兼容），给在浏览器里写流程的引擎用
  */
 export function createApi(env: Record<string, string | undefined>) {
   const cfg = readConfig(env);
@@ -21,6 +23,7 @@ export function createApi(env: Record<string, string | undefined>) {
     try { rt = prepareRuntime(cfg); } catch (e) { setupError = '无法准备 omp 运行目录：' + (e as Error).message; }
   }
   const sessions = new Map<string, RoundtableSession>();
+  const llm = createLlmHandler(cfg);
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -29,6 +32,7 @@ export function createApi(env: Record<string, string | undefined>) {
     if (req.method === 'GET' && section === 'health') {
       return json(res, 200, { ok: !setupError, error: setupError || undefined, model: modelRef(cfg), baseUrl: cfg.baseUrl, omp: cfg.ompBin });
     }
+    if (section === 'llm' && id === 'chat') return llm(req, res);
     if (section !== 'sessions') return json(res, 404, { error: '没有这个接口' });
 
     if (req.method === 'POST' && !id) {

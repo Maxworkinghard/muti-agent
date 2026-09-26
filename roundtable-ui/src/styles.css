@@ -334,7 +334,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .line .l-avatar { border: 2px solid var(--ink); background: var(--ac); flex: none; }
 .line .who { font-size: 12px; font-weight: bold; color: var(--ac); display: flex; gap: 6px; align-items: center; }
 .line .who i { font-style: normal; font-weight: normal; background: var(--c-yellow); color: var(--ink); padding: 0 4px; font-size: 10px; }
-.line p { margin: 2px 0 0; background: #fff; border: 2px solid var(--ink); padding: 5px 8px; line-height: 1.5; font-size: 13px; }
+.line p { margin: 2px 0 0; background: #fff; border: 2px solid var(--ink); padding: 5px 8px; line-height: 1.5; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .line.task p { background: var(--sand); border-style: dashed; font-size: 12px; }
 .line.user { flex-direction: column; align-items: flex-end; }
 .line.user .who { color: var(--ink); }
@@ -383,3 +383,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .mode-grid, .scene-grid { grid-template-columns: 1fr; }
   .room { --work-w: 300px; }
 }
+
+/* 发言失败 */
+.err-line { border: 2px solid #c0625a; background: #fbe9e4; padding: 6px 8px; margin: 6px 0; font-size: 12px; animation: linein .3s steps(3); }
+.err-line b { color: #a2463e; }
+.err-line p { margin: 3px 0 6px; line-height: 1.5; word-break: break-all; }
+.err-actions { display: flex; gap: 6px; }
+.seat.err .body { outline: 2px dashed #c0625a; outline-offset: 2px; }
+.err-badge { position: absolute; top: -6px; right: -6px; z-index: 3; background: #c0625a; color: #fff; font-size: 11px; font-weight: bold; width: 16px; height: 16px; line-height: 16px; text-align: center; border: 2px solid var(--ink); }

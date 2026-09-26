@@ -89,6 +89,8 @@ export interface SessionConfig {
   theme: { title: string };
   maxRounds: number;
   participants: Participant[];
+  /** 引擎可调参数，默认值在各引擎文件夹的 config.ts 里 */
+  engineOptions: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -129,17 +131,32 @@ export type EngineEvent =
   | { type: 'round'; round: number; label: string }
   | { type: 'status'; agentId: string; state: AgentState; action: string }
   | { type: 'message'; message: ChatMessage }
+  /** 流式发言：先发一条 message，再用同一个 id 不断更新全文 */
+  | { type: 'message_update'; id: string; text: string }
   | { type: 'task'; task: TaskEvent }
   | { type: 'result'; result: DiscussionResult }
   /** 没填主题时，引擎按用户对全体说的第一句话生成的主题 */
-  | { type: 'theme'; title: string };
+  | { type: 'theme'; title: string }
+  /** 调用 AI 等出错；agentId 为空表示整场出错。retry 存在时界面显示“重试”按钮 */
+  | { type: 'error'; id: string; agentId?: string; message: string; retry?: () => void };
 
 /** 各小组实现的讨论引擎都遵守这个接口 */
 export interface DiscussionEngine {
   start(config: SessionConfig, emit: (event: EngineEvent) => void): void;
   /** 用户插话；targetAgentId 为空表示对全体 */
   sendUserMessage(input: { text: string; targetAgentId?: string }): void;
+  /** 停止讨论：清掉计时器，并中断正在进行的 AI 请求（把 AbortSignal 传给 chat / chatStream） */
   stop(): void;
 }
 
 export type EngineFactory = () => DiscussionEngine;
+
+/** 每个模式的引擎包：工厂函数 + 可调参数默认值 */
+export interface EngineModule {
+  mode: ModeId;
+  name: string;
+  /** 负责人或小组，方便排查 */
+  owner: string;
+  create: EngineFactory;
+  defaults: Record<string, unknown>;
+}
