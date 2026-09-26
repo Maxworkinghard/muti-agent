@@ -3,6 +3,14 @@ export type ModeId = 'entertainment' | 'rational' | 'product' | 'emotion' | 'vib
 /** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
 export type Track = 'discuss' | 'work';
 export type SceneId = 'roundtable' | 'debate' | 'office';
+/**
+ * 流程按角色写，不按具体的人写；选人就是给角色找人。
+ * talk 轮流发言；debate 正反方辩论；work 负责人给每人派一项任务；
+ * pick 不出场的主持人按用户需要挑一两种风格回应；dispatch 总控按需点名；pipeline 按固定分工串行
+ */
+export type FlowId = 'talk' | 'debate' | 'work' | 'pick' | 'dispatch' | 'pipeline';
+/** 流程里的固定角色：coordinator 总控 / 主 Agent，writer 写 Prompt，executor 执行 */
+export type RoleId = 'coordinator' | 'writer' | 'executor';
 export type Side = 'pro' | 'con' | 'host';
 
 export interface Personality {
@@ -44,8 +52,8 @@ export interface Persona {
   systemPrompt?: string;
   /** 人格文件在 persona-db 里的路径 */
   sourceFile?: string;
-  /** 工作模式里入座即担任负责人（总控 / 主 Agent） */
-  defaultLead?: boolean;
+  /** 能担任的流程角色（总控 / 主 Agent、写 Prompt、执行），见 ModeDef.roles */
+  role?: RoleId;
 }
 
 export interface Seat {
@@ -76,6 +84,9 @@ export interface ModeDef {
   scene: SceneId;
   roundLabels: string[];
   presets: string[];
+  flow: FlowId;
+  /** 流程需要的固定角色；required 的人物进入选人页就自动入座，不能移出 */
+  roles?: Array<{ id: RoleId; name: string; required?: boolean }>;
 }
 
 /** 前端交给引擎的会话配置 */
@@ -85,6 +96,8 @@ export interface Participant {
   color: string;
   side?: Side;
   isLead?: boolean;
+  /** 这场会话里担任的流程角色 */
+  role?: RoleId;
   personalityId: string;
   persona: Persona;
 }
@@ -107,8 +120,8 @@ export interface ChatMessage {
   /** agentId，或 'user' / 'system' */
   speakerId: string;
   text: string;
-  /** notice：引擎提示（如模型调用失败），在工作区里显示 */
-  kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice';
+  /** notice：引擎提示（如模型调用失败）；note：流程说明（如主持的安排）。两者都在工作区里显示 */
+  kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice' | 'note';
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
   at: number;
@@ -139,7 +152,9 @@ export type EngineEvent =
   | { type: 'task'; task: TaskEvent }
   | { type: 'result'; result: DiscussionResult }
   /** 没填主题时，引擎按用户对全体说的第一句话生成的主题 */
-  | { type: 'theme'; title: string };
+  | { type: 'theme'; title: string }
+  /** 引擎在等用户回答（比如主 Agent 的澄清问题）：hint 换掉输入框提示，null 表示不再等 */
+  | { type: 'awaiting'; hint: string | null };
 
 /** 各小组实现的讨论引擎都遵守这个接口 */
 export interface DiscussionEngine {

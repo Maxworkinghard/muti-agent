@@ -1,4 +1,4 @@
-import type { ModeId, Persona, PersonaVisual } from '../types';
+import type { ModeId, Persona, PersonaVisual, RoleId } from '../types';
 import { AGENT_COLORS } from './personas';
 import { parseFileIndex, parsePersonaFile, type PersonaFileSummary } from './personaMarkdown';
 
@@ -12,8 +12,8 @@ const FILES = import.meta.glob<string>('/persona-db/*/*.md', { query: '?raw', im
 interface PersonaSet {
   dir: string;
   mode: ModeId;
-  /** 默认负责人（总控 / 主 Agent）的文件名 */
-  lead?: string;
+  /** 文件名 → 在流程里的固定角色（见 modes.ts 里各模式的 roles）；没写的是普通成员 */
+  roles?: Record<string, RoleId>;
   /** 人物顺序；缺省按文件名排序 */
   order?: string[];
   /** 整套统一的表达风格，摘自 README 的输出要求 */
@@ -22,9 +22,13 @@ interface PersonaSet {
 
 const SETS: PersonaSet[] = [
   { dir: '情感交流人格', mode: 'emotion' },
-  { dir: 'vibe coding人格', mode: 'vibe', lead: '主agent.md', order: ['主agent.md', 'prompt编写agent.md', '接收promptagent.md'] },
-  { dir: '产品分析人格', mode: 'analysis', lead: '00_产品分析总控人格.md', style: '先给结论，再讲依据、风险、取舍和下一步' },
-  { dir: '简历分析人格', mode: 'resume', lead: '00_简历分析总控人格.md', style: '先给结论，再列证据位置、推断和未知项' },
+  {
+    dir: 'vibe coding人格', mode: 'vibe',
+    roles: { '主agent.md': 'coordinator', 'prompt编写agent.md': 'writer', '接收promptagent.md': 'executor' },
+    order: ['主agent.md', 'prompt编写agent.md', '接收promptagent.md'],
+  },
+  { dir: '产品分析人格', mode: 'analysis', roles: { '00_产品分析总控人格.md': 'coordinator' }, style: '先给结论，再讲依据、风险、取舍和下一步' },
+  { dir: '简历分析人格', mode: 'resume', roles: { '00_简历分析总控人格.md': 'coordinator' }, style: '先给结论，再列证据位置、推断和未知项' },
 ];
 const SHARED = ['README.md', 'workflow.md'];
 
@@ -119,7 +123,8 @@ function buildSet(set: PersonaSet, s: number): Persona[] {
   return members.map((file, j) => {
     const f = { ...parsePersonaFile(files[file]), ...OVERRIDES[`${set.dir}/${file}`] };
     const info = index[file];
-    const lead = file === set.lead;
+    const role = set.roles?.[file];
+    const lead = role === 'coordinator';
     return {
       id: `${set.mode}/${file.replace(/\.md$/, '')}`,
       name: NAMES[`${set.dir}/${file}`] ?? f.name,
@@ -145,7 +150,7 @@ function buildSet(set: PersonaSet, s: number): Persona[] {
       },
       systemPrompt: files[file] + shared,
       sourceFile: `${set.dir}/${file}`,
-      defaultLead: lead || undefined,
+      role,
     };
   });
 }

@@ -177,6 +177,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   background: var(--paper); border: 2px solid var(--ink); padding: 6px 8px; scrollbar-width: thin;
 }
 .pc-actions { display: flex; gap: 8px; margin-top: auto; }
+/* 人物在流程里的位置：固定角色、候选、评审 */
+.pc-role { align-self: center; margin-left: auto; font-size: 12px; padding: 1px 6px; border: 2px solid var(--ink); background: var(--paper); }
+.pc-role.lead { background: var(--c-yellow); }
+.flow-hint { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--ink-2); border-left: 4px solid var(--c-yellow); padding-left: 8px; }
 
 /* ---------- 图鉴 ---------- */
 .codex-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -343,12 +347,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .line .l-avatar { border: 2px solid var(--ink); background: var(--ac); flex: none; }
 .line .who { font-size: 12px; font-weight: bold; color: var(--ac); display: flex; gap: 6px; align-items: center; }
 .line .who i { font-style: normal; font-weight: normal; background: var(--c-yellow); color: var(--ink); padding: 0 4px; font-size: 10px; }
-.line p { margin: 2px 0 0; background: #fff; border: 2px solid var(--ink); padding: 5px 8px; line-height: 1.5; font-size: 13px; }
+.line p { margin: 2px 0 0; background: #fff; border: 2px solid var(--ink); padding: 5px 8px; line-height: 1.5; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .line.task p { background: var(--sand); border-style: dashed; font-size: 12px; }
 .line.user { flex-direction: column; align-items: flex-end; }
 .line.user .who { color: var(--ink); }
 .line.user p { background: var(--c-yellow); max-width: 85%; }
 .line.notice p { flex: 1; background: #fbe3df; border-color: var(--c-red); font-size: 12px; }
+.line.note p { flex: 1; background: var(--sand); border-style: dashed; color: var(--ink-2); font-size: 12px; }
 @keyframes linein { from { opacity: 0; transform: translateY(6px); } }
 .task-board .task { font-size: 12px; padding: 3px 6px; border-left: 4px solid var(--c-yellow); background: #fff; margin-bottom: 3px; display: flex; gap: 4px; }
 .task-board .task em { margin-left: auto; font-style: normal; color: var(--ink-2); }

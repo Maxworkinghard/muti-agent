@@ -1,6 +1,6 @@
 import { Fragment, useRef, useState } from 'react';
 import type { ModeId, Persona } from '../types';
-import { MODES, TRACKS, trackById } from '../data/modes';
+import { MODES, TRACKS, modeById, roleName, trackById } from '../data/modes';
 import { normalizePersona } from '../data/personas';
 import { PixelAvatar } from './PixelAvatar';
 
@@ -111,6 +111,9 @@ function PersonaDetail({ p, onClose }: { p: Persona; onClose: () => void }) {
   // 按人格资料包协议 v1.0 导入的人物，额外展示协议里才有的字段
   const raw = p.protocol as Record<string, any> | undefined;
   const style = raw?.communicationStyle;
+  // 人格数据库的固定角色（总控、主 Agent…），进入对应模式时自动入座
+  const home = p.modes?.length === 1 ? modeById(p.modes[0]) : undefined;
+  const role = home && roleName(home, p.role);
   const rows: Array<[string, string | undefined]> = [
     ['身份', p.identity],
     ['知识', p.knowledge.join(' / ')],
@@ -121,6 +124,7 @@ function PersonaDetail({ p, onClose }: { p: Persona; onClose: () => void }) {
     ['表达', style ? [style.tone, style.verbosity, style.humor && '幽默：' + style.humor].filter(Boolean).join(' · ') : undefined],
     ['口头禅', style?.catchphrases?.join(' / ')],
     ['适用模式', p.modes?.map((id) => MODES.find((x) => x.id === id)?.name ?? id).join(' / ') ?? '全部'],
+    ['流程角色', role && `${role}（进入${home.name}时固定在座）`],
   ];
   return (
     <div className="codex-overlay" onClick={onClose}>

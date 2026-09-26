@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
 import { SCENES } from '../data/scenes';
-import { modeById } from '../data/modes';
+import { FLOW_HINT, modeById, roleName } from '../data/modes';
 import { AGENT_COLORS } from '../data/personas';
 import { PixelAvatar } from './PixelAvatar';
 
@@ -15,13 +15,20 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
   onStart: (cfg: SessionConfig) => void;
 }) {
   const scene = SCENES[draft.sceneId];
+  const mode = modeById(draft.mode);
   const isDebate = draft.sceneId === 'debate';
-  // 「工作 · 创造项目」工作台的模式都有负责人：负责拆任务、收交付
-  const isWork = modeById(draft.mode).track === 'work';
+  // 通用的工作流程由用户指定负责人；总控 / 主 Agent 的流程里负责人固定是它
+  const pickLead = mode.flow === 'work';
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
   const available = personas.filter((p) => !p.modes || p.modes.includes(draft.mode));
-  const [picked, setPicked] = useState<Record<string, Pick>>({});
-  const [order, setOrder] = useState<string[]>([]);
+  /** 人物在这个模式流程里的固定角色；模式用不到的角色不算 */
+  const roleOf = (p: Persona) => (mode.roles?.some((r) => r.id === p.role) ? p.role : undefined);
+  const isLocked = (p: Persona) => !!mode.roles?.find((r) => r.id === roleOf(p))?.required;
+  // 流程必需的角色一进来就入座，不能移出
+  const [picked, setPicked] = useState<Record<string, Pick>>(() =>
+    Object.fromEntries(available.filter(isLocked).map((p) => [p.id, { personalityId: p.defaultPersonalityId }])));
+  const [order, setOrder] = useState<string[]>(() => available.filter(isLocked).map((p) => p.id));
+  const missing = mode.roles?.filter((r) => r.required && !available.some((p) => roleOf(p) === r.id)) ?? [];
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
 
@@ -36,6 +43,7 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
 
   const toggle = (p: Persona) => {
     if (picked[p.id]) {
+      if (isLocked(p)) return;
       const { [p.id]: _, ...rest } = picked;
       setPicked(rest);
       setOrder(order.filter((x) => x !== p.id));
@@ -47,8 +55,8 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
     if (isDebate && !side) return;
     setPicked({ ...picked, [p.id]: { personalityId: personality[p.id] ?? p.defaultPersonalityId, side } });
     setOrder([...order, p.id]);
-    // 第一个入座的人先当负责人；总控 / 主 Agent 入座时接任
-    if (isWork && (!lead || p.defaultLead)) setLead(p.id);
+    // 第一个入座的人先当负责人，可以再改
+    if (pickLead && !lead) setLead(p.id);
   };
 
   const setPer = (p: Persona, id: string) => {
@@ -68,7 +76,7 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
 
   const minCount = isDebate ? 2 : 2;
   const debateOk = !isDebate || (sideCount('pro') >= 1 && sideCount('con') >= 1);
-  const canStart = order.length >= minCount && debateOk;
+  const canStart = order.length >= minCount && debateOk && missing.length === 0;
 
   const start = () => {
     // 辩论室：正方占 0-2 号座，反方 3-5 号，主持 6 号
@@ -80,15 +88,15 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
       if (isDebate && pk.side) { seatIndex = pk.side === 'pro' ? used.pro : pk.side === 'con' ? 3 + used.con : 6; used[pk.side]++; }
       return {
         agentId: id, seatIndex, color: persona.visual.shirt ?? AGENT_COLORS[i % 8],
-        side: pk.side, isLead: isWork ? id === lead : undefined,
-        personalityId: pk.personalityId, persona,
+        side: pk.side, isLead: pickLead ? id === lead : roleOf(persona) === 'coordinator' || undefined,
+        role: roleOf(persona), personalityId: pk.personalityId, persona,
       };
     });
     onStart({
       sessionId: 's-' + Date.now().toString(36),
       mode: draft.mode, sceneId: draft.sceneId,
       theme: { title: draft.theme.trim() },
-      maxRounds: modeById(draft.mode).roundLabels.length,
+      maxRounds: mode.roundLabels.length,
       participants,
       createdAt: new Date().toISOString(),
     });
@@ -102,6 +110,7 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
         <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{scene.maxSeats}
           {isDebate && `（正方 ${sideCount('pro')}/3 · 反方 ${sideCount('con')}/3 · 主持 ${sideCount('host')}/1）`}</small></h2>
         <span className="hint">想加新人物？到右上角「图鉴」里导入</span>
+        {FLOW_HINT[mode.flow] && <p className="flow-hint">{FLOW_HINT[mode.flow]}</p>}
       </section>
 
       <div className="persona-grid">
@@ -109,6 +118,8 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
           const pk = picked[p.id];
           const perId = pk?.personalityId ?? personality[p.id] ?? p.defaultPersonalityId;
           const per = p.personalities.find((x) => x.id === perId) ?? p.personalities[0];
+          // 入座后标出在流程里的位置：固定角色、总控点名的候选、流水线之外的评审
+          const badge = roleName(mode, roleOf(p)) ?? (mode.flow === 'dispatch' ? '候选' : mode.flow === 'pipeline' ? '评审' : undefined);
           return (
             <article key={p.id} className={'persona-card' + (pk ? ' on' : '')} style={{ ['--ac' as string]: p.visual.shirt }}>
               <div className="pc-top" onClick={() => toggle(p)}>
@@ -138,9 +149,12 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
                 </details>
               )}
               <div className="pc-actions">
-                <button className={'px-btn ' + (pk ? 'danger' : 'primary')} onClick={() => toggle(p)}>{pk ? '移出' : '入座'}</button>
+                {isLocked(p)
+                  ? <button className="px-btn" disabled title="这个角色是流程必需的">固定在座</button>
+                  : <button className={'px-btn ' + (pk ? 'danger' : 'primary')} onClick={() => toggle(p)}>{pk ? '移出' : '入座'}</button>}
                 {pk && isDebate && <button className={'px-btn side-' + pk.side} onClick={() => cycleSide(p.id)}>{sideLabel[pk.side!]} ⇄</button>}
-                {pk && isWork && <button className={'px-btn' + (lead === p.id ? ' lead' : '')} onClick={() => setLead(p.id)}>{lead === p.id ? '★ 负责人' : '设为负责人'}</button>}
+                {pk && pickLead && <button className={'px-btn' + (lead === p.id ? ' lead' : '')} onClick={() => setLead(p.id)}>{lead === p.id ? '★ 负责人' : '设为负责人'}</button>}
+                {pk && badge && <span className={'pc-role' + (roleOf(p) === 'coordinator' ? ' lead' : '')}>{roleOf(p) === 'coordinator' && '★ '}{badge}</span>}
               </div>
             </article>
           );
@@ -149,7 +163,11 @@ export function SetupCast({ draft, personas, onBack, onStart }: {
 
       <footer className="setup-foot">
         <button className="px-btn" onClick={onBack}>◀ 返回</button>
-        <span>{draft.theme.trim() ? `「${draft.theme.trim()}」` : '主题会按你的第一句话自动生成'}{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
+        <span>
+          {draft.theme.trim() ? `「${draft.theme.trim()}」` : '主题会按你的第一句话自动生成'}
+          {!debateOk && ' · 辩论需要正反方各至少 1 人'}
+          {missing.length > 0 && ` · 缺少流程必需的角色：${missing.map((r) => r.name).join('、')}`}
+        </span>
         <button className="px-btn primary" disabled={!canStart} onClick={start}>进入对话 ▶</button>
       </footer>
     </main>

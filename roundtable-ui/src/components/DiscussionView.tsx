@@ -28,6 +28,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [focus, setFocus] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
+  // 引擎在等用户回答（比如主 Agent 的澄清问题）时给出的输入提示
+  const [awaiting, setAwaiting] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
@@ -38,12 +40,13 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     engineRef.current = engine;
     const onEvent = (e: EngineEvent) => {
       switch (e.type) {
-        case 'session': setSession(e.state); break;
+        case 'session': setSession(e.state); if (e.state !== 'running') setAwaiting(null); break;
         case 'round': setRound({ n: e.round, label: e.label }); break;
         case 'status': setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } })); break;
         case 'message': setMessages((m) => [...m, e.message]); break;
         case 'result': setResult(e.result); break;
         case 'theme': setTheme(e.title); break;
+        case 'awaiting': setAwaiting(e.hint); break;
         case 'task': {
           setTasks((t) => [...t, e.task]);
           const p = byId[e.task.from];
@@ -179,7 +182,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           <input
             className="px-input"
             value={draft}
-            placeholder={session !== 'running' ? '讨论已结束' : focused ? `对 ${focused.persona.name} 说…` : opened ? '对全体说…（点成员可以单独对话）' : '对全体说出问题或任务后才开始…'}
+            placeholder={session !== 'running' ? '讨论已结束' : focused ? `对 ${focused.persona.name} 说…` : awaiting ?? (opened ? '对全体说…（点成员可以单独对话）' : '对全体说出问题或任务后才开始…')}
             disabled={session !== 'running'}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
@@ -220,6 +223,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 
 function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }) {
   if (m.kind === 'notice') return <div className="line notice"><p>⚠ {m.text}</p></div>;
+  if (m.kind === 'note') return <div className="line note"><p>{m.text}</p></div>;
   if (m.speakerId === 'user') {
     const to = m.targetId ? byId[m.targetId]?.persona.name : '全体';
     return <div className="line user"><div className="who">你 → {to}</div><p>{m.text}</p></div>;
