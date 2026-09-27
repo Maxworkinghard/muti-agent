@@ -8,6 +8,7 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "build:server": "vite build --config vite.server.config.ts",
     "test:variation": "node scripts/check-variation.mjs",
+    "test:rational": "node scripts/check-rational.mjs",
     "preview": "vite preview",
     "sim": "node scripts/sim.mjs"
   },

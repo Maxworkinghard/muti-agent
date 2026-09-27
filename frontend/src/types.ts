@@ -131,7 +131,7 @@ export interface ChatMessage {
   at: number;
 }
 
-/** 人物此刻的内心（娱乐引擎用）：情绪 0~10、对别人的好恶 -10~10、心里话和打算 */
+/** 人物此刻的内心（娱乐、辩论引擎用）：情绪 0~10、心里话和打算 */
 export interface MindView {
   /** 各种情绪的强度，按模式定的顺序 */
   mood: Array<{ key: string; value: number; color: string }>;

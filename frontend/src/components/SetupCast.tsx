@@ -13,9 +13,9 @@ interface Pick { personalityId: string; side?: Side }
 export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   draft: Draft;
   personas: Persona[];
-  /** 引擎能接受的最多人数（辩论引擎最多 5 人） */
+  /** 可选的人数上限；辩论的正反方与主持席位另有限制 */
   maxMembers?: number;
-  /** 显示在标题右侧的提示，例如辩论后端的状态 */
+  /** 显示在标题右侧的提示 */
   notice?: string;
   onStart: (cfg: SessionConfig) => void;
 }) {
@@ -190,7 +190,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
               <li key={i}><i>{i + 1}</i>{roundLabel('rational', i + 1, rounds)}</li>
             ))}
           </ol>
-          <p className="hint">主持开场宣布辩题和双方持方 → 正方一辩、反方一辩立论 → 交锋轮里双方互相质询、被问的一方必须正面作答 → 反方先、正方最后总结陈词 → 主持人（没有主持时由中立裁判）判定胜负并打分。</p>
+          <p className="hint">主持开场宣布辩题和双方持方 → 两方交替立论 → 交锋轮里双方互相质询、被问的一方必须正面作答 → 反方先、正方最后总结陈词 → 主持人（没有主持时由中立裁判）判定胜负并打分。</p>
         </section>
       )}
 
