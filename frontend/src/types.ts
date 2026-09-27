@@ -12,7 +12,7 @@ export interface Personality {
   behavior: string;
   /** 表达风格 */
   style: string;
-  /** mock 引擎用的口头禅，可选 */
+  /** 口头禅，可选；讨论后端会把它写进人物提示词 */
   opener?: string;
 }
 
