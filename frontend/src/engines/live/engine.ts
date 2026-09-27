@@ -1,5 +1,6 @@
 import type { AgentState, ChatMessage, DiscussionEngine, EngineEvent, SessionConfig } from '../../types';
 import { chat, isAbort } from '../../llm/client';
+import { openingDirection } from '../../data/conversationVariation';
 import { extractJson } from './json';
 import { cool, createMind, feel, heat, like, moodLabel, moodWords, relationWord, view, type Mind } from './mind';
 import { readLiveOptions, type ChatFn, type Cue, type Line, type LiveKit, type LiveOptions, type Speech } from './types';
@@ -126,7 +127,8 @@ class LiveRoom {
     this.emit({ type: 'round', round: this.round, label: this.roundLabel });
     for (const m of this.minds.values()) { this.showMind(m); this.rest(m); }
     // 前端已经把你的第一句话显示出来了，这里只记进记录
-    this.addUserLine(this.cfg.theme.brief?.trim() || this.cfg.theme.title.trim() || '随便聊聊', false);
+    const opening = this.cfg.theme.brief?.trim() || this.cfg.theme.title.trim() || '随便聊聊';
+    this.addUserLine(opening, false, this.mentionsIn(opening));
     void this.loop();
   }
 
@@ -232,6 +234,18 @@ class LiveRoom {
     const cue = await this.ask('导演', this.opts.directorTemperature, signal, () => this.kit.directorMessages({
       cfg: this.cfg, transcript: this.transcriptText(), state: this.stateAll(), arc: this.arcText(), now: this.nowText(),
     }), (t) => this.parseCue(t));
+    const first = this.firstSpeaker();
+    if (first && cue.speaker !== first.id) {
+      // 随机抽中的开场人物必须落实到实际发言；导演偶尔忽略提示时也能避免紧邻两场同人开头。
+      cue.speaker = first.id;
+      cue.to = 'user';
+      cue.replyTo = this.lastFloor()?.id;
+      cue.gist = `接住用户的原话；${openingDirection(this.cfg.mode, this.cfg.conversationVariation)}`;
+      cue.emotion = '';
+      cue.interrupt = false;
+      cue.cutAfter = '';
+      cue.react = cue.react.filter((r) => r.id !== first.id);
+    }
     const m = cue.speaker ? this.minds.get(cue.speaker) ?? null : null;
     if (p) p.cue = cue;
     this.debug?.(cue, m?.name ?? '');
@@ -687,6 +701,12 @@ class LiveRoom {
   private nowText() {
     const out: string[] = [];
     if (this.step <= 1) out.push('刚开聊，用户开了个头。排第一句；可以顺手给每个人定下对话题的初始态度（stance）和说话状态。');
+    if (this.step <= 1) {
+      const direction = openingDirection(this.cfg.mode, this.cfg.conversationVariation);
+      if (direction) out.push('这场先从这里切入：' + direction + '后续仍要顺着现场自然发展，不要反复强调这个切入点。');
+      const first = this.firstSpeaker();
+      if (first) out.push('开场先让' + first.name + '接用户的话，其他人随后自然加入。');
+    }
     const last = this.lastFloor();
     if (last) {
       const who = last.speaker === 'user' ? '用户' : last.name;
@@ -706,6 +726,13 @@ class LiveRoom {
     if (this.budget - this.step <= 5) out.push('聊了挺久了，快到尾声，可以往收尾走；差不多了就 end=true。');
     out.push('角色实际说出口的可能和你给的大意不一样，以记录为准，据此调整。');
     return out.join('\n');
+  }
+
+  private firstSpeaker() {
+    const v = this.cfg.conversationVariation?.speakerIndex;
+    if (this.step !== 1 || this.mentioned.size || typeof v !== 'number' || !Number.isSafeInteger(v) || v < 0) return null;
+    const p = this.cfg.participants[v % this.cfg.participants.length];
+    return p ? this.minds.get(p.agentId) ?? null : null;
   }
 
   /** 导演给演员的这一步提示 */

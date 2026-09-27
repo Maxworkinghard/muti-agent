@@ -1,4 +1,5 @@
 import type { DiscussionResult, ModeDef, Participant, SessionConfig, Side } from '../src/types.ts';
+import { openingDirection } from '../src/data/conversationVariation.ts';
 
 export const SIDE_NAME: Record<Side, string> = { pro: '正方', con: '反方', host: '主持人' };
 
@@ -44,6 +45,7 @@ export const SPEAKING_STYLE = `## 说话方式
 /** 人格提示词 + 本场会话规则 + 说话方式，作为这位成员对话的 system 消息 */
 export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: ModeDef): string {
   const roles = [p.side && `你在${SIDE_NAME[p.side]}。`, p.isLead && '你是本场负责人，负责拆分任务、汇总交付。'].filter(Boolean).join('');
+  const opening = openingDirection(cfg.mode, cfg.conversationVariation);
   const members = cfg.participants
     .map((m) => `- ${whoIs(m)}${m.side ? '，' + SIDE_NAME[m.side] : ''}${m.isLead ? '，负责人' : ''}`)
     .join('\n');
@@ -64,6 +66,7 @@ ${members}
 3. 篇幅看情况：简单的一两句话说完，需要展开再展开，但不超过每轮指令给的字数上限。
 4. 你没有文件、命令或联网工具，只能用文字完成这一轮的工作，不要声称已经创建文件或运行代码。
 5. 用户随时可能插话；被点名时先回应用户。
+${opening ? `6. 这场开局优先从「${opening}」切入，之后根据大家实际说的话自然推进，不要把它当口头禅或生硬复述。` : ''}
 
 ${SPEAKING_STYLE}`;
 }

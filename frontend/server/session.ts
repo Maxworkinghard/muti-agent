@@ -15,6 +15,8 @@ const TALK_GUIDE: Partial<Record<ModeId, string[]>> = {
 const DEBATE_GUIDE = ['陈述你方立场和主要论据', '针对对方的论点提出质询或反驳', '做总结陈词'];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const rotate = <T>(items: T[], offset: number): T[] => items.length
+  ? [...items.slice(offset % items.length), ...items.slice(0, offset % items.length)] : [];
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
@@ -208,13 +210,14 @@ export class RoundtableSession {
 
   // ---------- 三种流程 ----------
 
-  /** 讨论类（娱乐、情感交流等）：每轮所有人按座位顺序发言 */
+  /** 讨论类（情感交流等）：每轮轮换起头的人，让相同阵容也能从不同角度开始 */
   private async runTalk() {
     const guide = TALK_GUIDE[this.cfg.mode];
+    const variation = this.variation();
     for (let r = 1; r <= this.cfg.maxRounds && !this.ended; r++) {
       this.beginRound(r);
       const topic = r === 1 ? '用户刚才说的就是这场要聊的事。' : '';
-      for (const p of this.cfg.participants) {
+      for (const p of rotate(this.cfg.participants, variation + r - 1)) {
         await this.drainUser();
         await this.speak(p, `第 ${r} 轮「${this.label(r)}」：${topic}${guide?.[r - 1] ?? '围绕用户说的发言'}。请发言，不超过 120 字。`);
       }
@@ -228,7 +231,10 @@ export class RoundtableSession {
     const pro = ps.filter((p) => p.side === 'pro');
     const con = ps.filter((p) => p.side === 'con');
     const order: Participant[] = [];
-    for (let i = 0; i < Math.max(pro.length, con.length); i++) { if (pro[i]) order.push(pro[i]); if (con[i]) order.push(con[i]); }
+    const sides = this.variation() % 2 ? [con, pro] : [pro, con];
+    for (let i = 0; i < Math.max(pro.length, con.length); i++) {
+      for (const side of sides) if (side[i]) order.push(side[i]);
+    }
     order.push(...ps.filter((p) => !p.side));
     const last = this.cfg.maxRounds;
     const cap = this.maxChars(150);
@@ -236,7 +242,7 @@ export class RoundtableSession {
       this.beginRound(r);
       if (host && r === 1) {
         await this.drainUser();
-        await this.speak(host, `第 1 轮「${this.label(1)}」：你是主持人。辩题以用户刚才说的为准${this.theme ? `（用户只是让大家开始的话，就用主题「${this.theme}」）` : ''}，宣布辩题和发言规则（本场共 ${last} 轮，每人每次不超过 ${cap} 字），请双方陈述，不超过 ${Math.min(cap, 100)} 字。`);
+        await this.speak(host, `第 1 轮「${this.label(1)}」：你是主持人。辩题以用户刚才说的为准${this.theme ? `（用户只是让大家开始的话，就用主题「${this.theme}」）` : ''}，宣布辩题和发言规则（本场共 ${last} 轮，每人每次不超过 ${cap} 字；本场由${sides[0] === pro ? '正方' : '反方'}先发言），请双方陈述，不超过 ${Math.min(cap, 100)} 字。`);
       }
       // 中间轮数可能不止一轮交锋，后面几轮要接着对方最新的说法往下走
       const phase = r <= 1 ? 0 : r >= last ? 2 : 1;
@@ -257,7 +263,7 @@ export class RoundtableSession {
   private async runWork() {
     const ps = this.cfg.participants;
     const lead = ps.find((p) => p.isLead) ?? ps[0];
-    const members = ps.filter((p) => p !== lead);
+    const members = rotate(ps.filter((p) => p !== lead), this.variation());
     const tasks = new Map<string, string>();
 
     this.beginRound(1);
@@ -422,6 +428,11 @@ export class RoundtableSession {
 
   /** 轮次名：辩论的轮数可调，多出来的中间轮都叫交锋质询 */
   protected label(r: number) { return roundLabel(this.cfg.mode, r, this.cfg.maxRounds); }
+
+  private variation() {
+    const n = this.cfg.conversationVariation?.speakerIndex;
+    return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? n : 0;
+  }
 
   /** 选人页设了每次发言的字数上限（engineOptions.maxChars）就用它，没设用各处原来的默认值 */
   private maxChars(fallback: number) { return Math.trunc(Number(this.cfg.engineOptions?.maxChars)) || fallback; }

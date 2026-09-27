@@ -4,6 +4,7 @@ import type {
 } from '../types';
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
+import { nextConversationVariation } from '../data/conversationVariation';
 import { engineFor } from '../engines/registry';
 import { playReady, playSeat, playVoice, SoundToggle, useMuted, warmAudio } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
@@ -154,7 +155,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
       }
     };
     try {
-      engine.start({ ...config, theme: { ...config.theme, brief } }, onEvent);
+      engine.start({ ...config, conversationVariation: nextConversationVariation(config), theme: { ...config.theme, brief } }, onEvent);
     } catch (err) {
       onEvent({ type: 'error', id: 'start', message: '引擎启动失败：' + (err as Error).message });
     }

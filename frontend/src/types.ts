@@ -93,6 +93,8 @@ export interface Participant {
 
 export interface SessionConfig {
   sessionId: string;
+  /** 同一套选项重新开聊时随机抽取、避开上一场的开局 */
+  conversationVariation?: { openingIndex: number; speakerIndex: number };
   mode: ModeId;
   sceneId: SceneId;
   /** brief：用户在讨论开始前发的第一句话，即对项目的详细理解 */
