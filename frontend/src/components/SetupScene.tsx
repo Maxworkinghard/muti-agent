@@ -2,24 +2,9 @@ import { useMemo, useState } from 'react';
 import type { Draft } from '../App';
 import type { SceneDef } from '../types';
 import { MODES } from '../data/modes';
+import { pickTopics } from '../data/topicPicker';
 import { SCENE_LIST } from '../data/scenes';
 import { SceneEditor } from './SceneEditor';
-
-/** 主题候选一次显示几条 */
-const TOPIC_BATCH = 5;
-
-/** 从题池里挑一批：「换一批」换个种子重排；seed 为 0（刚进页面 / 刚换模式）时按原顺序取前几条 */
-function pickTopics(pool: string[], seed: number): string[] {
-  if (seed <= 0 || pool.length <= TOPIC_BATCH) return pool.slice(0, TOPIC_BATCH);
-  const a = [...pool];
-  let s = seed;
-  for (let i = a.length - 1; i > 0; i--) {
-    s = (s * 9301 + 49297) % 233280;
-    const j = s % (i + 1);
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a.slice(0, TOPIC_BATCH);
-}
 
 export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene, onDeleteScene }: {
   draft: Draft;
