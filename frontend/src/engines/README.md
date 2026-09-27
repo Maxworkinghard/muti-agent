@@ -2,7 +2,7 @@
 
 每个模式一个独立引擎，由各自的负责方维护，互不影响：
 
-- `entertainment/` 娱乐引擎（娱乐组）
+- `entertainment/` 娱乐引擎（娱乐组）：已换成浏览器端流程 `createEntertainmentEngine`，说明见该目录的 `README.md`
 - `rational/` 辩论引擎（辩论组）
 - `emotion/` 情感交流引擎（情感组）
 - `discussion/` 理性讨论引擎：流程在 `server/discussion.ts`，人物、性格和提示词读仓库根目录的 `backend/`，见下文
@@ -10,7 +10,7 @@
 
 每个文件夹里：
 
-- `index.ts` 导出引擎包。现在所有模式的 `create` 都是 `backend.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
+- `index.ts` 导出引擎包。除娱乐模式外，现在各模式的 `create` 都是 `backend.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
 - `config.ts` 放可调参数的默认值，开讨论时会复制到 `SessionConfig.engineOptions` 传给引擎。
 
 `backend.ts` 是现在所有模式默认用的真实引擎：浏览器只负责把会话配置交给后端、转发事件，每位成员在后端是一段直接发给模型接口的对话（`server/llmAgent.ts`，各自保留历史），各模式的流程写在 `server/session.ts`。`mock.ts` 是模拟引擎，不调用模型，网址加 `?engine=mock` 时所有模式都换成它。前端只通过 `registry.ts` 按模式取引擎。
