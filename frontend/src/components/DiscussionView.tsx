@@ -156,8 +156,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const retry = (e: ErrorItem) => { dismiss(e.id); e.retry?.(); };
   const hasError = (agentId: string) => errors.some((x) => x.agentId === agentId);
 
-  // 娱乐模式：点成员说话 = 私聊（只有他看得到）；其他模式仍是点名回应
-  const whisperMode = config.mode === 'entertainment';
   const send = () => {
     warmAudio();
     const text = draft.trim();
@@ -353,8 +351,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               className="px-input"
               value={draft}
               placeholder={!canTalk ? '讨论已停止'
-                : session === 'finished' ? (focused ? `讨论结束了，继续${whisperMode ? '私下' : ''}问 ${focused.persona.name}…` : `讨论结束了，还可以继续追问（点成员可以${whisperMode ? '私下' : '单独'}问）`)
-                : focused ? `对 ${focused.persona.name} 说…${whisperMode ? '（只有他看得到）' : ''}` : `对全体说…（点成员可以${whisperMode ? '私下' : '单独'}对话）`}
+                : session === 'finished' ? (focused ? `讨论结束了，继续私下问 ${focused.persona.name}…` : '讨论结束了，还可以继续追问（点成员可以私下问）')
+                : focused ? `私下对 ${focused.persona.name} 说…（只有他看得到）` : '对全体说…（点成员可以私下说）'}
               disabled={!canTalk}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}

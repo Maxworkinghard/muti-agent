@@ -156,14 +156,26 @@ def record_line(x):
     return f"{who}{phase}：{x['speech']}"
 
 
-def user_message(question, others, log, task):
+def private_note(priv):
+    """只有这位成员和用户知道的私下对话；没有就返回空串。别人拿不到这段。"""
+    if not priv:
+        return ""
+    lines = "\n".join(f"{x['name']}：{x['speech']}" for x in priv)
+    return ("【只有你和用户知道的私下对话】\n"
+            "（其他角色看不到这些内容，也不知道你们聊过；要不要在公开讨论里提起、由你自己决定。）\n"
+            f"{lines}\n\n")
+
+
+def user_message(question, others, log, task, priv=None):
     """每次调用发给成员的那条消息：议题、参与者、从开场到现在的全部发言，最后是本轮任务。
 
     这里不做压缩：不写前情摘要，也不只带最近几条，整场讨论都在上下文里。
+    priv：这位成员和用户的私聊（点成员说话才有），别人拿不到。
     """
     record = "\n".join(record_line(x) for x in log) or "（还没有人发言）"
     return (f"议题：{question}\n\n参与者：{others}\n\n发言记录（从开场到现在）：\n{record}\n\n"
-            f"本轮任务：{task}")
+            + private_note(priv)
+            + f"本轮任务：{task}")
 
 
 def parse_setting(s):

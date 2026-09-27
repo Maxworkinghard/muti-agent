@@ -125,6 +125,8 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
     ctx = question + (f"\n（用户开场时的补充说明：{brief}）" if brief else "")
     cfg = None if dry else E.load_config()
     log, count = [], {m["name"]: 0 for m in members}
+    # 私聊：成员名 -> 他和用户之间的对话；不进公开 log、不进总结、不占公开发言位
+    privs = {}
     cur = {"round": 1}
     emit({"type": "start", "question": question, "rounds": rounds, "maxChars": max_chars,
           "model": cfg["model"] if cfg else "试跑",
@@ -149,7 +151,7 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
     def speak(m, rnd, stage):
         others = "、".join(f"{o['name']}（{o['role']}）" for o in members if o is not m)
         pending = None if stage == "开场" else E.open_challenge(log, m["name"])
-        msg = E.user_message(ctx, others, log, E.task_for(stage, pending))
+        msg = E.user_message(ctx, others, log, E.task_for(stage, pending), privs.get(m["name"]))
         target = next((o["name"] for o in members if o is not m), None)
         r = call(m, msg, {"speech": f"（试跑）{m['name']} 在第 {rnd} 轮{stage}时的示例发言。",
                           "respondsTo": None if stage == "开场" else target,
@@ -170,16 +172,30 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
             names = [m["name"] for m in members]
             m = next((x for x in members if x["name"] == u.get("target")), None) \
                 or min(members, key=lambda x: count[x["name"]])
+            others = "、".join(n for n in names if n != m["name"])
+            fake = {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
+                    "stance": "部分同意", "newPoint": True, "challenge": None, "challengeTarget": None}
+            if u.get("target"):
+                # 私聊：只有这位成员看得到，不写进公开 log，也不占公开发言位
+                priv = privs.setdefault(m["name"], [])
+                priv.append({"name": "用户", "speech": u["text"]})
+                fake["speech"] = f"（试跑）{m['name']} 私下回应你：“{u['text'][:20]}”。"
+                task = (f"旁听的用户刚在私下对你说：“{u['text']}”。"
+                        "请私下回应用户（respondsTo 填“用户”）；这句话场上其他人都没有听到，"
+                        "要不要在公开讨论里提起由你决定。")
+                r = call(m, E.user_message(ctx, others, log, task, priv), fake, for_user=True)
+                entry = {"round": rnd, "name": m["name"], **{k: r.get(k) for k in
+                         ("speech", "respondsTo", "stance", "newPoint", "challenge", "challengeTarget")},
+                         "answered": None}
+                priv.append({"name": m["name"], "speech": entry.get("speech") or ""})
+                emit({"type": "speech", "entry": entry, "toUser": True, "private": True})
+                continue
             log.append({"round": rnd, "name": "用户", "speech": u["text"], "respondsTo": u.get("target"),
                         "stance": "插话", "newPoint": True, "challenge": None, "challengeTarget": None,
                         "answered": None})
-            others = "、".join(n for n in names if n != m["name"])
             task = (f"旁听的用户刚才{'对你' if u.get('target') else '对大家'}说：“{u['text']}”。"
                     f"先直接回应用户（respondsTo 填“用户”），再把它和正在讨论的议题联系起来。")
-            r = call(m, E.user_message(ctx, others, log, task),
-                     {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
-                      "stance": "部分同意", "newPoint": True, "challenge": None, "challengeTarget": None},
-                     for_user=True)
+            r = call(m, E.user_message(ctx, others, log, task), fake, for_user=True)
             entry = {"round": rnd, "name": m["name"], **{k: r.get(k) for k in
                      ("speech", "stance", "newPoint", "challenge", "challengeTarget")},
                      "respondsTo": "用户", "answered": None}
@@ -215,7 +231,7 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
     emit({"type": "summary", "text": final})
     if keep is not None:
         keep.update(members=members, topic=ctx, log=log, count=count, cfg=cfg, rounds=rounds, host=None,
-                    system_key="system", debate=False, summary=final)
+                    system_key="system", debate=False, summary=final, privs=privs)
     if dry:
         return None
     out = ROOT / "讨论记录"
@@ -229,28 +245,39 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
 
 
 def answer_after(keep, text, target):
-    """讨论结束后的追问：点名的人回答，没点名由主持人（没有主持时由发言最少的人）回答。"""
+    """讨论结束后的追问：点名的人回答，没点名由主持人（没有主持时由发言最少的人）回答。
+
+    点名（target 有值）算私聊：不写进公开 log，只进双方的私聊记录。
+    """
     members = keep["members"]
     m = next((x for x in members if x["name"] == target), None) or keep.get("host") \
         or min(members, key=lambda x: keep["count"][x["name"]])
     log = keep["log"]
-    log.append({"round": keep["rounds"], "name": "用户", "speech": text, "respondsTo": target})
+    priv = None
+    if target:
+        priv = keep.setdefault("privs", {}).setdefault(m["name"], [])
+        priv.append({"name": "用户", "speech": text})
+    else:
+        log.append({"round": keep["rounds"], "name": "用户", "speech": text, "respondsTo": target})
     others = "、".join(o["name"] for o in members if o is not m)
     if keep["debate"]:
         how = ("作为主持人兼裁判中立地回答，可以解释你的判定理由" if m.get("side") == "host"
                else "仍然站在你方立场上回答")
     else:
         how = "结合刚才的讨论回答"
-    task = (f"讨论已经结束，用户{'对你' if target else '对大家'}追问：“{text}”。{how}。"
+    task = (f"讨论已经结束，用户{'在私下对你' if target else '对大家'}追问：“{text}”。{how}。"
             "问得简单就一两句话，复杂再展开。respondsTo 填“用户”，challenge 填 null。")
     if keep["cfg"] is None:
         time.sleep(OPT["delay"])
         speech = f"（试跑）{m['name']} 回答你的追问：“{text[:20]}”。"
     else:
         raw = E.chat(keep["cfg"], m[keep["system_key"]],
-                     E.user_message(keep["topic"], others, log, task), want_json=True)
+                     E.user_message(keep["topic"], others, log, task, priv), want_json=True)
         speech = E.parse_reply(raw).get("speech") or raw.strip()
-    log.append({"round": keep["rounds"], "name": m["name"], "speech": speech, "respondsTo": "用户"})
+    if priv is not None:
+        priv.append({"name": m["name"], "speech": speech})
+    else:
+        log.append({"round": keep["rounds"], "name": m["name"], "speech": speech, "respondsTo": "用户"})
     keep["count"][m["name"]] += 1
     return {"name": m["name"], "speech": speech, "title": m.get("title")}
 

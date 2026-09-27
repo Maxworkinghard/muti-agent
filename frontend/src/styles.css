@@ -325,7 +325,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .line.user { flex-direction: column; align-items: flex-end; }
 .line.user .who { color: var(--ink); }
 .line.user p { background: var(--c-yellow); max-width: 85%; }
-/* 私聊：点成员说的话，只有那个成员看得到（娱乐模式试点） */
+/* 私聊：点成员说的话，只有那个成员看得到 */
 .line.private p { border-style: dashed; }
 .line.user.private p { background: var(--sand); }
 @keyframes linein { from { opacity: 0; transform: translateY(6px); } }

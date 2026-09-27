@@ -30,8 +30,11 @@ export class RoundtableSession {
   private recorder: LlmAgent | null = null;
   private titler: LlmAgent | null = null;
   private transcript: ChatMessage[] = [];
+  /** 私聊记录：agentId -> 只有他和用户知道的对话；不进 transcript，也不进总结 */
+  private whispers = new Map<string, ChatMessage[]>();
   private seen = new Map<string, number>();
-  private userQueue: Array<string | undefined> = [];
+  /** 用户插话队列：target 是点名的人（有值即私聊），whisper 标记这次是悄悄话 */
+  private userQueue: Array<{ target?: string; whisper: boolean }> = [];
   /** 用户对全体说的第一句话：这一场要处理的问题或任务，主题只作背景 */
   protected request = '';
   /** 用户填的主题；没填时按第一句话生成 */
@@ -100,7 +103,7 @@ export class RoundtableSession {
     }
   }
 
-  /** 对全体说的第一句话开始这一场；之后的话和单独点名的话都排队，在下一位发言前回应；讨论结束后发的话直接回应 */
+  /** 对全体说的第一句话开始这一场；之后的话和私聊都排队，在下一位发言前回应；讨论结束后发的话直接回应 */
   userMessage(text: string, targetAgentId?: string) {
     if (this.ended) return;
     const target = targetAgentId && this.byId(targetAgentId) ? targetAgentId : undefined;
@@ -109,8 +112,13 @@ export class RoundtableSession {
       this.request = text;
       if (!this.theme) void this.nameTheme(text);
     }
-    this.message({ round: opening ? 1 : this.round, speakerId: 'user', text, kind: 'user', targetId: target });
-    if (!opening) this.userQueue.push(target);
+    if (target) {
+      // 点成员 = 私聊：只有他看到，不写进公开记录，也不占公开发言位
+      this.message({ round: this.round, speakerId: 'user', text, kind: 'user', targetId: target, private: true }, target);
+    } else {
+      this.message({ round: opening ? 1 : this.round, speakerId: 'user', text, kind: 'user' });
+    }
+    if (!opening) this.userQueue.push({ target, whisper: !!target });
     this.wake?.();
     this.pauseWake?.();
     if (this.finished) void this.followUp();
@@ -321,8 +329,18 @@ export class RoundtableSession {
     }
   }
 
+  /** 这位成员的私聊记录（点成员说话才有）；其他成员的提示词里拿不到 */
+  private whisperText(agentId: string) {
+    const list = this.whispers.get(agentId);
+    if (!list?.length) return '';
+    const who = (id: string) => (id === 'user' ? '用户' : this.byId(id)?.persona.name ?? id);
+    return '【只有你和用户知道的私下对话】\n'
+      + '（其他角色看不到这些内容，也不知道你们聊过；要不要在公开讨论里提起、用它跟别人周旋，由你自己决定。）\n'
+      + list.map((m) => who(m.speakerId) + '：' + m.text).join('\n');
+  }
+
   /** 把新发言和本轮指令发给这位成员，拿回他的回答（不发到前端） */
-  private async think(p: Participant, instruction: string, forUser = false): Promise<string | null> {
+  private async think(p: Participant, instruction: string, forUser = false, whisper = false): Promise<string | null> {
     if (!forUser) await this.gate();
     if (this.ended) return null;
     const agent = this.agents.get(p.agentId)!;
@@ -331,8 +349,9 @@ export class RoundtableSession {
       .filter((m) => m.speakerId !== p.agentId && m.kind !== 'system' && m.kind !== 'notice')
       .map((m) => this.format(m));
     const mark = this.transcript.length;
-    const prompt = (news.length ? `【新发言】\n${news.join('\n')}\n\n` : '') + instruction;
-    this.status(p, 'thinking', forUser ? '准备回应用户' : '思考中…');
+    const priv = this.whisperText(p.agentId);
+    const prompt = (news.length ? `【新发言】\n${news.join('\n')}\n\n` : '') + (priv ? priv + '\n\n' : '') + instruction;
+    this.status(p, 'thinking', whisper ? '想怎么私下回你…' : forUser ? '准备回应用户' : '思考中…');
     for (let attempt = 1; ; attempt++) {
       try {
         const text = await agent.ask(prompt);
@@ -351,28 +370,34 @@ export class RoundtableSession {
     }
   }
 
-  private async speak(p: Participant, instruction: string, forUser = false): Promise<string | null> {
-    const text = await this.think(p, instruction, forUser);
-    if (text !== null) this.say(p, text, forUser ? 'reply' : 'speech', forUser ? 'user' : undefined);
+  private async speak(p: Participant, instruction: string, forUser = false, whisper = false): Promise<string | null> {
+    const text = await this.think(p, instruction, forUser, whisper);
+    if (text !== null) this.say(p, text, forUser ? 'reply' : 'speech', forUser ? 'user' : undefined, whisper);
     return text;
   }
 
-  /** 用户插话排在下一位发言之前：点名的成员回应，否则由负责人 / 主持人 / 第一位回应 */
+  /** 用户插话排在下一位发言之前：点名的成员私下回应（私聊），否则由负责人 / 主持人 / 第一位回应 */
   private async drainUser() {
     while (this.userQueue.length && !this.ended) {
-      const target = this.userQueue.shift();
+      const item = this.userQueue.shift();
+      const target = item?.target;
+      const whisper = !!item?.whisper;
       const ps = this.cfg.participants;
       const p = (target && this.byId(target)) || ps.find((x) => x.isLead) || ps.find((x) => x.side === 'host') || ps[0];
-      await this.speak(p, `用户${target ? '对你' : '对全体'}说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 ${this.maxChars(300)} 字。`, true);
+      const instruction = whisper
+        ? `用户刚在私下对你说了话（见上面的私下对话）。请私下回应用户，一句话说清就行，不超过 ${this.maxChars(300)} 字。`
+        : `用户${target ? '对你' : '对全体'}说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 ${this.maxChars(300)} 字。`;
+      await this.speak(p, instruction, true, whisper);
     }
   }
 
   // ---------- 事件 ----------
 
-  private say(p: Participant, text: string, kind: ChatMessage['kind'] = 'speech', targetId?: string) {
+  private say(p: Participant, text: string, kind: ChatMessage['kind'] = 'speech', targetId?: string, whisper = false) {
     if (this.speaking && this.speaking !== p) this.status(this.speaking, 'idle', '倾听');
-    this.status(p, 'speaking', kind === 'reply' ? '回应用户' : '发言中');
-    this.message({ round: this.round, speakerId: p.agentId, text, kind, targetId });
+    this.status(p, 'speaking', whisper ? '私下回应用户' : kind === 'reply' ? '回应用户' : '发言中');
+    this.message({ round: this.round, speakerId: p.agentId, text, kind, targetId, private: whisper || undefined },
+      whisper ? p.agentId : undefined);
     this.speaking = p;
   }
 
@@ -398,9 +423,16 @@ export class RoundtableSession {
 
   protected byId(id: string) { return this.cfg.participants.find((p) => p.agentId === id); }
 
-  protected message(m: Omit<ChatMessage, 'id' | 'at'>) {
+  protected message(m: Omit<ChatMessage, 'id' | 'at'>, whisperTo?: string) {
     const msg = { ...m, id: uid('m'), at: Date.now() };
-    this.transcript.push(msg);
+    if (whisperTo) {
+      // 私聊消息只进这个成员的私聊记录：不进 transcript，别人看不到、总结里也没有
+      const list = this.whispers.get(whisperTo) ?? [];
+      list.push(msg);
+      this.whispers.set(whisperTo, list);
+    } else {
+      this.transcript.push(msg);
+    }
     this.emit({ type: 'message', message: msg });
   }
 

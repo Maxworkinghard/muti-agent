@@ -47,7 +47,7 @@ export function createApiEngine(): DiscussionEngine {
       if (who && who !== id) emit({ type: 'status', agentId: who, state: 'done', action: '完成' });
       if (!id) return;
       emit({ type: 'status', agentId: id, state: 'speaking', action: '回答追问' });
-      message({ round, speakerId: id, text: data.speech, kind: 'reply', targetId: 'user', tag: '赛后追问' });
+      message({ round, speakerId: id, text: data.speech, kind: 'reply', targetId: 'user', tag: '赛后追问', private: target ? true : undefined });
       window.setTimeout(() => emit({ type: 'status', agentId: id, state: 'done', action: '完成' }), 2500);
     } catch (err) {
       if (who) emit({ type: 'status', agentId: who, state: 'done', action: '完成' });
@@ -77,11 +77,11 @@ export function createApiEngine(): DiscussionEngine {
         const x = e.entry;
         const id = idOf(x.name);
         if (!id) break;
-        emit({ type: 'status', agentId: id, state: 'speaking', action: e.toUser ? '回应你' : x.phase || x.stance || '发言中' });
+        emit({ type: 'status', agentId: id, state: 'speaking', action: e.private ? '私下回应用户' : e.toUser ? '回应你' : x.phase || x.stance || '发言中' });
         // 辩论里标出辩位和环节；站错阵营被纠正时也标出来，方便检查模型有没有守住立场
         const tag = x.title ? [x.title, x.phase, x.sideCheck === 'corrected' ? '已纠正立场' : x.sideCheck === 'mismatch' ? '⚠ 立场不符' : '']
           .filter(Boolean).join(' · ') : undefined;
-        message({ round: x.round ?? round, speakerId: id, text: x.speech, kind: e.toUser ? 'reply' : 'speech', targetId: e.toUser ? 'user' : idOf(x.respondsTo), tag });
+        message({ round: x.round ?? round, speakerId: id, text: x.speech, kind: e.toUser ? 'reply' : 'speech', targetId: e.toUser ? 'user' : idOf(x.respondsTo), tag, private: e.private || undefined });
         // 发言气泡停留一会儿再回到倾听
         window.setTimeout(() => { if (!ended) emit({ type: 'status', agentId: id, state: 'idle', action: '倾听' }); }, 2500);
         break;
@@ -159,7 +159,8 @@ export function createApiEngine(): DiscussionEngine {
     },
     sendUserMessage({ text, targetAgentId }) {
       if (ended && !finished) return;
-      message({ round, speakerId: 'user', text, kind: 'user', targetId: targetAgentId });
+      // 点成员 = 私聊：只有他看得到（后端也只把这句话给这个成员）
+      message({ round, speakerId: 'user', text, kind: 'user', targetId: targetAgentId, private: targetAgentId ? true : undefined });
       const target = cfg.participants.find((p) => p.agentId === targetAgentId)?.persona.name;
       if (finished) { void ask(text, target); return; }
       post('say', { text, target }).catch(() => emit({ type: 'error', id: 'say-' + uid(), message: '插话没有送达' }));
