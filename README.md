@@ -4,8 +4,9 @@
 
 ## 目录
 
-- `frontend/`：网页和 Node 后端（`server/`）。所有模式都由 Node 后端直接调用模型；各模式的引擎在 `frontend/src/engines/`。
+- `frontend/`：网页和 Node 后端（`server/`）。所有模式都由 Node 后端直接调用模型；各模式的引擎在 `frontend/src/engines/`，人物在 `frontend/personas/`（每个人物一个 JSON 文件）。
 - `backend/`：理性讨论的人格数据库，包括人物、性格库、提示词和维护它们的 Python 小工具。「理性讨论」模式直接读这里的文件。
+- `persona-protocol/`：人物文件格式（人格资料包协议 v1.0）的校验器，前端加载 `frontend/personas/` 和图鉴导入时用的是同一份；也可以在命令行运行 `node persona-protocol/src/cli.mjs 文件.json`。
 
 ## 运行
 

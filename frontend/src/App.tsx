@@ -5,7 +5,7 @@ import { SetupCast } from './components/SetupCast';
 import { DiscussionCast } from './components/DiscussionCast';
 import { DiscussionView } from './components/DiscussionView';
 import { PersonaCodex } from './components/PersonaCodex';
-import { SAMPLE_PERSONAS } from './data/personas';
+import { LIBRARY_PERSONAS } from './data/personas';
 import { MODES, modeById } from './data/modes';
 import { loadOptions, toPersona } from './data/backendPersonas';
 import { loadCustomScenes, saveCustomScenes } from './data/scenes';
@@ -21,7 +21,8 @@ export default function App() {
   // 1 模式·主题·场景 → 2 选人物 → 3 讨论室
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [draft, setDraft] = useState<Draft>({ mode: 'entertainment', theme: '', sceneId: 'roundtable' });
-  const [personas, setPersonas] = useState(SAMPLE_PERSONAS);
+  // 人物来自 frontend/personas/ 下的 JSON（人物库），图鉴里导入的人物也加进来
+  const [personas, setPersonas] = useState(LIBRARY_PERSONAS);
   const [session, setSession] = useState<SessionConfig | null>(null);
   const [codex, setCodex] = useState(false);
   // 用户自己添加的场景存在浏览器本地；图片太大存不下时只在本次打开时可用

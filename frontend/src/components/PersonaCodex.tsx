@@ -1,10 +1,8 @@
 import { Fragment, useRef, useState } from 'react';
 import type { ModeId, Persona } from '../types';
 import { MODES } from '../data/modes';
-import { normalizePersona } from '../data/personas';
+import { LIBRARY_ISSUES, checkPersona, type PersonaCheck } from '../data/personas';
 import { PixelAvatar } from './PixelAvatar';
-
-interface ImportFailure { source: string; error: string }
 
 /** 人物图鉴：按模式浏览人物模板，点卡片看详细信息；导入的人物放进当前标签的模式 */
 export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
@@ -16,7 +14,9 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
   const [mode, setMode] = useState<ModeId>(initialMode);
   const [open, setOpen] = useState<Persona | null>(null);
   const [importMsg, setImportMsg] = useState('');
-  const [failures, setFailures] = useState<ImportFailure[]>([]);
+  // 导入和人物库里有错误或提醒的文件，逐条列出来
+  const [checks, setChecks] = useState<PersonaCheck[]>(LIBRARY_ISSUES);
+  const [showChecks, setShowChecks] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const m = MODES.find((x) => x.id === mode)!;
   // 人物来自 backend 的模式只列 backend 的人物；其他模式里没写 modes 的人物处处可用
@@ -29,27 +29,27 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
       data = JSON.parse((await f.text()).replace(/^﻿/, ''));
     } catch (e) {
       setImportMsg('导入失败：' + f.name + ' 不是合法的 JSON');
-      setFailures([{ source: f.name, error: 'JSON 格式错误：' + (e as Error).message }]);
+      setChecks([{ source: f.name, errors: ['JSON 格式错误：' + (e as Error).message], warnings: [] }]);
+      setShowChecks(true);
       return;
     }
     const arr = Array.isArray(data) ? data : [data];
-    const ok: Persona[] = [];
-    const bad: ImportFailure[] = [];
-    arr.forEach((raw, i) => {
-      // 序号按文件里的位置算，报错时能对上是第几项
-      const r = normalizePersona(raw, i);
-      if (typeof r === 'string') bad.push({ source: arr.length > 1 ? f.name + ' 第 ' + (i + 1) + ' 项' : f.name, error: r });
-      else ok.push(r);
-    });
+    // 序号按文件里的位置算，报错时能对上是第几项
+    const results = arr.map((raw, i) => checkPersona(raw, personas.length + i, arr.length > 1 ? f.name + ' 第 ' + (i + 1) + ' 项' : f.name));
+    const ok = results.flatMap((r) => (r.persona ? [r.persona] : []));
     // 导入的人物如果没写 modes，默认放进当前标签的模式
     ok.forEach((p) => { if (!p.modes?.length) p.modes = [mode]; });
     onImport(ok);
     const wrongMode = ok.filter((p) => p.modes && !p.modes.includes(mode)).map((p) => p.name);
+    const failed = results.filter((r) => !r.persona).length;
+    const warned = results.filter((r) => r.persona && r.warnings.length).length;
     setImportMsg(
-      `导入 ${ok.length} 个人物到${m.name}` + (bad.length ? `，${bad.length} 个失败` : '')
+      `导入 ${ok.length} 个人物到${m.name}` + (failed ? `，${failed} 个失败` : '') + (warned ? `，${warned} 个有提醒` : '')
       + (wrongMode.length ? `；${wrongMode.join('、')} 属于其他模式，请切换标签查看` : ''),
     );
-    setFailures(bad);
+    const issues = results.filter((r) => r.errors.length || r.warnings.length);
+    setChecks(issues);
+    setShowChecks(issues.some((r) => r.errors.length > 0));
   };
 
   return (
@@ -72,14 +72,25 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
               <input ref={fileRef} type="file" accept=".json,application/json" hidden
                 onChange={(e) => { if (e.target.files?.[0]) onFile(e.target.files[0]); e.target.value = ''; }} />
               <button className="px-btn primary" onClick={() => fileRef.current?.click()}>{m.importLabel}</button>
+              {checks.length > 0 && (
+                <button className="px-btn tiny" onClick={() => setShowChecks(!showChecks)}>
+                  {showChecks ? '收起' : '查看'}问题（{checks.length}）
+                </button>
+              )}
             </div>
           )}
         </div>
         {importMsg && <p className="hint">{importMsg}</p>}
-        {failures.length > 0 && (
+        {showChecks && checks.length > 0 && (
           <div className="import-report">
-            {failures.map((x, i) => (
-              <div key={x.source + i} className="ir-item"><b>✕ 未加载 · {x.source}</b><p>{x.error}</p></div>
+            {checks.map((c, i) => (
+              <div key={c.source + i} className={'ir-item' + (c.persona ? ' warn' : ' bad')}>
+                <b>{c.persona ? '⚠ 已加载，有提醒' : '✕ 未加载'} · {c.source}{c.persona ? '（' + c.persona.name + '）' : ''}</b>
+                <ul>
+                  {c.errors.map((e) => <li key={e} className="e">{e}</li>)}
+                  {c.warnings.map((w) => <li key={w} className="w">{w}</li>)}
+                </ul>
+              </div>
             ))}
           </div>
         )}

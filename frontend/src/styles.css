@@ -207,9 +207,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes fadein { from { opacity: 0; } }
 /* 导入失败的文件逐条列出 */
 .import-report { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow: auto; font-size: 12px; margin: 10px 0; }
-.ir-item { border: 2px solid #c0625a; background: #fbe9e4; padding: 6px 8px; }
-.ir-item b { color: #a2463e; }
-.ir-item p { margin: 4px 0 0; line-height: 1.6; word-break: break-all; }
+.ir-item { border: 2px solid var(--ink); padding: 6px 8px; background: #fff; }
+.ir-item.bad { border-color: #c0625a; background: #fbe9e4; }
+.ir-item.bad b { color: #a2463e; }
+.ir-item.warn { border-color: var(--c-yellow); background: #fdf6dc; }
+.ir-item ul { margin: 4px 0 0; padding-left: 18px; line-height: 1.6; word-break: break-all; }
+.ir-item li.e { color: #a2463e; }
+.ir-item li.w { color: var(--ink-2); }
 
 /* ---------- 讨论页：按草图布局 ---------- */
 .room {
