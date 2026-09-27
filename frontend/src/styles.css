@@ -105,7 +105,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .chip { border: 2px dashed var(--ink-2); background: transparent; padding: 3px 10px; font-size: 13px; }
 .chip:hover { border-style: solid; background: var(--sand); }
-.chip-refresh { border-style: solid; font-weight: bold; }
+/* 「02 讨论主题」标题右边的「↻ 换一批」按钮 */
+.panel h2 .refresh { margin-left: auto; }
 .scene-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .scene-card { border: 3px solid var(--ink); background: var(--paper); padding: 0; text-align: left; box-shadow: var(--shadow); display: flex; flex-direction: column; }
 .scene-card img { width: 100%; aspect-ratio: 3/2; object-fit: cover; display: block; border-bottom: 3px solid var(--ink); image-rendering: pixelated; filter: saturate(.8); transition: filter .2s; }

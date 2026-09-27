@@ -166,15 +166,6 @@ def user_message(question, others, log, task):
             f"本轮任务：{task}")
 
 
-def full_message(question, others, log, task, extra=""):
-    """辩论用：带上全场所有轮次的发言原文，不做压缩"""
-    full = "\n".join(
-        f"第{x.get('round', '')}轮 {x.get('title', '')}{x['name']}（{x.get('phase') or x.get('stance') or '发言'}）：{x['speech']}"
-        for x in log) or "（还没有人发言）"
-    return (f"议题：{question}\n\n参与者：{others}\n\n全场记录（原文）：\n{full}\n\n"
-            + (f"{extra}\n\n" if extra else "") + f"本轮任务：{task}")
-
-
 def parse_setting(s):
     """灰先生:毒舌 -> ("灰先生", "毒舌")"""
     parts = s.replace("：", ":").split(":")

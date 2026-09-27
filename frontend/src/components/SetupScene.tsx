@@ -17,14 +17,6 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
   const scenes = [...SCENE_LIST, ...customScenes];
   // null：关闭；'new'：添加；其他：编辑这个场景
   const [editing, setEditing] = useState<SceneDef | 'new' | null>(null);
-  // 主题推荐：每次显示 3 个，点“换一批”换成 3 个不同的
-  const [picks, setPicks] = useState<{ mode: string; list: string[] }>({ mode: '', list: [] });
-  const shuffle = (exclude: string[]) => {
-    const pool = mode.presets.filter((p) => !exclude.includes(p));
-    const src = pool.length >= 3 ? pool : mode.presets;
-    return [...src].sort(() => Math.random() - 0.5).slice(0, 3);
-  };
-  const shown = picks.mode === mode.id ? picks.list : mode.presets.slice(0, 3);
   return (
     <main className="setup">
       <section className="panel">
@@ -57,10 +49,9 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
           onChange={(e) => onChange({ ...draft, theme: e.target.value })}
         />
         <div className="chips">
-          {shown.map((p) => (
+          {topics.map((p) => (
             <button key={p} className="chip" onClick={() => onChange({ ...draft, theme: p })}>{p}</button>
           ))}
-          <button className="chip chip-refresh" title="换一批主题" onClick={() => setPicks({ mode: mode.id, list: shuffle(shown) })}>⟳ 换一批</button>
         </div>
       </section>
 

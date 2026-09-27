@@ -234,8 +234,7 @@ def answer_after(keep, text, target):
     m = next((x for x in members if x["name"] == target), None) or keep.get("host") \
         or min(members, key=lambda x: keep["count"][x["name"]])
     log = keep["log"]
-    log.append({"round": keep["rounds"], "name": "用户", "title": "观众", "speech": text, "respondsTo": target,
-                "phase": "赛后追问"})
+    log.append({"round": keep["rounds"], "name": "用户", "speech": text, "respondsTo": target})
     others = "、".join(o["name"] for o in members if o is not m)
     if keep["debate"]:
         how = ("作为主持人兼裁判中立地回答，可以解释你的判定理由" if m.get("side") == "host"
@@ -248,14 +247,10 @@ def answer_after(keep, text, target):
         time.sleep(OPT["delay"])
         speech = f"（试跑）{m['name']} 回答你的追问：“{text[:20]}”。"
     else:
-        if keep["debate"]:
-            msg = E.full_message(keep["topic"], others, log, task, keep.get("verdict", ""))
-        else:
-            msg = E.user_message(keep["topic"], others, log, task)
-        raw = E.chat(keep["cfg"], m[keep["system_key"]], msg, want_json=True)
+        raw = E.chat(keep["cfg"], m[keep["system_key"]],
+                     E.user_message(keep["topic"], others, log, task), want_json=True)
         speech = E.parse_reply(raw).get("speech") or raw.strip()
-    log.append({"round": keep["rounds"], "name": m["name"], "title": m.get("title", ""), "speech": speech,
-                "respondsTo": "用户", "phase": "回答追问"})
+    log.append({"round": keep["rounds"], "name": m["name"], "speech": speech, "respondsTo": "用户"})
     keep["count"][m["name"]] += 1
     return {"name": m["name"], "speech": speech, "title": m.get("title")}
 
