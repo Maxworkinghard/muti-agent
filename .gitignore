@@ -1,0 +1,6 @@
+# 构建产物：前端由 frontend/vite.config.ts 输出到 frontend/dist（那份 .gitignore 已在管），
+# 这里管的是根目录 serve.mjs 用的服务端打包产物。
+server-dist/
+
+node_modules/
+*.log

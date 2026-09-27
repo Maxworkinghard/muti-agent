@@ -1,0 +1,12 @@
+{
+  "name": "muti-agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "多人格讨论工作台。线上用 serve.mjs 把前端、Node 会话后端、Python 辩论后端合并到一根端口。",
+  "scripts": {
+    "install:all": "npm --prefix frontend install",
+    "build": "npm --prefix frontend run build && npm --prefix frontend run build:server",
+    "start": "node serve.mjs"
+  }
+}
