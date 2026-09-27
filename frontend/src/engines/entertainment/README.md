@@ -58,4 +58,4 @@ system 提示词由四部分组成：开场说明、统一运行规则（事实�
 
 ## 背景音乐
 
-进入娱乐模式讨论页就开始播放 `public/audio/bgm-happy-adventure.mp3`（CC0，来源见同目录 `CREDITS.md`）。讨论开始后音量压低，离开页面时停止，受界面上的静音开关控制。代码在 `src/sound.tsx` 的 `createBgm` 和 `src/components/DiscussionView.tsx`。
+进入娱乐模式讨论页就开始播放 `public/audio/bgm-happy-adventure.mp3`（CC0，来源见同目录 `CREDITS.md`）。讨论开始后音量压低，离开页面时停止，受界面上的静音开关控制。代码在 `src/components/stageFx.ts` 的 `createBgm` 和 `src/components/DiscussionView.tsx`。

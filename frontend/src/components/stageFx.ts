@@ -1,8 +1,9 @@
 // 娱乐模式的舞台音效：背景音乐 + 用 WebAudio 现场合成的入场 / 思考音效
 // 背景音乐：TinyWorlds《Happy Adventure (Loop)》，CC0，来源 https://opengameart.org/content/happy-adventure-loop
+// 静音跟顶部的音效开关（sound.tsx）走同一个状态
+import { isMuted } from '../sound';
 
 const BGM_SRC = '/audio/bgm-happy-adventure.mp3';
-const MUTE_KEY = 'roundtable.sound.muted';
 const BGM_VOLUME = 0.35;
 const BGM_DUCKED = 0.12;
 
@@ -15,13 +16,6 @@ function audio(): AudioContext | null {
   }
   if (ctx.state === 'suspended') void ctx.resume();
   return ctx;
-}
-
-export function isMuted() {
-  try { return localStorage.getItem(MUTE_KEY) === '1'; } catch { return false; }
-}
-export function saveMuted(m: boolean) {
-  try { localStorage.setItem(MUTE_KEY, m ? '1' : '0'); } catch { /* 无痕模式等拿不到 localStorage 时忽略 */ }
 }
 
 function tone(c: AudioContext, freq: number, at: number, dur: number, type: OscillatorType = 'square', vol = 0.05) {

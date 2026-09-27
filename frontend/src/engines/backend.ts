@@ -9,6 +9,9 @@ export function createBackendEngine(): DiscussionEngine {
   let sessionId: string | null = null;
   let source: EventSource | null = null;
   let stopped = false;
+  /** 会话编号回来之前说的话、点的暂停先记着，拿到编号后按顺序补发，不能直接丢掉 */
+  const pending: Array<(id: string) => void> = [];
+  const withSession = (fn: (id: string) => void) => { if (sessionId) fn(sessionId); else pending.push(fn); };
 
   const notice = (text: string) =>
     emit({ type: 'message', message: { id: 'n-' + Date.now(), round: 0, speakerId: 'system', text, kind: 'notice', at: Date.now() } });
@@ -40,6 +43,7 @@ export function createBackendEngine(): DiscussionEngine {
             notice('和后端的连接断开了（开发服务器可能重启过），请返回后重新进入对话');
             emit({ type: 'session', state: 'stopped' });
           };
+          pending.splice(0).forEach((fn) => fn(id));
         })
         .catch((err: Error) => {
           if (stopped) return;
@@ -48,14 +52,14 @@ export function createBackendEngine(): DiscussionEngine {
         });
     },
     sendUserMessage({ text, targetAgentId }) {
-      if (!sessionId || stopped) return;
-      post(`/api/sessions/${sessionId}/messages`, { text, targetAgentId }).catch(() => notice('消息没有发出去，请重试'));
+      if (stopped) return;
+      withSession((id) => post(`/api/sessions/${id}/messages`, { text, targetAgentId }).catch(() => notice('消息没有发出去，请重试')));
     },
     pause() {
-      if (sessionId && !stopped) post(`/api/sessions/${sessionId}/pause`).catch(() => notice('暂停没有生效，请重试'));
+      if (!stopped) withSession((id) => post(`/api/sessions/${id}/pause`).catch(() => notice('暂停没有生效，请重试')));
     },
     resume() {
-      if (sessionId && !stopped) post(`/api/sessions/${sessionId}/resume`).catch(() => notice('继续没有生效，请重试'));
+      if (!stopped) withSession((id) => post(`/api/sessions/${id}/resume`).catch(() => notice('继续没有生效，请重试')));
     },
     stop() {
       if (stopped) return;

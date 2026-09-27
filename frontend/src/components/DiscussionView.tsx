@@ -323,7 +323,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               <b>{e.agentId ? (byId[e.agentId]?.persona.name ?? e.agentId) + ' 这次发言失败' : '讨论出错'}</b>
               <p>{e.message}</p>
               <div className="err-actions">
-                {e.retry && session === 'running' && <button className="px-btn tiny primary" onClick={() => retry(e)}>重试</button>}
+                {/* 暂停中、讨论结束后的追问失败也要能重试，不然引擎一直停在出错那一步 */}
+                {e.retry && canTalk && <button className="px-btn tiny primary" onClick={() => retry(e)}>重试</button>}
                 <button className="px-btn tiny" onClick={() => dismiss(e.id)}>知道了</button>
               </div>
             </div>

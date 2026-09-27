@@ -134,11 +134,13 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
           "motion": motion, "model": cfg["model"] if cfg else "试跑",
           "members": [{k: m[k] for k in ("name", "role", "personality", "side", "title")} for m in members]})
 
-    def call(m, msg, fake, for_user=False):
-        # 暂停时停在这里，期间用户的话照常回应
-        while not for_user and pause is not None and pause.is_set() and not stop.is_set():
+    def hold():
+        # 暂停时停在这里，期间用户的话照常回应；要在拼这次发言的提示词之前等完，暂停期间说的话才带得上
+        while pause is not None and pause.is_set() and not stop.is_set():
             handle_user(cur["round"])
             time.sleep(0.2)
+
+    def call(m, msg, fake):
         if stop.is_set():
             raise Stopped()
         emit({"type": "thinking", "name": m["name"]})
@@ -158,11 +160,13 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
                 "stance": phase, "newPoint": True, "position": want,
                 "challenge": "（试跑）请正面回答：你方的判断标准是什么？" if phase == "质询" else None,
                 "challengeTarget": target if phase == "质询" else None}
+        hold()
         r, raw = call(m, E.user_message(topic, others, log, task, privs.get(m["name"])), fake)
         check = "ok"
         if wrong_side(m, position_of(raw)):
             fix = (f"你刚才的发言站到了对方立场上。你是{m['title']}，必须{want}。"
                    f"按你方主张重新发言，任务不变：{task}")
+            hold()
             r, raw = call(m, E.user_message(topic, others, log, fix, privs.get(m["name"])), fake)
             check = "mismatch" if wrong_side(m, position_of(raw)) else "corrected"
         entry = {"round": rnd, "name": m["name"], "side": m["side"], "title": m["title"], "phase": phase,
@@ -192,22 +196,20 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
                         "这句话场上其他人都没有听到，要不要公开提起由你决定。")
                 r, _ = call(m, E.user_message(topic, others, log, task, priv),
                             {"speech": f"（试跑）{m['name']} 私下回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
-                             "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None},
-                            for_user=True)
+                             "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None})
                 entry = {"round": rnd, "name": m["name"], "side": m["side"], "title": m["title"], "phase": "私下回应",
                          **{k: r.get(k) for k in ("speech", "stance", "newPoint")},
                          "respondsTo": "用户", "challenge": None, "challengeTarget": None, "answered": None}
                 priv.append({"name": m["name"], "speech": entry.get("speech") or ""})
                 emit({"type": "speech", "entry": entry, "toUser": True, "private": True})
                 continue
-            log.append({"round": rnd, "name": "用户", "title": "观众", "speech": u["text"], "respondsTo": u.get("target"),
+            log.append({"round": rnd, "name": "用户", "title": "观众", "speech": u["text"], "respondsTo": None,
                         "stance": "插话", "newPoint": True, "challenge": None, "challengeTarget": None, "answered": None})
             how = "作为主持人中立地回应，再把话题拉回辩题" if m["side"] == "host" else "站在你方立场上回应，再把它和你方论点联系起来"
-            task = f"观众刚才{'对你' if u.get('target') else '对全场'}说：“{u['text']}”。先直接回应观众（respondsTo 填“用户”），{how}。"
+            task = f"观众刚才对全场说：“{u['text']}”。先直接回应观众（respondsTo 填“用户”），{how}。"
             r, _ = call(m, E.user_message(topic, others, log, task),
                         {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
-                         "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None},
-                        for_user=True)
+                         "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None})
             entry = {"round": rnd, "name": m["name"], "side": m["side"], "title": m["title"], "phase": "回应观众",
                      **{k: r.get(k) for k in ("speech", "stance", "newPoint")},
                      "respondsTo": "用户", "challenge": None, "challengeTarget": None, "answered": None}
@@ -288,6 +290,8 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
             verdict = {"winner": "未判定", "summary": raw.strip()}
     verdict["judge"] = judge
     emit({"type": "summary", "text": verdict.get("summary", ""), "verdict": verdict})
+    # 判定要等十几秒，这期间 /say 照样收话；接着回答，不能收下就丢
+    handle_user(rounds)
     if keep is not None:
         keep.update(members=members, topic=topic, log=log, count=count, cfg=cfg, rounds=rounds, host=host,
                     system_key="dsystem", debate=True, privs=privs,

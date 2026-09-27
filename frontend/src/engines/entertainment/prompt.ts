@@ -109,11 +109,18 @@ export function buildMessages(x: PromptInput): LlmMessage[] {
   const parts: string[] = [OPENING, rulesBlock(), '【人物配置】\n' + dump(personaBlock(x.speaker))];
   const others = x.participants.filter((p) => p.agentId !== x.speaker.agentId);
   if (others.length) parts.push('【其他参与者公开简介】\n' + others.map(publicIntro).join('\n'));
-  parts.push('【本次话题】\n' + x.topic + '\n（没有附带话题卡和背景资料。）');
+  const topic = '【本次话题】\n' + x.topic + '\n（没有附带话题卡和背景资料。）';
+  parts.push(topic);
   parts.push(x.memes.length ? '【可用梗卡】\n' + dump(x.memes) : '【可用梗卡】\n本次没有提供梗卡。');
   parts.push('【讨论模式】\n' + MODE_RULE);
   parts.push('【输出要求】\n' + OUTPUT_RULE);
   const system = parts.join('\n\n');
+
+  // 只查规则、人物配置、梗卡这些静态素材：测试说明混进运行输入只会从这里进来。
+  // 话题、用户的话（插话、私聊）和角色发言是运行时内容，说到“盲评”之类的词很正常；
+  // 查它们的话这一步每次重试都会拼出同样的提示词、同样报错，整场讨论就卡死了
+  const leaked = LEAK_MARKERS.filter((w) => parts.some((s) => s !== topic && s.includes(w)));
+  if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
 
   let user = x.history.length
     ? '【公开讨论记录】\n' + x.history.map((m) => '[' + m.id + '] ' + m.speaker + '：' + m.text).join('\n') + '\n\n'
@@ -134,9 +141,6 @@ export function buildMessages(x: PromptInput): LlmMessage[] {
   }
   // 放在最后：离生成最近的位置再对一次引用一致性
   user += '\n（发言前对一下记录：你接住的那句要和原文一致；引用别人的话别改意思，也别把别人的“可能”说成确定。）';
-
-  const leaked = LEAK_MARKERS.filter((w) => (system + user).includes(w));
-  if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 

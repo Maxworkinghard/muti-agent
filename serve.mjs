@@ -11,6 +11,7 @@
  * 约定：监听 process.env.PORT，绑 0.0.0.0；frontend/.env 里的 LLM_* 同时喂给 Node 和 Python。
  */
 import { createServer, request as httpRequest } from 'node:http';
+import { pipeline } from 'node:stream';
 import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -250,14 +251,18 @@ function proxyDebate(req, res, pathname) {
     { host: '127.0.0.1', port: DEBATE_PORT, method: req.method, path: req.url, headers: { ...req.headers, host: `127.0.0.1:${DEBATE_PORT}` } },
     (up) => {
       res.writeHead(up.statusCode || 502, up.headers);
-      up.pipe(res);
+      // 用 pipeline 而不是 pipe：两头任一边断了都会把另一边一起收掉，出错也不会抛到进程上
+      pipeline(up, res, () => {});
     },
   );
   upstream.on('error', (e) => {
-    if (res.headersSent) return res.end();
+    if (res.headersSent || res.destroyed) return res.end();
     res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ error: '转发到辩论后端失败：' + e.message }));
   });
+  // 浏览器断开（关页面、刷新）时断掉到辩论后端的连接：Python 写下一条事件时发现连接没了，
+  // 就会停下这场讨论，不再接着调模型；只靠 pipe 的话后端察觉不到，整场辩论会一直跑完
+  res.on('close', () => { if (!res.writableFinished) upstream.destroy(); });
   req.pipe(upstream);
 }
 
