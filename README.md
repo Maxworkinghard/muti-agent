@@ -58,7 +58,7 @@
 | `LLM_MODEL` | 模型名 | `deepseek-chat` |
 
 - Node 侧依次加载 `.env`、`.env.local`，同名变量以 `.env.local` 为准；旧变量名 `ROUNDTABLE_*` 仍然兼容；
-- Python 辩论后端的取值顺序为：进程环境变量 → `backend/模型配置.json` → `frontend/.env`，因此同一份 `.env` 同时供两个后端使用；
+- Python 辩论后端的优先级：`backend/模型配置.json` → `frontend/.env`（有前者就用前者），其中 `LLM_API_KEY` 还可以被进程环境变量覆盖，因此同一份 `.env` 同时供两个后端使用；
 - `.env` 只在服务器端读取，不会打包进前端，也不纳入版本控制；
 - 未配置的后果：四种模式发言时都会提示缺少 `LLM_API_KEY`，辩论后端在启动阶段直接报错退出。
 
