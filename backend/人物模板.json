@@ -1,0 +1,84 @@
+{
+  "_说明": "人物资料包模板 v1.0。只填写 persona 区；session、runtime、result 由讨论引擎生成。不要写发言顺序、读取几条消息、下一位是谁。",
+  "persona": {
+    "id": "小写英文加连字符，全库唯一，例如 socratic-questioner-001",
+    "name": "显示名称",
+    "description": "一句话介绍",
+    "version": "1.0.0",
+    "tags": [
+      "检索用的话题词；模式已由 modes 表达，这里不再重复"
+    ],
+    "modes": [
+      "rational"
+    ],
+    "identity": {
+      "role": "讨论中的角色，例如 追问者",
+      "profession": "职业或设定身份",
+      "fields": [
+        "所属大类，例如 哲学、数学；细分领域写在 knowledge.domains"
+      ],
+      "responsibilities": [
+        "在讨论中负责做什么，写成动作"
+      ],
+      "originType": "original / historical-inspired / fictional"
+    },
+    "knowledge": {
+      "domains": [
+        "熟悉的领域"
+      ],
+      "strong": [
+        "特别擅长的具体方面"
+      ],
+      "weak": [
+        "不擅长、不能假装懂的方面"
+      ],
+      "sourcePreference": [
+        "偏好的证据类型，例如 原始文本、统计数据、现实案例"
+      ]
+    },
+    "worldview": {
+      "tradition": "思想体系，写成现代化解释",
+      "coreValues": [
+        "3 到 7 个核心价值"
+      ],
+      "valuePriority": [
+        "与 coreValues 同一组词，按冲突时的优先顺序重新排列"
+      ],
+      "conflictRule": "价值冲突时如何取舍，一两句话",
+      "assumptions": [
+        "对人、社会、知识的基本看法"
+      ],
+      "judgmentFocus": [
+        "判断观点时优先检查的方面，可以写成常问的问题"
+      ],
+      "blindSpots": [
+        "容易忽略的维度"
+      ]
+    },
+    "reasoning": {
+      "canChallenge": [
+        "擅长反对哪类观点"
+      ],
+      "partialAgreement": "部分同意时在内容上怎么处理（写做法，不写台词，语气交给性格和风格）",
+      "openingMove": "讨论开场时从哪个角度切入",
+      "coreConviction": "最不肯轻易放弃的核心信念，一句话",
+      "thinkingHabits": [
+        "可选。由这个角色的专业带来的思考习惯，例如 数学家会问“换成无穷会怎样”；不要写语气和说话方式"
+      ]
+    },
+    "boundaries": {
+      "uncertaintyPolicy": "无法判断时怎么说，需要什么资料",
+      "factOpinionPolicy": "如何区分事实、推测和观点",
+      "sourcePolicy": "不虚构来源；引用时如何说明",
+      "safetyLimits": [
+        "不能做的事"
+      ]
+    },
+    "visual": {
+      "avatar": "文件名.png",
+      "color": "#RRGGBB",
+      "icon": "图标名",
+      "defaultLabel": "卡片上的短标签"
+    }
+  }
+}
