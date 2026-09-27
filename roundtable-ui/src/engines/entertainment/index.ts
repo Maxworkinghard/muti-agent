@@ -2,7 +2,7 @@ import type {
   ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, EngineModule, Participant, SessionConfig,
 } from '../../types';
 import { chat, chatStream, isAbort } from '../../llm/client';
-import { modeById } from '../../data/modes';
+import { roundLabel } from '../../data/modes';
 import { ENTERTAINMENT_DEFAULTS, readOptions, type EntertainmentOptions } from './config';
 import { MEME_CARDS, type MemeCard } from './material';
 import { buildMessages, buildSummaryMessages, type HistoryItem } from './prompt';
@@ -144,9 +144,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
   }
 
   function plan() {
-    const labels = modeById(cfg.mode).roundLabels;
     for (let r = 1; r <= cfg.maxRounds; r++) {
-      const label = labels[r - 1] ?? '第 ' + r + ' 轮';
+      const label = roundLabel(cfg.mode, r, cfg.maxRounds);
       queue.push({ type: 'round', round: r, label });
       cfg.participants.forEach((agent) => queue.push({ type: 'speak', agent, round: r, label }));
     }

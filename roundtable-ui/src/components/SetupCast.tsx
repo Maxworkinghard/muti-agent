@@ -95,7 +95,8 @@ export function SetupCast({ draft, personas, onStart }: {
       sessionId: 's-' + Date.now().toString(36),
       mode: draft.mode, sceneId: draft.sceneId,
       theme: { title: draft.theme.trim() },
-      maxRounds: isRational ? rounds : modeById(draft.mode).roundLabels.length,
+      // 娱乐模式不固定轮数：每场随机 7～8 轮，太短不好看
+      maxRounds: isRational ? rounds : draft.mode === 'entertainment' ? 7 + Math.floor(Math.random() * 2) : modeById(draft.mode).roundLabels.length,
       maxChars: isRational ? maxChars : undefined,
       participants,
       engineOptions: { ...engineFor(draft.mode).defaults },

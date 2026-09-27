@@ -103,7 +103,11 @@ export function buildMessages(x: PromptInput): LlmMessage[] {
     : '【公开讨论记录】\n（暂无，你是第一个发言的。）\n\n';
   user += '现在轮到' + x.speaker.persona.name + '发言。';
   if (x.replyTo) user += '用户刚才对你说：“' + x.replyTo + '”，这次先回应用户。';
-  else if (ROUND_HINTS[x.roundLabel]) user += ROUND_HINTS[x.roundLabel];
+  else {
+    // 中间轮次名带序号（如“脑洞接龙 3”），去掉序号再找提示
+    const hint = ROUND_HINTS[x.roundLabel.replace(/\s*\d+$/, '')];
+    if (hint) user += hint;
+  }
 
   const leaked = LEAK_MARKERS.filter((w) => (system + user).includes(w));
   if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
