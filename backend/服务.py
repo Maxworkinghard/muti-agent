@@ -9,6 +9,9 @@
   GET  /api/options                 人物、性格列表
   POST /api/discuss                 开始一场讨论，用 SSE 逐条推送事件
   POST /api/discuss/<会话>/say      用户插话 {text, target}
+  POST /api/discuss/<会话>/pause    暂停（下一位发言前停住，插话照常回应）
+  POST /api/discuss/<会话>/resume   继续
+  POST /api/discuss/<会话>/ask      讨论结束后追问 {text, target}，直接返回回答 {name, speech}
   POST /api/discuss/<会话>/stop     停止
 其余路径返回 ../frontend/dist 里构建好的网页。
 
@@ -29,7 +32,9 @@ from 组装提示词 import build, _find_persona
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT.parent / "frontend" / "dist"
-SESSIONS = {}  # 会话 id -> {"inbox": Queue, "stop": Event}
+SESSIONS = {}  # 会话 id -> {"inbox": Queue, "stop": Event, "pause": Event, "keep": dict}
+FINISHED = {}  # 已结束的会话 id -> (结束时间, keep)，给追问用，保留一小时
+KEEP_SECONDS = 3600
 OPT = {"dry": False, "delay": 1.2}
 
 
@@ -114,17 +119,21 @@ def save_record(data):
     return str(f.relative_to(ROOT))
 
 
-def run(question, brief, members, rounds, max_chars, emit, inbox, stop):
+def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=None, keep=None):
     """和 讨论引擎.main() 的流程一样，只是把 print 换成 emit，并在每次发言前处理用户插话。"""
     dry = OPT["dry"]
     ctx = question + (f"\n（用户开场时的补充说明：{brief}）" if brief else "")
     cfg = None if dry else E.load_config()
     log, summary, count = [], "讨论刚开始。", {m["name"]: 0 for m in members}
+    cur = {"round": 1}
     emit({"type": "start", "question": question, "rounds": rounds, "maxChars": max_chars,
           "model": cfg["model"] if cfg else "试跑",
           "members": [{k: m[k] for k in ("name", "role", "personality")} for m in members]})
 
-    def call(m, msg, fake):
+    def call(m, msg, fake, for_user=False):
+        while not for_user and pause is not None and pause.is_set() and not stop.is_set():
+            handle_user(cur["round"])
+            time.sleep(0.2)
         if stop.is_set():
             raise Stopped()
         emit({"type": "thinking", "name": m["name"]})
@@ -169,7 +178,8 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop):
                     f"先直接回应用户（respondsTo 填“用户”），再把它和正在讨论的议题联系起来。")
             r = call(m, E.user_message(ctx, others, summary, log, task),
                      {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
-                      "stance": "部分同意", "newPoint": True, "challenge": None, "challengeTarget": None})
+                      "stance": "部分同意", "newPoint": True, "challenge": None, "challengeTarget": None},
+                     for_user=True)
             entry = {"round": rnd, "name": m["name"], **{k: r.get(k) for k in
                      ("speech", "stance", "newPoint", "challenge", "challengeTarget")},
                      "respondsTo": "用户", "answered": None}
@@ -178,6 +188,7 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop):
             emit({"type": "speech", "entry": entry, "toUser": True})
 
     for rnd in range(1, rounds + 1):
+        cur["round"] = rnd
         stage = "开场" if rnd == 1 else "收尾" if rnd == rounds else "交锋"
         emit({"type": "round", "round": rnd, "stage": stage})
         if stage == "交锋":
@@ -206,6 +217,9 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop):
         full = "\n".join(f"第{x['round']}轮 {x['name']}：{x['speech']}" for x in log)
         final = E.chat(cfg, E.MODERATOR, f"议题：{ctx}\n\n讨论记录：\n{full}").strip()
     emit({"type": "summary", "text": final})
+    if keep is not None:
+        keep.update(members=members, topic=ctx, log=log, count=count, cfg=cfg, rounds=rounds, host=None,
+                    system_key="system", debate=False, summary=final)
     if dry:
         return None
     out = ROOT / "讨论记录"
@@ -216,6 +230,39 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop):
                              "rounds": rounds, "maxChars": max_chars, "log": log, "summary": final},
                             ensure_ascii=False, indent=2), encoding="utf-8")
     return str(f.relative_to(ROOT))
+
+
+def answer_after(keep, text, target):
+    """讨论结束后的追问：点名的人回答，没点名由主持人（没有主持时由发言最少的人）回答。"""
+    members = keep["members"]
+    m = next((x for x in members if x["name"] == target), None) or keep.get("host") \
+        or min(members, key=lambda x: keep["count"][x["name"]])
+    log = keep["log"]
+    log.append({"round": keep["rounds"], "name": "用户", "speech": text, "respondsTo": target})
+    others = "、".join(o["name"] for o in members if o is not m)
+    if keep["debate"]:
+        how = ("作为主持人兼裁判中立地回答，可以解释你的判定理由" if m.get("side") == "host"
+               else "仍然站在你方立场上回答")
+    else:
+        how = "结合刚才的讨论回答"
+    task = (f"讨论已经结束，用户{'对你' if target else '对大家'}追问：“{text}”。{how}。"
+            "问得简单就一两句话，复杂再展开。respondsTo 填“用户”，challenge 填 null。")
+    if keep["cfg"] is None:
+        time.sleep(OPT["delay"])
+        speech = f"（试跑）{m['name']} 回答你的追问：“{text[:20]}”。"
+    else:
+        raw = E.chat(keep["cfg"], m[keep["system_key"]],
+                     E.user_message(keep["topic"], others, keep["summary"], log, task), want_json=True)
+        speech = E.parse_reply(raw).get("speech") or raw.strip()
+    log.append({"round": keep["rounds"], "name": m["name"], "speech": speech, "respondsTo": "用户"})
+    keep["count"][m["name"]] += 1
+    return {"name": m["name"], "speech": speech, "title": m.get("title")}
+
+
+def _clean_finished():
+    now = time.time()
+    for k in [k for k, (t, _) in FINISHED.items() if now - t > KEEP_SECONDS]:
+        FINISHED.pop(k, None)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -261,12 +308,30 @@ class Handler(BaseHTTPRequestHandler):
         parts = path.split("/")
         if path == "/api/discuss":
             return self.discuss(body)
-        if len(parts) == 5 and parts[:3] == ["", "api", "discuss"] and parts[4] in ("say", "stop"):
+        if len(parts) == 5 and parts[:3] == ["", "api", "discuss"] and parts[4] == "ask":
+            _clean_finished()
+            keep = FINISHED.get(parts[3])
+            if not keep:
+                return self._json(404, {"error": "这场讨论的记录已经过期，请重新开一场。"})
+            text = str(body.get("text", "")).strip()
+            if not text:
+                return self._json(400, {"error": "内容不能为空。"})
+            try:
+                return self._json(200, answer_after(keep[1], text[:500], body.get("target") or None))
+            except SystemExit as e:
+                return self._json(502, {"error": str(e)})
+            except Exception as e:
+                return self._json(500, {"error": f"回答追问时出错：{e}"})
+        if len(parts) == 5 and parts[:3] == ["", "api", "discuss"] and parts[4] in ("say", "stop", "pause", "resume"):
             s = SESSIONS.get(parts[3])
             if not s:
                 return self._json(404, {"error": "这场讨论已经结束或不存在。"})
             if parts[4] == "stop":
                 s["stop"].set()
+            elif parts[4] == "pause":
+                s["pause"].set()
+            elif parts[4] == "resume":
+                s["pause"].clear()
             else:
                 text = str(body.get("text", "")).strip()
                 if not text:
@@ -281,7 +346,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError as e:
             return self._json(400, {"error": str(e)})
         sid = str(body.get("sessionId") or time.time())
-        sess = {"inbox": queue.Queue(), "stop": threading.Event()}
+        sess = {"inbox": queue.Queue(), "stop": threading.Event(), "pause": threading.Event(), "keep": {}}
         SESSIONS[sid] = sess
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -301,9 +366,13 @@ class Handler(BaseHTTPRequestHandler):
         try:
             *base, debate = args
             if debate:
-                f = D.run_debate(*base, emit, sess["inbox"], sess["stop"], OPT["dry"], OPT["delay"], save_record)
+                f = D.run_debate(*base, emit, sess["inbox"], sess["stop"], OPT["dry"], OPT["delay"], save_record,
+                                 pause=sess["pause"], keep=sess["keep"])
             else:
-                f = run(*base, emit, sess["inbox"], sess["stop"])
+                f = run(*base, emit, sess["inbox"], sess["stop"], pause=sess["pause"], keep=sess["keep"])
+            if sess["keep"]:
+                _clean_finished()
+                FINISHED[sid] = (time.time(), sess["keep"])
             emit({"type": "done", "file": f})
         except (Stopped, D.Stopped):
             try:

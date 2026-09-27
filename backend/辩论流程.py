@@ -114,7 +114,9 @@ def wrong_side(m, pos):
     return ("反对" in pos) if m["side"] == "pro" else ("支持" in pos) if m["side"] == "con" else False
 
 
-def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, dry, delay, save):
+def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, dry, delay, save, pause=None, keep=None):
+    """pause：用户暂停时置位，下一位发言前停住，期间照常回应用户；
+    keep：结束后把成员、辩题、记录存进去，给结束后的追问用。"""
     ctx = question + (f"\n（用户开场时的补充说明：{brief}）" if brief else "")
     cfg = None if dry else E.load_config()
     pro, con, host = split_sides(members)
@@ -124,11 +126,16 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
     topic = f"{motion['motion']}（正方：{motion['pro']}；反方：{motion['con']}）" + (f"\n（用户补充：{brief}）" if brief else "")
     log, summary = [], "辩论刚开始。"
     count = {m["name"]: 0 for m in members}
+    cur = {"round": 1}
     emit({"type": "start", "question": question, "rounds": rounds, "maxChars": max_chars, "debate": True,
           "motion": motion, "model": cfg["model"] if cfg else "试跑",
           "members": [{k: m[k] for k in ("name", "role", "personality", "side", "title")} for m in members]})
 
-    def call(m, msg, fake):
+    def call(m, msg, fake, for_user=False):
+        # 暂停时停在这里，期间用户的话照常回应
+        while not for_user and pause is not None and pause.is_set() and not stop.is_set():
+            handle_user(cur["round"])
+            time.sleep(0.2)
         if stop.is_set():
             raise Stopped()
         emit({"type": "thinking", "name": m["name"]})
@@ -179,7 +186,8 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
             task = f"观众刚才{'对你' if u.get('target') else '对全场'}说：“{u['text']}”。先直接回应观众（respondsTo 填“用户”），{how}。"
             r, _ = call(m, E.user_message(topic, others, summary, log, task),
                         {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
-                         "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None})
+                         "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None},
+                        for_user=True)
             entry = {"round": rnd, "name": m["name"], "side": m["side"], "title": m["title"], "phase": "回应观众",
                      **{k: r.get(k) for k in ("speech", "stance", "newPoint")},
                      "respondsTo": "用户", "challenge": None, "challengeTarget": None, "answered": None}
@@ -211,6 +219,7 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
         return team[(k + start) % len(team)]
 
     for rnd in range(1, rounds + 1):
+        cur["round"] = rnd
         emit({"type": "round", "round": rnd, "stage": label(rnd)})
         if rnd == 1:
             handle_user(rnd)
@@ -264,6 +273,10 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
             verdict = {"winner": "未判定", "summary": raw.strip()}
     verdict["judge"] = judge
     emit({"type": "summary", "text": verdict.get("summary", ""), "verdict": verdict})
+    if keep is not None:
+        keep.update(members=members, topic=topic, log=log, count=count, cfg=cfg, rounds=rounds, host=host,
+                    system_key="dsystem", debate=True,
+                    summary=f"{summary}\n裁判判定：{verdict.get('winner', '')}。{verdict.get('reason', '')}")
     if dry:
         return None
     return save({"question": question, "brief": brief, "motion": motion, "model": cfg["model"],
