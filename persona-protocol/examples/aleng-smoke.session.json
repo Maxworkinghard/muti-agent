@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "session": {
+    "id": "s-aleng-smoke-001",
+    "mode": "entertainment",
+    "scene": "roundtable",
+    "question": "周末宅家和出门旅行，哪个更值？",
+    "userParticipation": "participant",
+    "participants": [
+      {
+        "personaId": "aleng",
+        "seat": 1,
+        "traitSelection": [
+          "direct",
+          "skeptical",
+          "custom-low-energy"
+        ]
+      }
+    ]
+  }
+}

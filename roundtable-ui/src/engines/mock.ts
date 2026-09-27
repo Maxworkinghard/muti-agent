@@ -1,7 +1,9 @@
 import type {
   ChatMessage, DiscussionEngine, EngineEvent, Participant, SessionConfig, TaskEvent,
 } from '../types';
-import { modeById } from '../data/modes';
+import { roundLabel } from '../data/modes';
+
+/** 演示用的模拟引擎，三个模式暂时共用。真实引擎到位后各自替换 */
 
 let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
@@ -29,20 +31,22 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
     return pick(pick(lines, round - 1), turn);
   }
   if (cfg.mode === 'rational') {
+    // 轮数可调：第 1 轮立论，最后一轮总结，中间都是交锋
+    const phase = round <= 1 ? 1 : round >= cfg.maxRounds ? 3 : 2;
     const side = p.side === 'pro' ? '正方' : p.side === 'con' ? '反方' : '主持';
     if (p.side === 'host') {
       return pick([
         `各位好，今天的辩题是「${t}」。请正反双方依次陈述立场。`,
         `进入交锋环节。请双方针对对方的核心假设提问，注意区分事实和价值判断。`,
         `最后请双方做总结陈词，我会整理出共识、分歧和待验证的问题。`,
-      ], round - 1);
+      ], phase - 1);
     }
     const lines = [
       `${opener}我方（${side}）认为：在「${t}」这件事上，${p.persona.thinking}。从${k}来看，证据是站在我们这边的。`,
       `${opener}对方刚才的论证有个前提没说清楚。如果用${k}的框架看，结论并不必然成立。`,
       `${opener}总结我方观点：${p.persona.values}。我们愿意承认的分歧是执行成本，但方向没错。`,
     ];
-    return pick(lines, round - 1);
+    return pick(lines, phase - 1);
   }
   const lines = [
     [`${opener}「${t}」？我先来！作为${p.persona.identity.split(' · ')[0]}，我第一反应是……${k}！`,
@@ -65,7 +69,8 @@ export function createMockEngine(): DiscussionEngine {
   let busy = false;
 
   const later = (fn: () => void, ms: number) => {
-    const id = window.setTimeout(() => { if (!stopped) fn(); }, ms);
+    const speed = Number(cfg?.engineOptions?.speed ?? 1) || 1;
+    const id = window.setTimeout(() => { if (!stopped) fn(); }, ms / speed);
     timers.push(id);
   };
   /** 队列里每一步返回自己需要占用的毫秒数 */
@@ -84,7 +89,10 @@ export function createMockEngine(): DiscussionEngine {
   const message = (m: Omit<ChatMessage, 'id' | 'at'>) =>
     emit({ type: 'message', message: { ...m, id: uid('m'), at: Date.now() } });
 
-  const speakStep = (p: Participant, text: string, round: number, kind: ChatMessage['kind'] = 'speech', targetId?: string) => [
+  const speakStep = (p: Participant, raw: string, round: number, kind: ChatMessage['kind'] = 'speech', targetId?: string) => {
+    const limit = cfg.maxChars;
+    const text = limit && raw.length > limit ? raw.slice(0, limit - 1) + '…' : raw;
+    return [
     () => { emit({ type: 'status', agentId: p.agentId, state: 'thinking', action: '思考中…' }); return 700; },
     () => {
       emit({ type: 'status', agentId: p.agentId, state: 'speaking', action: kind === 'reply' ? '回应用户' : '发言中' });
@@ -92,12 +100,12 @@ export function createMockEngine(): DiscussionEngine {
       return 1800 + Math.min(text.length * 25, 1600);
     },
     () => { emit({ type: 'status', agentId: p.agentId, state: 'idle', action: '倾听' }); return 250; },
-  ];
+    ];
+  };
 
   const task = (t: Omit<TaskEvent, 'id'>) => emit({ type: 'task', task: { ...t, id: uid('t') } });
 
   function plan() {
-    const mode = modeById(cfg.mode);
     const ps = cfg.participants;
     const ordered = cfg.mode === 'rational'
       ? [...ps.filter((p) => p.side === 'host'), ...interleave(ps.filter((p) => p.side === 'pro'), ps.filter((p) => p.side === 'con'))]
@@ -105,7 +113,7 @@ export function createMockEngine(): DiscussionEngine {
     const lead = ps.find((p) => p.isLead) ?? ps[0];
 
     for (let r = 1; r <= cfg.maxRounds; r++) {
-      const label = mode.roundLabels[r - 1] ?? '第 ' + r + ' 轮';
+      const label = roundLabel(cfg.mode, r, cfg.maxRounds);
       push(() => { currentRound = r; emit({ type: 'round', round: r, label }); message({ round: r, speakerId: 'system', text: '第 ' + r + ' 轮 · ' + label, kind: 'system' }); return 600; });
 
       if (cfg.mode === 'product' && r === 1) {
@@ -185,11 +193,3 @@ function interleave<T>(a: T[], b: T[]) {
   for (let i = 0; i < Math.max(a.length, b.length); i++) { if (a[i]) out.push(a[i]); if (b[i]) out.push(b[i]); }
   return out;
 }
-
-/** 其他小组的引擎在这里注册；前端通过 mode 取对应引擎 */
-export const ENGINE_REGISTRY: Record<string, () => DiscussionEngine> = {
-  entertainment: createMockEngine,
-  rational: createMockEngine,
-  product: createMockEngine,
-};
-

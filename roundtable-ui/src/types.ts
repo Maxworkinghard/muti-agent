@@ -1,7 +1,6 @@
 export type ModeId = 'entertainment' | 'rational' | 'product';
-/** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
-export type Track = 'discuss' | 'work';
-export type SceneId = 'roundtable' | 'debate' | 'office';
+/** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
+export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
 
 export interface Personality {
@@ -21,6 +20,8 @@ export interface PersonaVisual {
   shirt: string;
   accent: string;
   hairStyle?: 'short' | 'long' | 'bun' | 'cap';
+  /** 头像图片地址；为空时画像素小人 */
+  image?: string;
 }
 
 /** 人物资料：知识和思想固定，性格可选 */
@@ -57,11 +58,12 @@ export interface SceneDef {
   seats: Seat[];
   /** 场景中心：圆桌中心 / 文件交换台 */
   center?: { x: number; y: number };
+  /** 用户自己添加的场景 */
+  custom?: boolean;
 }
 
 export interface ModeDef {
   id: ModeId;
-  track: Track;
   name: string;
   tag: string;
   desc: string;
@@ -69,6 +71,8 @@ export interface ModeDef {
   scene: SceneId;
   roundLabels: string[];
   presets: string[];
+  /** 选人物页导入按钮的文字 */
+  importLabel: string;
 }
 
 /** 前端交给引擎的会话配置 */
@@ -86,9 +90,14 @@ export interface SessionConfig {
   sessionId: string;
   mode: ModeId;
   sceneId: SceneId;
-  theme: { title: string };
+  /** brief：用户在讨论开始前发的第一句话，即对项目的详细理解 */
+  theme: { title: string; brief?: string };
   maxRounds: number;
+  /** 每次发言的字数上限；不填表示不限制 */
+  maxChars?: number;
   participants: Participant[];
+  /** 引擎可调参数，默认值在各引擎文件夹的 config.ts 里 */
+  engineOptions: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -128,15 +137,30 @@ export type EngineEvent =
   | { type: 'round'; round: number; label: string }
   | { type: 'status'; agentId: string; state: AgentState; action: string }
   | { type: 'message'; message: ChatMessage }
+  /** 流式发言：先发一条 message，再用同一个 id 不断更新全文 */
+  | { type: 'message_update'; id: string; text: string }
   | { type: 'task'; task: TaskEvent }
-  | { type: 'result'; result: DiscussionResult };
+  | { type: 'result'; result: DiscussionResult }
+  /** 调用 AI 等出错；agentId 为空表示整场出错。retry 存在时界面显示“重试”按钮 */
+  | { type: 'error'; id: string; agentId?: string; message: string; retry?: () => void };
 
 /** 各小组实现的讨论引擎都遵守这个接口 */
 export interface DiscussionEngine {
   start(config: SessionConfig, emit: (event: EngineEvent) => void): void;
   /** 用户插话；targetAgentId 为空表示对全体 */
   sendUserMessage(input: { text: string; targetAgentId?: string }): void;
+  /** 停止讨论：清掉计时器，并中断正在进行的 AI 请求（把 AbortSignal 传给 chat / chatStream） */
   stop(): void;
 }
 
 export type EngineFactory = () => DiscussionEngine;
+
+/** 每个模式的引擎包：工厂函数 + 可调参数默认值 */
+export interface EngineModule {
+  mode: ModeId;
+  name: string;
+  /** 负责人或小组，方便排查 */
+  owner: string;
+  create: EngineFactory;
+  defaults: Record<string, unknown>;
+}

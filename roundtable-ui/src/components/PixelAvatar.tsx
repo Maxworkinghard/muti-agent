@@ -2,6 +2,10 @@ import type { PersonaVisual } from '../types';
 
 /** 16x16 像素小人，standing=true 时画出身体（站立） */
 export function PixelAvatar({ v, size = 48, standing = false }: { v: PersonaVisual; size?: number; standing?: boolean }) {
+  // 人物文件给了头像图片就用图片；没有（null / 空字符串）时画像素小人
+  if (v.image) {
+    return <img className="pixel-avatar img" src={v.image} width={size} height={size} alt="" draggable={false} style={{ objectFit: 'cover', imageRendering: 'pixelated' }} />;
+  }
   const h = standing ? 24 : 16;
   const px: Array<[number, number, number, number, string]> = [];
   const r = (x: number, y: number, w: number, hh: number, c: string) => px.push([x, y, w, hh, c]);
@@ -31,4 +35,3 @@ export function PixelAvatar({ v, size = 48, standing = false }: { v: PersonaVisu
     </svg>
   );
 }
-
