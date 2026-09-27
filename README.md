@@ -38,6 +38,61 @@
 
 ## 运行
 
-1. 在 `frontend/` 里把 `.env.example` 复制成 `.env`，填上 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`（辩论后端也读这一份）。
-2. 辩论后端：在 `backend/` 里运行 `python 服务.py`（端口 8000）。
-3. 网页：在 `frontend/` 里运行 `npm install`、`npm run dev`，打开 http://localhost:5173 。
+本地由两个进程组成：前端开发服务器（必需），以及只在辩论模式用到的辩论后端。
+
+| 进程 | 职责 | 默认地址 |
+| --- | --- | --- |
+| 前端开发服务器（Vite） | 页面与热更新、Node 会话后端与模型转发、API 反向代理 | http://localhost:5173 |
+| 辩论后端（Python） | 辩论模式的人物库与讨论流程（`/api/options`、`/api/discuss`） | http://127.0.0.1:8000 |
+
+**环境要求**：Node.js `^20.19.0 || >=22.12.0`（Vite 8 的要求）、Python 3.10 及以上；首次运行先在 `frontend/` 执行一次 `npm install`。
+
+### 1. 配置模型凭据
+
+把 `frontend/.env.example` 复制为 `frontend/.env`，填写三个变量：
+
+| 变量 | 含义 | 示例 |
+| --- | --- | --- |
+| `LLM_API_KEY` | 服务商 API Key | `sk-...` |
+| `LLM_BASE_URL` | 兼容 OpenAI `/chat/completions` 的接口地址 | `https://api.deepseek.com/v1` |
+| `LLM_MODEL` | 模型名 | `deepseek-chat` |
+
+- Node 侧依次加载 `.env`、`.env.local`，同名变量以 `.env.local` 为准；旧变量名 `ROUNDTABLE_*` 仍然兼容；
+- Python 辩论后端的取值顺序为：进程环境变量 → `backend/模型配置.json` → `frontend/.env`，因此同一份 `.env` 同时供两个后端使用；
+- `.env` 只在服务器端读取，不会打包进前端，也不纳入版本控制；
+- 未配置的后果：四种模式发言时都会提示缺少 `LLM_API_KEY`，辩论后端在启动阶段直接报错退出。
+
+### 2. 启动辩论后端（仅辩论模式需要）
+
+```bash
+cd backend
+python 服务.py                # 调用真实模型
+python 服务.py --试跑         # 不调用模型，用示例发言检查界面
+python 服务.py --端口 9000     # 换端口，前端需同步设置 DEBATE_BACKEND
+```
+
+### 3. 启动网页
+
+```bash
+cd frontend
+npm run dev
+```
+
+一个 Vite 进程同时提供三样东西：页面与热更新、Node 会话后端（`/api/health`、`/api/sessions`、`/api/llm/*`，Key 只留在服务器端）、到辩论后端的反向代理（`/api/discuss`、`/api/options`）。
+
+- 端口默认为 5173，被占用时 Vite 会自动顺延，**以终端输出的地址为准**；
+- 请用终端输出的 `localhost` 地址打开（只监听 IPv6 回环时，`127.0.0.1` 连不上）；
+- 辩论后端不在默认地址时：`DEBATE_BACKEND=http://127.0.0.1:9000 npm run dev`。
+
+### 4. 单端口发布（可选）
+
+`node serve.mjs` 把静态页、Node 会话后端和 Python 辩论后端合并到一根端口，并把辩论后端作为子进程启动：
+
+```bash
+cd frontend                # 下面三条都在 frontend/ 里执行
+npm run build              # 构建页面
+npm run build:server       # 构建 Node 后端
+PORT=8080 node serve.mjs   # 默认 5173；辩论后端端口用 DEBATE_PORT 指定，默认 8000
+```
+
+若存在 `frontend/.env.production`，它会覆盖 `.env`（本地 `npm run dev` 不读它）。
