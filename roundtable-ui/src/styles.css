@@ -88,7 +88,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .panel h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
 .panel h2 b { background: var(--ink); color: var(--cream); padding: 1px 6px; font-size: 13px; }
 .panel h2 small { font-weight: normal; color: var(--ink-2); font-size: 13px; }
-.mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+/* 四个模式固定排成一行 */
+.mode-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .mode-card {
   --mc: var(--c-green); text-align: left; border: 3px solid var(--ink); background: var(--paper); padding: 12px 14px;
   display: flex; flex-direction: column; gap: 6px; position: relative; box-shadow: var(--shadow);
@@ -280,6 +281,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .task-board .t-handoff { border-color: var(--c-blue); }
 .result { animation: linein .4s steps(3); }
 .res { border: 2px solid var(--ink); margin-bottom: 6px; background: #fff; }
+.summary-text { margin: 0; padding: 6px 10px; white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
 .res b { display: block; padding: 1px 8px; color: var(--cream); font-size: 12px; }
 .res ul { margin: 4px 0; padding-left: 22px; font-size: 12px; line-height: 1.6; }
 .res-green b { background: var(--c-green); } .res-orange b { background: var(--c-orange); } .res-blue b { background: var(--c-blue); }
@@ -342,6 +344,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .m-info small, .m-info em { font-size: 11px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: normal; }
 .side { font-style: normal; font-size: 10px; padding: 0 3px; color: var(--cream); border: 1px solid var(--ink); }
 .side-pro { background: var(--c-blue); } .side-con { background: var(--c-red); } .side-host { background: var(--c-yellow); color: var(--ink); }
+.line .who em.line-tag { font-style: normal; font-weight: normal; font-size: 10px; color: var(--ink); opacity: .7; }
+.verdict-score { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0; }
+.verdict-score .side { font-size: 12px; padding: 1px 6px; }
+.verdict-score strong { font-size: 15px; }
 .dot { display: inline-block; width: 7px; height: 7px; margin-right: 4px; background: #a99db5; vertical-align: 1px; }
 .member.st-speaking .dot { background: var(--c-red); animation: blink .5s steps(2) infinite; }
 .member.st-thinking .dot { background: var(--c-yellow); }

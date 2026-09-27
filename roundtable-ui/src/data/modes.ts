@@ -1,6 +1,6 @@
 import type { ModeDef, ModeId } from '../types';
 
-/** 三个模式共用同一套前端：选模式和主题 → 选人物 → 讨论室 → 结果 */
+/** 四个模式共用同一套前端：选模式和主题 → 选人物 → 讨论室 → 结果 */
 export const MODES: ModeDef[] = [
   {
     id: 'entertainment',
@@ -22,6 +22,17 @@ export const MODES: ModeDef[] = [
     scene: 'debate',
     roundLabels: ['立论陈述', '交锋质询', '总结陈词'],
     presets: ['远程办公应该成为默认选项吗？', 'AI 会让初级程序员岗位消失吗？', '大学应该取消期末考试吗？'],
+    importLabel: '＋ 导入人物 JSON',
+  },
+  {
+    id: 'emotion',
+    name: '情感交流',
+    tag: 'CARE',
+    desc: '七种回应风格围坐，接住情绪、分清事实、给出一小步',
+    color: 'var(--c-pink)',
+    scene: 'roundtable',
+    roundLabels: ['回应情绪', '分清事实与感受', '下一步行动'],
+    presets: ['朋友答应周五回复，到现在还没消息', '和室友因为作息问题闹僵了', '最近工作很累，觉得自己什么都做不好'],
     importLabel: '＋ 导入人物 JSON',
   },
   {

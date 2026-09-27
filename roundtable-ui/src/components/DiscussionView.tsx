@@ -334,7 +334,7 @@ function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }
     <div className={'line ' + m.kind} style={{ ['--ac' as string]: p.color }}>
       <span className="l-avatar"><PixelAvatar v={p.persona.visual} size={28} /></span>
       <div>
-        <div className="who">{p.persona.name}{m.kind === 'reply' && <i>回复你</i>}</div>
+        <div className="who">{p.persona.name}{m.tag && <em className="line-tag">{m.tag}</em>}{m.kind === 'reply' && <i>回复你</i>}</div>
         <p>{m.text}</p>
       </div>
     </div>
@@ -357,11 +357,25 @@ function PersonaStrip({ p, status }: { p: Participant; status?: Status }) {
 function ResultCard({ r }: { r: DiscussionResult }) {
   const sec: Array<[string, string[] | undefined, string]> = [
     ['共识', r.consensus, 'green'], ['分歧', r.disagreements, 'orange'],
-    ['待验证', r.openQuestions, 'blue'], ['建议', r.suggestions, 'purple'], ['交付物', r.deliverables, 'yellow'],
+    [r.verdict ? '被回避的质询' : '待验证', r.openQuestions, 'blue'], ['建议', r.suggestions, 'purple'], ['交付物', r.deliverables, 'yellow'],
   ];
+  const v = r.verdict;
   return (
     <div className="result">
       <div className="round-sep">讨论结果</div>
+      {v && (
+        <div className="res res-yellow verdict">
+          <b>裁判判定{v.judge ? ' · ' + v.judge : ''}</b>
+          {v.motion && <p className="summary-text">辩题：{v.motion.motion}<br />正方：{v.motion.pro}<br />反方：{v.motion.con}</p>}
+          <p className="verdict-score">
+            <span className="side side-pro">正方 {v.proScore ?? '-'}</span>
+            <strong>{v.winner === '平局' ? '平局' : (v.winner ?? '未判定') + ' 胜'}</strong>
+            <span className="side side-con">反方 {v.conScore ?? '-'}</span>
+          </p>
+          {v.reason && <p className="summary-text">{v.reason}</p>}
+        </div>
+      )}
+      {r.summary && <div className="res res-blue"><b>{v ? '赛后总结' : '主持人总结'}</b><p className="summary-text">{r.summary}</p></div>}
       {sec.filter(([, v]) => v?.length).map(([k, v, c]) => (
         <div key={k} className={'res res-' + c}><b>{k}</b><ul>{v!.map((x) => <li key={x}>{x}</li>)}</ul></div>
       ))}
