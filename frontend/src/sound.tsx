@@ -10,8 +10,21 @@ let ctx: AudioContext | null = null;
 function audio() {
   if (muted) return null;
   ctx ??= new AudioContext();
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx.state === 'suspended') void ctx.resume();
   return ctx;
+}
+
+/** 在用户点击时调用，提前唤醒音频，避免第一声被浏览器吞掉 */
+export function warmAudio() {
+  audio();
+}
+
+/** 音频还没唤醒时，等唤醒后再播放，第一声不会丢 */
+function whenReady(play: (ac: AudioContext) => void) {
+  const ac = audio();
+  if (!ac) return;
+  if (ac.state === 'running') play(ac);
+  else ac.resume().then(() => play(ac)).catch(() => {});
 }
 
 /** 方波音符：freq 起始频率，to 结束频率（滑音），at 延迟秒数 */
@@ -73,13 +86,13 @@ function voiceOf(id: string) {
  * syllables 控制长短，文字多就多说几个音节
  */
 export function playVoice(id: string, syllables = 5) {
-  const ac = audio();
-  if (!ac) return;
   const v = voiceOf(id);
-  for (let i = 0; i < syllables; i++) {
-    const f = v.base * (1 + (Math.random() * 2 - 1) * v.spread);
-    tone(ac, f, v.gap * 0.8, i * v.gap, f * v.glide, v.type === 'sawtooth' ? 0.035 : 0.05, v.type);
-  }
+  whenReady((ac) => {
+    for (let i = 0; i < syllables; i++) {
+      const f = v.base * (1 + (Math.random() * 2 - 1) * v.spread);
+      tone(ac, f, v.gap * 0.8, i * v.gap, f * v.glide, v.type === 'sawtooth' ? 0.035 : 0.05, v.type);
+    }
+  });
 }
 
 export function setMuted(v: boolean) {

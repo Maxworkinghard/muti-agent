@@ -156,12 +156,12 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
                 "stance": phase, "newPoint": True, "position": want,
                 "challenge": "（试跑）请正面回答：你方的判断标准是什么？" if phase == "质询" else None,
                 "challengeTarget": target if phase == "质询" else None}
-        r, raw = call(m, E.user_message(topic, others, log, task), fake)
+        r, raw = call(m, E.full_message(topic, others, log, task), fake)
         check = "ok"
         if wrong_side(m, position_of(raw)):
             fix = (f"你刚才的发言站到了对方立场上。你是{m['title']}，必须{want}。"
                    f"按你方主张重新发言，任务不变：{task}")
-            r, raw = call(m, E.user_message(topic, others, log, fix), fake)
+            r, raw = call(m, E.full_message(topic, others, log, fix), fake)
             check = "mismatch" if wrong_side(m, position_of(raw)) else "corrected"
         entry = {"round": rnd, "name": m["name"], "side": m["side"], "title": m["title"], "phase": phase,
                  **{k: r.get(k) for k in ("speech", "respondsTo", "stance", "newPoint", "challenge", "challengeTarget")},
@@ -185,7 +185,7 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
             others = "、".join(o["name"] for o in members if o is not m)
             how = "作为主持人中立地回应，再把话题拉回辩题" if m["side"] == "host" else "站在你方立场上回应，再把它和你方论点联系起来"
             task = f"观众刚才{'对你' if u.get('target') else '对全场'}说：“{u['text']}”。先直接回应观众（respondsTo 填“用户”），{how}。"
-            r, _ = call(m, E.user_message(topic, others, log, task),
+            r, _ = call(m, E.full_message(topic, others, log, task),
                         {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
                          "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None},
                         for_user=True)
@@ -272,7 +272,7 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
     if keep is not None:
         keep.update(members=members, topic=topic, log=log, count=count, cfg=cfg, rounds=rounds, host=host,
                     system_key="dsystem", debate=True,
-                    summary=f"裁判判定：{verdict.get('winner', '')}。{verdict.get('reason', '')}")
+                    verdict=f"裁判判定：{verdict.get('winner', '')}。{verdict.get('reason', '')}")
     if dry:
         return None
     return save({"question": question, "brief": brief, "motion": motion, "model": cfg["model"],

@@ -63,8 +63,6 @@ export function createEntertainmentEngine(): DiscussionEngine {
   let spokenThisRound: string[] = [];
 
   const pid = (p: Participant) => p.persona.id;
-  /** 用户插话引起的发言：暂停期间也让这一条先答完 */
-  const isReply = (s: Step) => s.type === 'speak' && !!s.replyTo;
   function pickNext(): Participant {
     const ps = cfg.participants;
     const ids = ps.map(pid);
@@ -204,8 +202,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
     for (let r = 1; r <= cfg.maxRounds; r++) {
       const label = labels[r - 1] ?? '第 ' + r + ' 轮';
       queue.push({ type: 'round', round: r, label });
-      const n = cfg.participants.length;
-      const turns = n + Math.floor(Math.random() * (EXTRA_PER_ROUND + 1));
+      // 每轮条数不固定：人数 到 人数+2 条，轮到时再挑是谁说
+      const turns = cfg.participants.length + Math.floor(Math.random() * (EXTRA_PER_ROUND + 1));
       for (let i = 0; i < turns; i++) queue.push({ type: 'pick', round: r, label });
     }
     queue.push({ type: 'finish' });
