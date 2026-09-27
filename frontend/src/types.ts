@@ -118,6 +118,8 @@ export interface ChatMessage {
   kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice';
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
+  /** 私聊消息：只有这条对话的双方能看到（娱乐模式试点：点成员说话） */
+  private?: boolean;
   /** 发言者身份和环节，例如「正方一辩 · 质询」（辩论引擎用） */
   tag?: string;
   at: number;

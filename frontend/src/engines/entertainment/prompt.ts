@@ -99,6 +99,10 @@ export interface PromptInput {
   history: HistoryItem[];
   /** 用户点名或对全体插话后，由这个角色回应 */
   replyTo?: string;
+  /** 这次是私下回应用户（点成员说话），回复也只进双方的私聊记录 */
+  whisper?: boolean;
+  /** 只有这位角色和用户知道的私下对话；其他角色的提示词里没有这段 */
+  privates?: HistoryItem[];
 }
 
 export function buildMessages(x: PromptInput): LlmMessage[] {
@@ -114,8 +118,15 @@ export function buildMessages(x: PromptInput): LlmMessage[] {
   let user = x.history.length
     ? '【公开讨论记录】\n' + x.history.map((m) => '[' + m.id + '] ' + m.speaker + '：' + m.text).join('\n') + '\n\n'
     : '【公开讨论记录】\n（暂无，你是第一个发言的。）\n\n';
+  // 私聊：点成员说话时，只有这位角色看得到这段，其他人拿不到
+  if (x.privates?.length) {
+    user += '【只有你和用户知道的私下对话】\n'
+      + '（其他角色看不到这些内容，也不知道你们聊过；要不要在公开讨论里提起、或者用它跟别人周旋，由你自己决定。）\n'
+      + x.privates.map((m) => '[' + m.id + '] ' + m.speaker + '：' + m.text).join('\n') + '\n\n';
+  }
   user += '现在轮到' + x.speaker.persona.name + '发言。';
   if (x.replyTo) user += '用户刚才对你说：“' + x.replyTo + '”，这次先回应用户。';
+  else if (x.whisper) user += '用户刚在私下对你说了话（见上面的私下对话），这次私下回应用户。';
   else {
     // 中间轮次名带序号（如“脑洞接龙 3”），去掉序号再找提示
     const hint = ROUND_HINTS[x.roundLabel.replace(/\s*\d+$/, '')];

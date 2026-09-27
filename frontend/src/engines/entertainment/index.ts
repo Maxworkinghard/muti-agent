@@ -23,7 +23,7 @@ function sample<T>(arr: T[], n: number): T[] {
 type Step =
   | { type: 'round'; round: number; label: string }
   | { type: 'pick'; round: number; label: string }
-  | { type: 'speak'; agent: Participant; round: number; label: string; replyTo?: string }
+  | { type: 'speak'; agent: Participant; round: number; label: string; replyTo?: string; whisper?: boolean }
   | { type: 'finish' };
 
 /** 发言调度用到的人物 id：老方（反驳型）、小正（反反驳型）、阿实（确实型） */
@@ -38,7 +38,8 @@ const COUNTER_FOLLOW_PROB = 0.75;
 /**
  * 娱乐引擎：不按座位一人一句。每轮放若干个“待挑人”的发言位，轮到时按上下文挑人：
  * 同一人不连说；老方说完后小正大概率接；老方没新话时小正少插嘴；两人来回后阿实容易插一句；本轮说得少的优先。
- * 所有人共享同一份公开讨论记录。用户插话会插到队首，由被点名的人（或随机一人）先回应。
+ * 所有人共享同一份公开讨论记录。用户对全体说话会插到队首，由随机一人先回应；
+ * 点某个成员说话是私聊（whisper）：只有他看得到，不进公开记录、也不占公开发言位。
  */
 export function createEntertainmentEngine(): DiscussionEngine {
   let cfg: SessionConfig;
@@ -58,13 +59,22 @@ export function createEntertainmentEngine(): DiscussionEngine {
   const queue: Step[] = [];
   const history: HistoryItem[] = [];
   let hid = 0;
+  /** 私聊记录：agentId -> 只含「用户对他说」和「他的私下回复」，其他角色的提示词里永远不会出现 */
+  const whispers = new Map<string, HistoryItem[]>();
+  let wid = 0;
+  const whisperOf = (agentId: string): HistoryItem[] | undefined => whispers.get(agentId);
+  const addWhisper = (agentId: string, speaker: string, text: string) => {
+    const list = whispers.get(agentId) ?? [];
+    list.push({ id: 'p' + (++wid), speaker, text });
+    whispers.set(agentId, list);
+  };
   /** 已发言者的人物 id（按时间顺序）和本轮已发言者 */
   const spokenLog: string[] = [];
   let spokenThisRound: string[] = [];
 
   const pid = (p: Participant) => p.persona.id;
-  /** 用户插话引起的发言：暂停期间也让这一条先答完 */
-  const isReply = (s: Step) => s.type === 'speak' && !!s.replyTo;
+  /** 用户引起的发言（公开插话或私聊）：暂停期间也让这一条先答完 */
+  const isReply = (s: Step) => s.type === 'speak' && (!!s.replyTo || !!s.whisper);
   function pickNext(): Participant {
     const ps = cfg.participants;
     const ids = ps.map(pid);
@@ -111,26 +121,35 @@ export function createEntertainmentEngine(): DiscussionEngine {
     const msgs = buildMessages({
       speaker: p, participants: cfg.participants, topic: topic(), memes,
       roundLabel: s.label, history, replyTo: s.replyTo,
+      whisper: s.whisper, privates: whisperOf(pid(p)),
     });
-    status(p.agentId, 'thinking', '思考中…');
-    const kind: ChatMessage['kind'] = s.replyTo ? 'reply' : 'speech';
+    status(p.agentId, 'thinking', s.whisper ? '想怎么私下回你…' : '思考中…');
+    const kind: ChatMessage['kind'] = s.replyTo || s.whisper ? 'reply' : 'speech';
     // 收到第一段文字时才创建气泡，失败重试时不会留下空消息
     let id = '';
     let full = '';
     try {
       const text = await chatStream(msgs, (chunk) => {
         if (!id) {
-          status(p.agentId, 'speaking', s.replyTo ? '回应用户' : '发言中');
-          id = message({ round: s.round, speakerId: p.agentId, text: '', kind, targetId: s.replyTo ? 'user' : undefined });
+          status(p.agentId, 'speaking', s.whisper ? '私下回应用户' : s.replyTo ? '回应用户' : '发言中');
+          id = message({
+            round: s.round, speakerId: p.agentId, text: '', kind,
+            targetId: s.replyTo || s.whisper ? 'user' : undefined, private: s.whisper || undefined,
+          });
         }
         full += chunk;
         emit({ type: 'message_update', id, text: full });
       }, { temperature: opts.temperature, signal: ctrl.signal });
       const clean = text.trim();
       if (id) emit({ type: 'message_update', id, text: clean });
-      addHistory(p.persona.name, clean);
-      spokenLog.push(pid(p));
-      spokenThisRound.push(pid(p));
+      if (s.whisper) {
+        // 私聊回复只进双方的私聊记录：别人听不到，也不占公开发言位、不影响调度
+        addWhisper(pid(p), p.persona.name, clean);
+      } else {
+        addHistory(p.persona.name, clean);
+        spokenLog.push(pid(p));
+        spokenThisRound.push(pid(p));
+      }
       status(p.agentId, 'idle', '倾听');
     } catch (e) {
       if (id && !isAbort(e)) emit({ type: 'message_update', id, text: full + '……（发言中断）' });
@@ -219,6 +238,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
       stopped = false; paused = false; userPaused = false; finished = false;
       ctrl = new AbortController();
       queue.length = 0; history.length = 0; hid = 0; spokenLog.length = 0; spokenThisRound = [];
+      whispers.clear(); wid = 0;
       emit({ type: 'session', state: 'running' });
       cfg.participants.forEach((p) => status(p.agentId, 'idle', '就座'));
       const brief = cfg.theme.brief?.trim();
@@ -228,11 +248,22 @@ export function createEntertainmentEngine(): DiscussionEngine {
     },
     sendUserMessage({ text, targetAgentId }) {
       if (stopped || !cfg) return;
-      message({ round: currentRound, speakerId: 'user', text, kind: 'user', targetId: targetAgentId });
       const target = cfg.participants.find((p) => p.agentId === targetAgentId);
-      addHistory(target ? '用户（对' + target.persona.name + '说）' : '用户', text);
-      const agent = target ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
-      queue.unshift({ type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
+      if (target) {
+        // 点成员 = 私聊：只有他看到，不写进公开记录，也不占公开发言位
+        message({
+          round: currentRound, speakerId: 'user', text, kind: 'user',
+          targetId: target.agentId, private: true,
+        });
+        addWhisper(pid(target), '用户', text);
+        queue.unshift({ type: 'speak', agent: target, round: currentRound, label: currentLabel, whisper: true });
+      } else {
+        // 对全体说 = 公开插话：所有人都能看到，随机一人先回应
+        message({ round: currentRound, speakerId: 'user', text, kind: 'user' });
+        addHistory('用户', text);
+        const agent = cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
+        queue.unshift({ type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
+      }
       void pump();
     },
     pause() {

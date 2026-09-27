@@ -156,6 +156,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const retry = (e: ErrorItem) => { dismiss(e.id); e.retry?.(); };
   const hasError = (agentId: string) => errors.some((x) => x.agentId === agentId);
 
+  // 娱乐模式：点成员说话 = 私聊（只有他看得到）；其他模式仍是点名回应
+  const whisperMode = config.mode === 'entertainment';
   const send = () => {
     warmAudio();
     const text = draft.trim();
@@ -351,8 +353,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               className="px-input"
               value={draft}
               placeholder={!canTalk ? '讨论已停止'
-                : session === 'finished' ? (focused ? `讨论结束了，继续问 ${focused.persona.name}…` : '讨论结束了，还可以继续追问（点成员可以单独问）')
-                : focused ? `对 ${focused.persona.name} 说…` : '对全体说…（点成员可以单独对话）'}
+                : session === 'finished' ? (focused ? `讨论结束了，继续${whisperMode ? '私下' : ''}问 ${focused.persona.name}…` : `讨论结束了，还可以继续追问（点成员可以${whisperMode ? '私下' : '单独'}问）`)
+                : focused ? `对 ${focused.persona.name} 说…${whisperMode ? '（只有他看得到）' : ''}` : `对全体说…（点成员可以${whisperMode ? '私下' : '单独'}对话）`}
               disabled={!canTalk}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
@@ -400,15 +402,19 @@ function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }
   if (m.kind === 'notice') return <div className="line notice"><p>⚠ {m.text}</p></div>;
   if (m.speakerId === 'user') {
     const to = m.targetId ? byId[m.targetId]?.persona.name : '全体';
-    return <div className="line user"><div className="who">你 → {to}</div><p>{m.text}</p></div>;
+    return (
+      <div className={'line user' + (m.private ? ' private' : '')}>
+        <div className="who">你 → {to}{m.private && <i>私聊</i>}</div><p>{m.text}</p>
+      </div>
+    );
   }
   const p = byId[m.speakerId];
   if (!p) return null;
   return (
-    <div className={'line ' + m.kind} style={{ ['--ac' as string]: p.color }}>
+    <div className={'line ' + m.kind + (m.private ? ' private' : '')} style={{ ['--ac' as string]: p.color }}>
       <span className="l-avatar"><PixelAvatar v={p.persona.visual} size={28} /></span>
       <div>
-        <div className="who">{p.persona.name}{m.tag && <em className="line-tag">{m.tag}</em>}{m.kind === 'reply' && <i>回复你</i>}</div>
+        <div className="who">{p.persona.name}{m.tag && <em className="line-tag">{m.tag}</em>}{m.kind === 'reply' && <i>{m.private ? '私下回复你' : '回复你'}</i>}</div>
         <p>{m.text}</p>
       </div>
     </div>
