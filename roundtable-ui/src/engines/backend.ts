@@ -32,7 +32,8 @@ export function createBackendEngine(): DiscussionEngine {
           source.onmessage = (ev) => {
             const e = JSON.parse(ev.data) as EngineEvent;
             emit(e);
-            if (e.type === 'session' && e.state !== 'running') source?.close();
+            // 讨论结束后连接保持着，追问的回答还要从这里推回来；只有停止才断开
+            if (e.type === 'session' && e.state === 'stopped') source?.close();
           };
           source.onerror = () => {
             if (stopped || source?.readyState !== EventSource.CLOSED) return;
@@ -49,6 +50,12 @@ export function createBackendEngine(): DiscussionEngine {
     sendUserMessage({ text, targetAgentId }) {
       if (!sessionId || stopped) return;
       post(`/api/sessions/${sessionId}/messages`, { text, targetAgentId }).catch(() => notice('消息没有发出去，请重试'));
+    },
+    pause() {
+      if (sessionId && !stopped) post(`/api/sessions/${sessionId}/pause`).catch(() => notice('暂停没有生效，请重试'));
+    },
+    resume() {
+      if (sessionId && !stopped) post(`/api/sessions/${sessionId}/resume`).catch(() => notice('继续没有生效，请重试'));
     },
     stop() {
       if (stopped) return;

@@ -128,24 +128,6 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
         <span className="hint">{notice || '想加新人物？到右上角「图鉴」里导入'}</span>
       </section>
 
-      {isEmotion && (
-        <section className="panel emo-slots">
-          <h2><b>CARE</b> 情感分析 · 回应风格预留位 <small>已导入 {available.length}/{EMOTION_SEATS}</small></h2>
-          <div className="emo-grid">
-            {Array.from({ length: EMOTION_SEATS }, (_, i) => {
-              const p = available[i];
-              return (
-                <div key={i} className={'emo-slot' + (p ? ' filled' : '')} style={p ? { ['--ac' as string]: p.visual.shirt } : undefined}>
-                  <i>{i + 1}</i>
-                  {p ? <><PixelAvatar v={p.visual} size={40} /><strong>{p.name}</strong></> : <><b>？</b><small>待导入</small></>}
-                </div>
-              );
-            })}
-          </div>
-          <p className="hint">情感组的 7 个回应风格人物导入后会出现在这里。人物放进 personas/emotion/，或在右上角「图鉴 → 情感分析」里导入 JSON；引擎放进 src/engines/emotion/。</p>
-        </section>
-      )}
-
       <div className="persona-grid">
         {available.map((p) => {
           const pk = picked[p.id];

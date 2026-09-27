@@ -38,6 +38,11 @@ export class RoundtableSession {
   private theme: string;
   private wake: (() => void) | null = null;
   private state: 'running' | 'finished' | 'stopped' = 'running';
+  /** 用户点了暂停：下一位发言前停住，期间用户的话照常回应 */
+  private paused = false;
+  private pauseWake: (() => void) | null = null;
+  /** 讨论结束后用户继续追问时，正在回应中 */
+  private followingUp = false;
   protected round = 0;
   private speaking: Participant | null = null;
   private failures = 0;
@@ -50,7 +55,9 @@ export class RoundtableSession {
     this.theme = cfg.theme.title.trim();
   }
 
-  get ended() { return this.state !== 'running'; }
+  /** 只有停止（用户退出、页面断开）才算彻底结束；讨论正常结束后仍然可以追问 */
+  get ended() { return this.state === 'stopped'; }
+  private get finished() { return this.state === 'finished'; }
 
   /** 订阅事件；after 之后的历史事件先补发（SSE 断线重连用） */
   subscribe(fn: Listener, after = -1) {
@@ -81,16 +88,19 @@ export class RoundtableSession {
       await this.drainUser();
       if (this.ended) return;
       await this.summarize();
+      if (this.ended) return;
       this.cfg.participants.forEach((p) => this.status(p, 'done', '完成'));
       this.finish('finished');
+      // 总结期间用户发的话，结束后接着回答
+      if (this.userQueue.length) void this.followUp();
     } catch (e) {
       if (!this.ended) { this.notice('会话中断：' + errMsg(e)); this.finish('stopped'); }
     } finally {
-      this.dispose();
+      if (this.ended) this.dispose();
     }
   }
 
-  /** 对全体说的第一句话开始这一场；之后的话和单独点名的话都排队，在下一位发言前回应 */
+  /** 对全体说的第一句话开始这一场；之后的话和单独点名的话都排队，在下一位发言前回应；讨论结束后发的话直接回应 */
   userMessage(text: string, targetAgentId?: string) {
     if (this.ended) return;
     const target = targetAgentId && this.byId(targetAgentId) ? targetAgentId : undefined;
@@ -102,13 +112,53 @@ export class RoundtableSession {
     this.message({ round: opening ? 1 : this.round, speakerId: 'user', text, kind: 'user', targetId: target });
     if (!opening) this.userQueue.push(target);
     this.wake?.();
+    this.pauseWake?.();
+    if (this.finished) void this.followUp();
+  }
+
+  pause() {
+    if (this.ended || this.finished || this.paused) return;
+    this.paused = true;
+    this.emit({ type: 'session', state: 'paused' });
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    if (!this.ended && !this.finished) this.emit({ type: 'session', state: 'running' });
+    this.pauseWake?.();
   }
 
   stop() {
     if (this.ended) return;
     this.finish('stopped');
+    this.paused = false;
     this.wake?.();
+    this.pauseWake?.();
     this.dispose();
+  }
+
+  /** 讨论结束后的追问：点名的人回答，没点名由负责人 / 主持人 / 第一位回答 */
+  private async followUp() {
+    if (this.followingUp) return;
+    this.followingUp = true;
+    try {
+      await this.drainUser();
+    } catch (e) {
+      if (!this.ended) this.notice('回答追问失败：' + errMsg(e));
+    } finally {
+      this.followingUp = false;
+      if (this.speaking && !this.ended) { this.status(this.speaking, 'done', '完成'); this.speaking = null; }
+    }
+  }
+
+  /** 暂停时停在这里；这期间用户的话照常回应 */
+  private async gate() {
+    while (this.paused && !this.ended) {
+      if (this.userQueue.length) { await this.drainUser(); continue; }
+      await new Promise<void>((resolve) => { this.pauseWake = resolve; });
+      this.pauseWake = null;
+    }
   }
 
   /** 没填主题：另起一个角色按用户第一句话起名，不耽误大家开工；起不出来就截取原话 */
@@ -273,6 +323,7 @@ export class RoundtableSession {
 
   /** 把新发言和本轮指令发给这位成员，拿回他的回答（不发到前端） */
   private async think(p: Participant, instruction: string, forUser = false): Promise<string | null> {
+    if (!forUser) await this.gate();
     if (this.ended) return null;
     const agent = this.agents.get(p.agentId)!;
     const from = this.seen.get(p.agentId) ?? 0;
@@ -371,7 +422,7 @@ export class RoundtableSession {
   }
 
   protected finish(state: 'finished' | 'stopped') {
-    if (this.ended) return;
+    if (this.ended || (this.finished && state === 'finished')) return;
     this.state = state;
     this.emit({ type: 'session', state });
   }

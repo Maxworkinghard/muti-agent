@@ -54,6 +54,34 @@ export function playReady() {
   [523, 659, 784, 1047].forEach((f, i) => tone(ac, f, 0.14, i * 0.09, undefined, 0.06));
 }
 
+/** 每个人的嗓音：按 id 算出固定的音高、音色和语速，同一个人每次听起来都一样 */
+function voiceOf(id: string) {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
+  const types: OscillatorType[] = ['square', 'triangle', 'sawtooth', 'square'];
+  return {
+    base: 180 + (h % 17) * 22,           // 180 ~ 530 Hz，低沉到尖细
+    type: types[(h >>> 5) % types.length],
+    gap: 0.075 + ((h >>> 9) % 4) * 0.012, // 每个音节的间隔（语速）
+    spread: 0.25 + ((h >>> 13) % 4) * 0.1, // 音节之间音高的起伏
+    glide: (h >>> 17) % 2 === 0 ? 1.18 : 0.82, // 每个音节往上挑还是往下落
+  };
+}
+
+/**
+ * 说话音效：像素游戏村民那种“叽叽咕咕”，几个短促的音节连在一起。
+ * syllables 控制长短，文字多就多说几个音节
+ */
+export function playVoice(id: string, syllables = 5) {
+  const ac = audio();
+  if (!ac) return;
+  const v = voiceOf(id);
+  for (let i = 0; i < syllables; i++) {
+    const f = v.base * (1 + (Math.random() * 2 - 1) * v.spread);
+    tone(ac, f, v.gap * 0.8, i * v.gap, f * v.glide, v.type === 'sawtooth' ? 0.035 : 0.05, v.type);
+  }
+}
+
 export function setMuted(v: boolean) {
   muted = v;
   localStorage.setItem(MUTE_KEY, v ? '1' : '0');

@@ -12,7 +12,9 @@ import { createLlmHandler } from './llm-proxy.ts';
  *   GET  /api/health                     当前模型和配置状态
  *   POST /api/sessions                   用 SessionConfig 开一场会话 → { sessionId }
  *   GET  /api/sessions/:id/events        SSE 推送 EngineEvent，断线重连按 Last-Event-ID 补发
- *   POST /api/sessions/:id/messages      用户插话 { text, targetAgentId? }
+ *   POST /api/sessions/:id/messages      用户插话 { text, targetAgentId? }（讨论结束后也能发，成员会接着回答）
+ *   POST /api/sessions/:id/pause         暂停（下一位发言前停住）
+ *   POST /api/sessions/:id/resume        继续
  *   POST /api/sessions/:id/stop          停止会话并中断进行中的模型请求
  *   POST /api/llm/chat                   转发给模型服务（OpenAI 兼容），给在浏览器里写流程的引擎用
  */
@@ -40,7 +42,8 @@ export function createApi(env: Record<string, string | undefined>) {
       const sid = randomUUID();
       const session = new RoundtableSession(sid, body as SessionConfig, cfg);
       sessions.set(sid, session);
-      void session.run().finally(() => setTimeout(() => sessions.delete(sid), 10 * 60_000).unref());
+      // 讨论结束后还要能追问，会话保留一小时
+      void session.run().finally(() => setTimeout(() => { session.stop(); sessions.delete(sid); }, 60 * 60_000).unref());
       return json(res, 200, { sessionId: sid });
     }
 
@@ -66,6 +69,10 @@ export function createApi(env: Record<string, string | undefined>) {
     }
     if (req.method === 'POST' && action === 'stop') {
       session.stop();
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && (action === 'pause' || action === 'resume')) {
+      if (action === 'pause') session.pause(); else session.resume();
       return json(res, 200, { ok: true });
     }
     return json(res, 404, { error: '没有这个接口' });

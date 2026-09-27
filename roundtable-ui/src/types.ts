@@ -148,7 +148,7 @@ export interface DiscussionResult {
 
 /** 引擎回传给前端的事件 */
 export type EngineEvent =
-  | { type: 'session'; state: 'running' | 'finished' | 'stopped' }
+  | { type: 'session'; state: 'running' | 'paused' | 'finished' | 'stopped' }
   | { type: 'round'; round: number; label: string }
   | { type: 'status'; agentId: string; state: AgentState; action: string }
   | { type: 'message'; message: ChatMessage }
@@ -164,8 +164,12 @@ export type EngineEvent =
 /** 各小组实现的讨论引擎都遵守这个接口 */
 export interface DiscussionEngine {
   start(config: SessionConfig, emit: (event: EngineEvent) => void): void;
-  /** 用户插话；targetAgentId 为空表示对全体 */
+    /** 用户插话；targetAgentId 为空表示对全体。暂停中和讨论结束后也可以发，被问到的人会回应 */
   sendUserMessage(input: { text: string; targetAgentId?: string }): void;
+    /** 暂停：正在说的人说完这一句就停下，期间用户发的话照常回应 */
+    pause(): void;
+    /** 从暂停的地方接着讨论 */
+    resume(): void;
   /** 停止讨论：清掉计时器，并中断正在进行的 AI 请求（把 AbortSignal 传给 chat / chatStream） */
   stop(): void;
 }

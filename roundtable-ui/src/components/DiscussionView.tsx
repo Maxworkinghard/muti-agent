@@ -5,7 +5,7 @@ import type {
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
 import { engineFor } from '../engines/registry';
-import { playReady, playSeat, SoundToggle, useMuted } from '../sound';
+import { playReady, playSeat, playVoice, SoundToggle, useMuted } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
 import { createBgm, playThinking, type Bgm } from './stageFx';
 
@@ -24,7 +24,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [round, setRound] = useState({ n: 0, label: '准备中' });
-  const [session, setSession] = useState<'waiting' | 'running' | 'finished' | 'stopped'>('waiting');
+  const [session, setSession] = useState<'waiting' | 'running' | 'paused' | 'finished' | 'stopped'>('waiting');
   const [result, setResult] = useState<DiscussionResult | null>(null);
   const [tasks, setTasks] = useState<TaskEvent[]>([]);
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -82,6 +82,21 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
   const seatOf = (id: string) => scene.seats[byId[id]?.seatIndex ?? 0];
 
+  // 说话音效：新发言出现时按字数叽咕几声；流式输出时每长出一段再叽咕一下，同一个人至少隔 350ms
+  const voiceAt = useRef<Record<string, number>>({});
+  const voiceLen = useRef<Record<string, number>>({});
+  const chatter = (agentId: string, id: string, text: string) => {
+    if (!byId[agentId]) return;
+    const now = Date.now();
+    const grown = text.length - (voiceLen.current[id] ?? 0);
+    if (grown < 12 && voiceLen.current[id] !== undefined) return;
+    if (now - (voiceAt.current[agentId] ?? 0) < 350) return;
+    voiceAt.current[agentId] = now;
+    voiceLen.current[id] = text.length;
+    playVoice(agentId, Math.max(3, Math.min(8, Math.ceil((grown || 12) / 8))));
+  };
+  const speakerOf = useRef<Record<string, string>>({});
+
   // 用户发完第一句（对项目的理解）后才启动引擎
   const startWith = (brief: string) => {
     const engine = engineFor(config.mode).create();
@@ -98,8 +113,16 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           if (e.state === 'thinking' && showEntrance) playThinking();
           setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } }));
           break;
-        case 'message': setMessages((m) => [...m, e.message]); break;
-        case 'message_update': setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text } : x))); break;
+        case 'message': {
+          speakerOf.current[e.message.id] = e.message.speakerId;
+          if (e.message.kind === 'speech' || e.message.kind === 'reply') chatter(e.message.speakerId, e.message.id, e.message.text);
+          setMessages((m) => [...m, e.message]);
+          break;
+        }
+        case 'message_update':
+          chatter(speakerOf.current[e.id] ?? '', e.id, e.text);
+          setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text } : x)));
+          break;
         case 'result': setResult(e.result); break;
         case 'error':
           setErrors((es) => [...es.filter((x) => x.id !== e.id), { id: e.id, agentId: e.agentId, message: e.message, retry: e.retry }]);
@@ -140,10 +163,15 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
       setDraft('');
       return;
     }
-    if (!text || session !== 'running') return;
+    if (!text || session === 'stopped') return;
     engineRef.current?.sendUserMessage({ text, targetAgentId: focus ?? undefined });
     setDraft('');
   };
+  const togglePause = () => {
+    if (session === 'running') engineRef.current?.pause();
+    else if (session === 'paused') engineRef.current?.resume();
+  };
+  const canTalk = session === 'running' || session === 'paused' || session === 'finished';
 
   const focused = focus ? byId[focus] : null;
   const visible = focused
@@ -167,7 +195,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <h1 title={config.theme.title}>主题：{config.theme.title}</h1>
         <SoundToggle />
         <span className="round-tag">R{round.n}/{config.maxRounds} · {round.label}</span>
-        <span className={'live ' + session}>{session === 'waiting' ? '○ 等你开场' : session === 'running' ? '● LIVE' : session === 'finished' ? '■ 已结束' : '■ 已停止'}</span>
+        <span className={'live ' + session}>{{ waiting: '○ 等你开场', running: '● LIVE', paused: '⏸ 已暂停', finished: '■ 已结束 · 可追问', stopped: '■ 已停止' }[session]}</span>
       </header>
 
       {/* 中左：场景动态演示 */}
@@ -230,6 +258,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           )}
           {!allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
           {session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
+          {session === 'paused' && <div className="stage-banner wait">已暂停 · 可以先说你的想法，点「继续」接着讨论</div>}
         </div>
       </section>
 
@@ -318,12 +347,14 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             <input
               className="px-input"
               value={draft}
-              placeholder={session !== 'running' ? '讨论已结束' : focused ? `对 ${focused.persona.name} 说…` : '对全体说…（点成员可以单独对话）'}
-              disabled={session !== 'running'}
+              placeholder={!canTalk ? '讨论已停止'
+                : session === 'finished' ? (focused ? `讨论结束了，继续问 ${focused.persona.name}…` : '讨论结束了，还可以继续追问（点成员可以单独问）')
+                : focused ? `对 ${focused.persona.name} 说…` : '对全体说…（点成员可以单独对话）'}
+              disabled={!canTalk}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
             />
-            <button className="px-btn primary" onClick={send} disabled={session !== 'running' || !draft.trim()}>发送</button>
+            <button className="px-btn primary" onClick={send} disabled={!canTalk || !draft.trim()}>发送</button>
           </div>
         )}
       </aside>
@@ -352,7 +383,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             );
           })}
         </div>
-        {session === 'running' && <button className="px-btn danger" onClick={() => engineRef.current?.stop()}>停止</button>}
+        {(session === 'running' || session === 'paused') && (
+          <button className={'px-btn ' + (session === 'paused' ? 'primary' : 'danger')} onClick={togglePause}>
+            {session === 'paused' ? '▶ 继续' : '⏸ 暂停'}
+          </button>
+        )}
       </footer>
     </div>
   );

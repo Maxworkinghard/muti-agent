@@ -11,6 +11,9 @@ export function createApiEngine(): DiscussionEngine {
   let ctrl: AbortController | null = null;
   let round = 0;
   let ended = false;
+  /** 讨论正常结束：还可以追问，走 /ask 接口 */
+  let finished = false;
+  let paused = false;
   let seq = 0;
   let motion: { motion: string; pro: string; con: string } | undefined;
   const uid = () => 'm-' + Date.now().toString(36) + '-' + (seq++).toString(36);
@@ -22,9 +25,35 @@ export function createApiEngine(): DiscussionEngine {
   const finish = (state: 'finished' | 'stopped') => {
     if (ended) return;
     ended = true;
+    finished = state === 'finished';
+    paused = false;
     allStatus(state === 'finished' ? 'done' : 'idle', state === 'finished' ? '完成' : '已停止');
     emit({ type: 'session', state });
   };
+  const post = (action: string, body?: unknown) =>
+    fetch('/api/discuss/' + encodeURIComponent(cfg.sessionId) + '/' + action, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}),
+    });
+
+  /** 讨论结束后追问：后端按整场记录让被点名的人（没点名由主持人）回答 */
+  async function ask(text: string, target?: string) {
+    const who = idOf(target) ?? cfg.participants.find((p) => p.side === 'host')?.agentId;
+    if (who) emit({ type: 'status', agentId: who, state: 'thinking', action: '准备回答' });
+    try {
+      const res = await post('ask', { text, target });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? 'HTTP ' + res.status);
+      const id = idOf(data.name);
+      if (who && who !== id) emit({ type: 'status', agentId: who, state: 'done', action: '完成' });
+      if (!id) return;
+      emit({ type: 'status', agentId: id, state: 'speaking', action: '回答追问' });
+      message({ round, speakerId: id, text: data.speech, kind: 'reply', targetId: 'user', tag: '赛后追问' });
+      window.setTimeout(() => emit({ type: 'status', agentId: id, state: 'done', action: '完成' }), 2500);
+    } catch (err) {
+      if (who) emit({ type: 'status', agentId: who, state: 'done', action: '完成' });
+      emit({ type: 'error', id: 'ask-' + uid(), message: '追问没有得到回答：' + (err as Error).message });
+    }
+  }
   /** 选人物时存的是性格 id，后端要性格名 */
   const personalityOf = (p: Participant) => p.persona.personalities.find((x) => x.id === p.personalityId)?.label ?? p.personalityId;
 
@@ -129,12 +158,23 @@ export function createApiEngine(): DiscussionEngine {
       });
     },
     sendUserMessage({ text, targetAgentId }) {
-      if (ended) return;
+      if (ended && !finished) return;
       message({ round, speakerId: 'user', text, kind: 'user', targetId: targetAgentId });
       const target = cfg.participants.find((p) => p.agentId === targetAgentId)?.persona.name;
-      fetch('/api/discuss/' + encodeURIComponent(cfg.sessionId) + '/say', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, target }),
-      }).catch(() => emit({ type: 'error', id: 'say-' + uid(), message: '插话没有送达' }));
+      if (finished) { void ask(text, target); return; }
+      post('say', { text, target }).catch(() => emit({ type: 'error', id: 'say-' + uid(), message: '插话没有送达' }));
+    },
+    pause() {
+      if (ended || paused) return;
+      paused = true;
+      post('pause').catch(() => {});
+      emit({ type: 'session', state: 'paused' });
+    },
+    resume() {
+      if (ended || !paused) return;
+      paused = false;
+      post('resume').catch(() => {});
+      emit({ type: 'session', state: 'running' });
     },
     stop() {
       if (ended) return;

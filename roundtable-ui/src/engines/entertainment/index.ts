@@ -39,6 +39,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
   let running = false;
   /** 出错后等用户点重试，期间不自动继续 */
   let paused = false;
+  /** 用户点了暂停：当前这一步做完就停，用户的话照常回应 */
+  let userPaused = false;
   let finished = false;
   let currentRound = 1;
   let currentLabel = '';
@@ -122,7 +124,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
     if (running || stopped || paused) return;
     running = true;
     try {
-      while (queue.length && !stopped && !paused) {
+      // 暂停时只执行回应用户的步骤，其余步骤留在队列里等继续
+      while (queue.length && !stopped && !paused && (!userPaused || isReply(queue[0]))) {
         const step = queue.shift()!;
         try {
           await run(step);
@@ -142,6 +145,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
       running = false;
     }
   }
+
+  const isReply = (s: Step) => s.type === 'speak' && !!s.replyTo;
 
   function plan() {
     for (let r = 1; r <= cfg.maxRounds; r++) {
@@ -174,7 +179,20 @@ export function createEntertainmentEngine(): DiscussionEngine {
       const target = cfg.participants.find((p) => p.agentId === targetAgentId);
       addHistory(target ? '用户（对' + target.persona.name + '说）' : '用户', text);
       const agent = target ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
-      queue.unshift({ type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
+      // 插到已排队的回应之后、普通发言之前，连发几句时按顺序回答
+      const at = queue.findIndex((s) => !isReply(s));
+      queue.splice(at < 0 ? queue.length : at, 0, { type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
+      void pump();
+    },
+    pause() {
+      if (stopped || finished || userPaused) return;
+      userPaused = true;
+      emit({ type: 'session', state: 'paused' });
+    },
+    resume() {
+      if (stopped || !userPaused) return;
+      userPaused = false;
+      if (!finished) emit({ type: 'session', state: 'running' });
       void pump();
     },
     stop() {

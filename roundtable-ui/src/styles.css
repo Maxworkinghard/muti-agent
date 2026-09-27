@@ -176,6 +176,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .live.running { color: #ff7b6b; animation: blink 1.2s steps(2) infinite; }
 .live.finished { color: var(--c-green); }
 .live.stopped { color: #a99db5; }
+.live.paused { color: #d4b04c; }
+.paused-banner { margin: 6px 0; padding: 6px 10px; border: 2px dashed #d4b04c; color: #d4b04c; font-size: 12px; }
 @keyframes blink { 50% { opacity: .3; } }
 
 /* 场景舞台 */

@@ -191,6 +191,8 @@ export function createMockEngine(): DiscussionEngine {
       pushFront(...speakStep(target, reply, currentRound, 'reply', 'user'));
       if (!busy && queue.length === 3) pump();
     },
+    pause() {},
+    resume() {},
     stop() {
       stopped = true;
       timers.forEach(clearTimeout); timers = []; queue.length = 0;
