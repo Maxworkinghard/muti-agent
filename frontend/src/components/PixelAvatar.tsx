@@ -28,6 +28,10 @@ export function PixelAvatar({ v, size = 48, standing = false, facing = 'S' }: {
   standing?: boolean;
   facing?: Facing;
 }) {
+  // 人物文件给了头像图片就用图片（没有朝向和站立姿势）；没有时画像素小人
+  if (v.image) {
+    return <img className="pixel-avatar img" src={v.image} width={size} height={size} alt="" draggable={false} style={{ objectFit: 'cover' }} />;
+  }
   const h = standing ? 24 : 16;
   const base = MIRROR[facing] ?? facing;
   const flip = base !== facing;

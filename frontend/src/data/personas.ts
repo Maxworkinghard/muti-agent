@@ -45,6 +45,12 @@ const VERBOSITY: Record<string, string> = { short: '简短', medium: '适中', l
 const HUMOR: Record<string, string> = { none: '不开玩笑', light: '偶尔幽默', frequent: '经常开玩笑' };
 const EMOTION: Record<string, string> = { restrained: '情绪克制', moderate: '情绪适中', expressive: '情绪外放' };
 
+/** 协议里的头像：https 地址直接用；assets/avatars/... 放在 public/ 下按站点根路径访问；null 或空字符串画像素小人 */
+function avatarUrl(a: unknown): string | undefined {
+  if (typeof a !== 'string' || !a) return undefined;
+  return a.startsWith('https://') ? a : '/' + a;
+}
+
 /** 人格资料包协议 v1.0（已经通过校验的 persona）转成前端人物结构 */
 function fromProtocol(p: Record<string, any>): Persona {
   const traits: any[] = p.personality?.traitOptions ?? [];
@@ -79,8 +85,8 @@ function fromProtocol(p: Record<string, any>): Persona {
       ...(b.mustNot ?? []).map((t: string) => (String(t).startsWith('不') ? String(t) : '不' + t)),
       ...(b.forbiddenTopics ?? []).map((t: string) => '不涉及' + t),
     ],
-    // 协议里没有像素形象，用 visual.color 作衣服颜色，画像素小人
-    visual: { skin: '#f1c9a5', hair: '#2b2136', shirt: p.visual.color, accent: '#fbf5e4', hairStyle: 'short' },
+    // 协议里没有像素形象，用 visual.color 作衣服颜色；有头像图片时显示图片，没有时画像素小人
+    visual: { skin: '#f1c9a5', hair: '#2b2136', shirt: p.visual.color, accent: '#fbf5e4', hairStyle: 'short', image: avatarUrl(p.visual.avatar) },
     protocol: p,
   };
 }

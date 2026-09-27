@@ -25,6 +25,8 @@ export interface PersonaVisual {
   hairStyle?: 'short' | 'long' | 'bun' | 'cap' | 'spiky' | 'curly' | 'side' | 'middle' | 'hood' | 'beanie';
   /** 表情和配饰，可以叠加；围巾用 accent 颜色 */
   extras?: Array<'brows' | 'glasses' | 'sleepy' | 'happy' | 'grin' | 'blush' | 'sweat' | 'ears' | 'scarf'>;
+  /** 头像图片地址；有图片时显示图片，不画像素小人 */
+  image?: string;
 }
 
 /** 人物资料：知识和思想固定，性格可选 */

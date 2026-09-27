@@ -38,6 +38,8 @@
 
 `communicationStyle` 另有文本字段 `tone`、`sentenceStyle` 和数组 `catchphrases`、`avoidPhrases`；`boundaries` 另有数组 `forbiddenTopics`、`mustNot`。
 
+头像：协议的 `visual.avatar` 可以写 `null`、`""` 或不写，前端会用 `visual.color` 颜色的像素小人代替，只给一条提醒，不算错误。要放图片时写 `https://...`，或写 `assets/avatars/xxx.png` 并把文件放到 `frontend/public/assets/avatars/`。简化格式在 `visual.image` 里写图片地址。有图片的人物在各处都显示图片，没有朝向和站起来的动作。
+
 性格：协议里的 `personality.traitOptions` 就是选人物页里可选的性格，`personality.defaultTraits` 的第一个是默认选中的。用户选的性格只用于这一场讨论，不会改人物文件。`selectedTraits`、`session`、`runtime`、`turnOrder`、`round` 这些字段写进人物文件会直接报错。
 
 注意：协议的 `modes` 目前没有工作模式，`product/` 里的人物还用前端简化格式。
