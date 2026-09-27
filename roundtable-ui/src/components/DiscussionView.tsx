@@ -5,8 +5,9 @@ import type {
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
 import { engineFor } from '../engines/registry';
-import { playReady, playSeat, SoundToggle } from '../sound';
+import { playReady, playSeat, SoundToggle, useMuted } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
+import { createBgm, playThinking, type Bgm } from './stageFx';
 
 interface Status { state: AgentState; action: string }
 interface Flight { id: string; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
@@ -43,6 +44,19 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   }, [seated, allSeated]);
   const skipIntro = () => setSeated(config.participants.length);
   const entering = !allSeated && seated > 0 ? config.participants[seated - 1] : null;
+  // 娱乐模式：入场时放背景音乐，讨论开始后压低音量；静音跟顶部音效开关走
+  const showEntrance = config.mode === 'entertainment';
+  const muted = useMuted();
+  const bgmRef = useRef<Bgm | null>(null);
+  useEffect(() => {
+    if (!showEntrance) return;
+    const bgm = createBgm();
+    bgmRef.current = bgm;
+    const t = window.setTimeout(() => bgm.start(), 200);
+    return () => { clearTimeout(t); bgm.stop(); bgmRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => { bgmRef.current?.setMuted(muted); }, [muted]);
   // 只有刚落座的人带落地动画；动画播完就去掉，之后状态切换不会再从天上掉一次
   const [landing, setLanding] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -72,13 +86,18 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const startWith = (brief: string) => {
     const engine = engineFor(config.mode).create();
     engineRef.current = engine;
+    skipIntro();
+    bgmRef.current?.duck();
     setMessages([{ id: 'brief', round: 0, speakerId: 'user', text: brief, kind: 'user', at: Date.now() }]);
     setSession('running');
     const onEvent = (e: EngineEvent) => {
       switch (e.type) {
         case 'session': setSession(e.state); break;
         case 'round': setRound({ n: e.round, label: e.label }); break;
-        case 'status': setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } })); break;
+        case 'status':
+          if (e.state === 'thinking' && showEntrance) playThinking();
+          setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } }));
+          break;
         case 'message': setMessages((m) => [...m, e.message]); break;
         case 'message_update': setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text } : x))); break;
         case 'result': setResult(e.result); break;
@@ -170,7 +189,12 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               >
                 {landing.has(p.agentId) && <span className="landing" />}
                 {hasError(p.agentId) && <span className="err-badge" title="发言失败，在右侧工作区可以重试">!</span>}
-                {st === 'thinking' && <span className="think">•••</span>}
+                {st === 'thinking' && (
+                  <span className={'thought' + (seat.y < 30 ? ' below' : '')} aria-label="思考中">
+                    <span className="cloud"><i /><i /><i /></span>
+                    <b className="puff p1" /><b className="puff p2" />
+                  </span>
+                )}
                 {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
                 {st === 'working' && <span className="work-icon">⌨</span>}
                 <span className="body"><PixelAvatar v={p.persona.visual} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} /></span>
@@ -239,6 +263,17 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               {ms.map((m) => <Line key={m.id} m={m} byId={byId} />)}
             </div>
           ))}
+          {config.participants
+            .filter((p) => status[p.agentId]?.state === 'thinking' && (!focus || focus === p.agentId))
+            .map((p) => (
+              <div key={'thinking-' + p.agentId} className="line thinking-line" style={{ ['--ac' as string]: p.color }}>
+                <span className="l-avatar"><PixelAvatar v={p.persona.visual} size={28} /></span>
+                <div>
+                  <div className="who">{p.persona.name}<i>思考中</i></div>
+                  <p className="typing"><i /><i /><i /></p>
+                </div>
+              </div>
+            ))}
           {!focused && tasks.length > 0 && config.mode === 'product' && (
             <div className="task-board">
               <div className="round-sep">任务流转</div>

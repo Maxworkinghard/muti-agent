@@ -10,7 +10,7 @@
 
 文件夹名就是人物的默认模式；文件里写了 `modes` 时以文件为准。
 
-格式优先用人格资料包协议 v1.0（`{ "schemaVersion": "1.0", "persona": {...} }`，校验工具在 `../persona-protocol`），样例见 `entertainment/aleng.persona.json`。
+格式优先用人格资料包协议 v1.0（`{ "schemaVersion": "1.0", "persona": {...} }`，校验工具在 `../persona-protocol`），样例见 `entertainment/ent-cold-observer-001.persona.json`。
 
 `demo-*.json` 是演示用的假人物，真实人物到位后直接删掉对应文件即可。
 
