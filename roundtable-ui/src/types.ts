@@ -1,4 +1,4 @@
-export type ModeId = 'entertainment' | 'rational' | 'product';
+export type ModeId = 'entertainment' | 'rational' | 'product' | 'emotion';
 /** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
 export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';

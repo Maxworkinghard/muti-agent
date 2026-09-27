@@ -30,6 +30,14 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
     ];
     return pick(pick(lines, round - 1), turn);
   }
+  if (cfg.mode === 'emotion') {
+    const lines = [
+      `${opener}先说一句：遇到「${t}」，心里不舒服是正常的。我从${k}的角度听到的，是你挺在意这件事。`,
+      `${opener}我们把事实和感受分开看：发生了什么是一回事，你怎么解读它是另一回事。${p.persona.thinking}。`,
+      `${opener}下一步可以很小：今天先做一件能让自己好受一点的事。${p.persona.values}。`,
+    ];
+    return pick(lines, round - 1);
+  }
   if (cfg.mode === 'rational') {
     // 轮数可调：第 1 轮立论，最后一轮总结，中间都是交锋
     const phase = round <= 1 ? 1 : round >= cfg.maxRounds ? 3 : 2;

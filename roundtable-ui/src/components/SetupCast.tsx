@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
 import { sceneById } from '../data/scenes';
-import { DEBATE_CHARS, DEBATE_ROUNDS, modeById, roundLabel } from '../data/modes';
+import { DEBATE_CHARS, DEBATE_ROUNDS, EMOTION_SEATS, modeById, roundLabel } from '../data/modes';
 import { AGENT_COLORS } from '../data/personas';
 import { engineFor } from '../engines/registry';
 import { playLeave, playSeat } from '../sound';
@@ -19,6 +19,9 @@ export function SetupCast({ draft, personas, onStart }: {
   const isDebate = draft.sceneId === 'debate';
   const isRational = draft.mode === 'rational';
   const isProduct = draft.mode === 'product';
+  const isEmotion = draft.mode === 'emotion';
+  // 情感分析最多 7 位回应风格
+  const maxSeats = isEmotion ? Math.min(EMOTION_SEATS, scene.maxSeats) : scene.maxSeats;
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
   const available = personas.filter((p) => !p.modes || p.modes.includes(draft.mode));
   const [picked, setPicked] = useState<Record<string, Pick>>({});
@@ -48,7 +51,7 @@ export function SetupCast({ draft, personas, onStart }: {
       playLeave();
       return;
     }
-    if (order.length >= scene.maxSeats) return;
+    if (order.length >= maxSeats) return;
     const side = nextSide();
     if (isDebate && !side) return;
     setPicked({ ...picked, [p.id]: { personalityId: personality[p.id] ?? p.defaultPersonalityId, side } });
@@ -109,10 +112,28 @@ export function SetupCast({ draft, personas, onStart }: {
   return (
     <main className="setup cast">
       <section className="panel cast-head">
-        <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{scene.maxSeats}
+        <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{maxSeats}
           {isDebate && `（正方 ${sideCount('pro')}/3 · 反方 ${sideCount('con')}/3 · 主持 ${sideCount('host')}/1）`}</small></h2>
         <span className="hint">想加新人物？到右上角「图鉴」里导入</span>
       </section>
+
+      {isEmotion && available.length < EMOTION_SEATS && (
+        <section className="panel emo-slots">
+          <h2><b>CARE</b> 情感分析 · 回应风格预留位 <small>已导入 {available.length}/{EMOTION_SEATS}</small></h2>
+          <div className="emo-grid">
+            {Array.from({ length: EMOTION_SEATS }, (_, i) => {
+              const p = available[i];
+              return (
+                <div key={i} className={'emo-slot' + (p ? ' filled' : '')} style={p ? { ['--ac' as string]: p.visual.shirt } : undefined}>
+                  <i>{i + 1}</i>
+                  {p ? <><PixelAvatar v={p.visual} size={40} /><strong>{p.name}</strong></> : <><b>？</b><small>待导入</small></>}
+                </div>
+              );
+            })}
+          </div>
+          <p className="hint">情感组的 7 个回应风格人物导入后会出现在这里。人物放进 personas/emotion/，或在右上角「图鉴 → 情感分析」里导入 JSON；引擎放进 src/engines/emotion/。</p>
+        </section>
+      )}
 
       <div className="persona-grid">
         {available.map((p) => {

@@ -35,7 +35,24 @@ export const MODES: ModeDef[] = [
     presets: ['做一个帮学生管理 DDL 的小程序', '为社区咖啡店设计会员系统', '给多人格讨论工作台写落地页'],
     importLabel: '＋ 导入工作 Agent JSON',
   },
+  {
+    id: 'emotion',
+    name: '情感分析',
+    tag: 'CARE',
+    desc: '七种回应风格围坐，接住情绪、分清事实与感受、给出一小步',
+    color: 'var(--c-pink)',
+    scene: 'roundtable',
+    roundLabels: ['回应情绪', '分清事实与感受', '下一步行动'],
+    presets: ['朋友答应周五回复，到现在还没消息', '和室友因为作息问题闹僵了', '最近工作很累，觉得自己什么都做不好'],
+    importLabel: '＋ 导入情感人物 JSON',
+  },
 ];
+
+/** 情感分析模式预留 7 个回应风格席位，人物由情感组导入 */
+export const EMOTION_SEATS = 7;
+
+/** 人物文件 modes 里认得的模式 */
+export const isModeId = (m: unknown): m is ModeId => MODES.some((x) => x.id === m);
 
 export const modeById = (id: ModeId) => MODES.find((m) => m.id === id)!;
 

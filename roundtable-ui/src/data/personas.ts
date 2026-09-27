@@ -1,4 +1,5 @@
 import type { ModeId, Persona } from '../types';
+import { isModeId } from './modes';
 // 协议格式的校验规则只维护一份，前端直接复用 persona-protocol 里的实现
 import { loadPersona } from '../../../persona-protocol/src/protocol.mjs';
 
@@ -14,7 +15,7 @@ export interface PersonaCheck {
 
 /**
  * 人物库：自动读取项目根目录 personas/ 下的所有 JSON。
- * personas/entertainment、personas/rational、personas/product 分别放三个模式的人物，
+ * personas/entertainment、personas/rational、personas/product、personas/emotion 分别放四个模式的人物，
  * 文件夹名就是默认模式；文件里写了 modes 时以文件为准。
  * 同时支持协议 v1.0（{ schemaVersion, persona }）和前端简化格式。
  */
@@ -41,7 +42,7 @@ function loadLibrary(): { personas: Persona[]; issues: PersonaCheck[] } {
   return { personas: out, issues };
 }
 
-const MODE_IDS: ModeId[] = ['entertainment', 'rational', 'product'];
+const MODE_IDS: ModeId[] = ['entertainment', 'rational', 'product', 'emotion'];
 
 const VERBOSITY: Record<string, string> = { short: '简短', medium: '适中', long: '详细' };
 const HUMOR: Record<string, string> = { none: '不开玩笑', light: '偶尔幽默', frequent: '经常开玩笑' };
@@ -70,7 +71,7 @@ function fromProtocol(p: Record<string, any>): Persona {
   return {
     id: String(p.id),
     name: String(p.name),
-    modes: Array.isArray(p.modes) ? p.modes.filter((m: unknown) => m === 'entertainment' || m === 'rational' || m === 'product') : undefined,
+    modes: Array.isArray(p.modes) ? p.modes.filter(isModeId) : undefined,
     identity: [id.profession, id.role].filter(Boolean).join(' · ') || String(p.description ?? ''),
     knowledge: [...(kn.domains ?? []), ...(kn.strong ?? [])].map(String),
     thinking: (wv.judgmentFocus ?? wv.valuePriority ?? []).join('；'),
@@ -119,7 +120,7 @@ export function checkPersona(raw: unknown, index: number, source: string): Perso
   const persona: Persona = {
     id: String(r.id),
     name: String(r.name),
-    modes: Array.isArray(r.modes) ? r.modes.filter((m: unknown) => m === 'entertainment' || m === 'rational' || m === 'product') : undefined,
+    modes: Array.isArray(r.modes) ? r.modes.filter(isModeId) : undefined,
     identity: String(r.identity ?? ''),
     knowledge: Array.isArray(r.knowledge) ? r.knowledge.map(String) : [],
     thinking: String(r.thinking ?? ''),
