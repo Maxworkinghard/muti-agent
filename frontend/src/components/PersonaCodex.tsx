@@ -5,10 +5,12 @@ import { LIBRARY_ISSUES, checkPersona, type PersonaCheck } from '../data/persona
 import { PixelAvatar } from './PixelAvatar';
 
 /** 人物图鉴：按模式浏览人物模板，点卡片看详细信息；导入的人物放进当前标签的模式 */
-export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
+export function PersonaCodex({ personas, importedIds, initialMode, onImport, onDelete, onClose }: {
   personas: Persona[];
+  importedIds: Set<string>;
   initialMode: ModeId;
   onImport: (list: Persona[]) => void;
+  onDelete: (id: string) => void;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<ModeId>(initialMode);
@@ -104,12 +106,17 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
       <footer className="setup-foot">
         <span>导入的人物会出现在对应模式的「选择人物」里</span>
       </footer>
-      {open && <PersonaDetail p={open} onClose={() => setOpen(null)} />}
+      {open && <PersonaDetail p={open} onClose={() => setOpen(null)} onDelete={importedIds.has(open.id) ? () => {
+        onDelete(open.id);
+        setChecks((old) => old.filter((c) => c.persona?.id !== open.id));
+        setImportMsg(`已删除导入人物「${open.name}」`);
+        setOpen(null);
+      } : undefined} />}
     </main>
   );
 }
 
-function PersonaDetail({ p, onClose }: { p: Persona; onClose: () => void }) {
+function PersonaDetail({ p, onClose, onDelete }: { p: Persona; onClose: () => void; onDelete?: () => void }) {
   const raw = p.protocol as Record<string, any> | undefined;
   const style = raw?.communicationStyle;
   const rows: Array<[string, string | undefined]> = [
@@ -144,6 +151,7 @@ function PersonaDetail({ p, onClose }: { p: Persona; onClose: () => void }) {
           ))}
         </ul>
         {p.boundaries.length > 0 && (<><h3>底线</h3><ul className="codex-bounds">{p.boundaries.map((b) => <li key={b}>{b}</li>)}</ul></>)}
+        {onDelete && <div className="codex-detail-actions"><button className="px-btn danger" onClick={onDelete}>删除人物</button></div>}
       </article>
     </div>
   );

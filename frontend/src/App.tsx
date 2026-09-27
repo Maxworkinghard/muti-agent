@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ModeId, SceneDef, SceneId, SessionConfig } from './types';
+import type { ModeId, Persona, SceneDef, SceneId, SessionConfig } from './types';
 import { SetupScene } from './components/SetupScene';
 import { SetupCast } from './components/SetupCast';
 import { DiscussionView } from './components/DiscussionView';
@@ -19,14 +19,17 @@ export default function App() {
   // 1 模式·主题·场景 → 2 选人物 → 3 讨论室；娱乐、辩论、工作共用这三步
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [draft, setDraft] = useState<Draft>({ mode: 'entertainment', theme: '', sceneId: 'roundtable' });
-  const [personas, setPersonas] = useState(LIBRARY_PERSONAS);
+  const [basePersonas, setBasePersonas] = useState(LIBRARY_PERSONAS);
+  const [importedPersonas, setImportedPersonas] = useState<Persona[]>([]);
+  const importedIds = new Set(importedPersonas.map((p) => p.id));
+  const personas = [...basePersonas.filter((p) => !importedIds.has(p.id)), ...importedPersonas];
   /** 辩论用 backend/人物 里的人物数据库，读不到时在选人物页提示 */
   const [dbNotice, setDbNotice] = useState('');
   useEffect(() => {
     loadOptions()
       .then((o) => {
         const db = o.personas.map((p, i) => toPersona(p, i, o.personalities));
-        setPersonas((old) => [...old.filter((x) => !x.id.startsWith(DB_PREFIX)), ...db]);
+        setBasePersonas((old) => [...old.filter((x) => !x.id.startsWith(DB_PREFIX)), ...db]);
         setDbNotice(o.dryRun ? '辩论后端是试跑模式：不调用模型，只显示示例发言' : o.configError ? '⚠ ' + o.configError : '');
       })
       .catch(() => setDbNotice('⚠ 连不上辩论后端，请先在 backend 文件夹运行 python 服务.py，然后刷新页面'));
@@ -49,8 +52,10 @@ export default function App() {
   };
   const canBack = codex || step === 2;
   const back = () => (codex ? setCodex(false) : setStep(1));
-  const importPersonas = (list: typeof personas) =>
-    setPersonas((old) => [...old.filter((o) => !list.some((n) => n.id === o.id)), ...list]);
+  const importPersonas = (list: Persona[]) =>
+    setImportedPersonas((old) => [...old.filter((o) => !list.some((n) => n.id === o.id)), ...list]);
+  const deleteImportedPersona = (id: string) =>
+    setImportedPersonas((old) => old.filter((p) => p.id !== id));
 
   return (
     <div className="app">
@@ -74,7 +79,7 @@ export default function App() {
         </header>
       )}
       {sceneMsg && step === 1 && !codex && <p className="scene-warn" onClick={() => setSceneMsg('')}>{sceneMsg}（点击关闭）</p>}
-      {codex && step < 3 && <PersonaCodex personas={personas} initialMode={draft.mode} onImport={importPersonas} onClose={() => setCodex(false)} />}
+      {codex && step < 3 && <PersonaCodex personas={personas} importedIds={importedIds} initialMode={draft.mode} onImport={importPersonas} onDelete={deleteImportedPersona} onClose={() => setCodex(false)} />}
       {!codex && step === 1 && (
         <SetupScene
           draft={draft}

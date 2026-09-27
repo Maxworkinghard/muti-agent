@@ -377,6 +377,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .codex-pers, .codex-bounds { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
 .codex-pers b { margin-right: 6px; }
 .codex-pers i { display: block; color: var(--ink-2); }
+.codex-detail-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
 @keyframes fadein { from { opacity: 0; } }
 
 /* 成员栏 */
