@@ -40,8 +40,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const live = config.mode === 'entertainment';
   const [minds, setMinds] = useState<Record<string, MindView>>({});
   const [labels, setLabels] = useState<Record<number, string>>({});
-  /** 导演接下来的打算（娱乐模式） */
-  const [directorNote, setDirectorNote] = useState('');
   // 已经落座的人数；进入讨论页时大家依次入座
   const [seated, setSeated] = useState(0);
   const allSeated = seated >= config.participants.length;
@@ -123,7 +121,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         case 'round':
           setRound({ n: e.round, label: e.label });
           setLabels((l) => ({ ...l, [e.round]: e.label }));
-          if (e.note) setDirectorNote(e.note);
           break;
         case 'mind': setMinds((ms) => ({ ...ms, [e.agentId]: e.mind })); break;
         case 'status':
@@ -212,7 +209,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <span className="mode-tag" style={{ background: mode.color }} title={engineFor(config.mode).name + ' · ' + engineFor(config.mode).owner}>{mode.name}</span>
         <h1 title={config.theme.title}>主题：{config.theme.title}</h1>
         <SoundToggle />
-        <span className="round-tag" title={live && directorNote ? '导演的打算：' + directorNote : undefined}>{live ? `${round.label} · ${messages.filter((m) => m.kind === 'speech').length} 句` : `R${round.n}/${config.maxRounds} · ${round.label}`}</span>
+        <span className="round-tag">{live ? `${round.label} · ${messages.filter((m) => m.kind === 'speech').length} 句` : `R${round.n}/${config.maxRounds} · ${round.label}`}</span>
         <span className={'live ' + session}>{{ waiting: '○ 等你开场', running: '● LIVE', paused: '⏸ 已暂停', finished: live ? '■ 散场了 · 再说话能接着聊' : '■ 已结束 · 可追问', stopped: '■ 已停止' }[session]}</span>
       </header>
 
@@ -297,7 +294,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             <strong>工作区 · 全部对话</strong>
           )}
         </div>
-        {live && !focused && directorNote && <div className="director-note">🎬 导演：{directorNote}</div>}
         {focused && <PersonaStrip p={focused} status={status[focused.agentId]} />}
         {focused && minds[focused.agentId] && <MindPanel mind={minds[focused.agentId]} />}
         <div className="log" ref={logRef}>

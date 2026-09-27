@@ -101,6 +101,7 @@ class LiveRoom {
     private chatFn: ChatFn,
     private cfg: SessionConfig,
     private emit: (e: EngineEvent) => void,
+    private debug?: (cue: Cue, speaker: string) => void,
   ) {
     this.opts = readLiveOptions(cfg.engineOptions);
     this.budget = this.opts.maxMessages;
@@ -233,6 +234,7 @@ class LiveRoom {
     }), (t) => this.parseCue(t));
     const m = cue.speaker ? this.minds.get(cue.speaker) ?? null : null;
     if (p) p.cue = cue;
+    this.debug?.(cue, m?.name ?? '');
     if (!m) return { cue, m: null, say: [], inner: '' };
     if (!signal.aborted && !this.paused && this.speaking?.m !== m) this.status(m, 'thinking', '想说话');
     const speech = await this.ask(m.name, this.opts.temperature, signal, () => this.kit.actorMessages({
@@ -474,20 +476,19 @@ class LiveRoom {
       touched.add(m);
     }
     for (const m of touched) { this.showMind(m); if (m !== speaker && this.speaking?.m !== m) this.rest(m); }
-    if (cue.topic && this.step - this.roundStep >= 6) this.newRound('换话题 · ' + cue.topic, cue.arcNote);
-    else if (cue.arc && cue.arc !== this.arc) this.newRound(cue.arc, cue.arcNote);
-    else if (cue.arcNote && cue.arcNote !== this.arcNote) this.emit({ type: 'round', round: this.round, label: this.roundLabel, note: cue.arcNote });
+    // 导演的安排只在幕后：界面上只看得到话题换了
+    if (cue.topic && this.step - this.roundStep >= 6) this.newRound('换话题 · ' + cue.topic);
     if (cue.arc) this.arc = cue.arc;
     if (cue.arcNote) this.arcNote = cue.arcNote;
   }
 
   private roundStep = 0;
 
-  private newRound(label: string, note: string) {
+  private newRound(label: string) {
     this.round++;
     this.roundStep = this.step;
     this.roundLabel = label;
-    this.emit({ type: 'round', round: this.round, label, note: note || undefined });
+    this.emit({ type: 'round', round: this.round, label });
   }
 
   private whisper(m: Mind, text: string) {
@@ -813,13 +814,16 @@ class LiveRoom {
 
 const browserChat: ChatFn = async (messages, opt) => (await chat(messages, opt)).text;
 
-/** 用某个模式的玩法（kit）造一个引擎；chatFn 默认走浏览器的 /api/llm/chat，命令行模拟时换成直连 */
-export function createLiveEngine(kit: LiveKit, chatFn: ChatFn = browserChat): DiscussionEngine {
+/**
+ * 用某个模式的玩法（kit）造一个引擎；chatFn 默认走浏览器的 /api/llm/chat，命令行模拟时换成直连。
+ * debug 只给命令行调参用（看导演每一步怎么排），界面上不显示导演。
+ */
+export function createLiveEngine(kit: LiveKit, chatFn: ChatFn = browserChat, debug?: (cue: Cue, speaker: string) => void): DiscussionEngine {
   let room: LiveRoom | null = null;
   return {
     start(config, emit) {
       room?.stop();
-      room = new LiveRoom(kit, chatFn, config, emit);
+      room = new LiveRoom(kit, chatFn, config, emit, debug);
       room.start();
     },
     sendUserMessage({ text, targetAgentId }) { room?.userMessage(text, targetAgentId); },

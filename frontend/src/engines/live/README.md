@@ -21,4 +21,4 @@
 
 ## 界面约定
 
-除了通用事件，还会发：`mind`（某人的账变了，界面换表情、显示内心面板）、`message.kind = 'react'`（小反应）、`message.quote`（接的是前面某一条）、`message_update.cut`（这句被打断）、`round`（全场阶段或换话题；`note` 是导演接下来的打算）。
+除了通用事件，还会发：`mind`（某人的账变了，界面换表情、显示内心面板）、`message.kind = 'react'`（小反应）、`message.quote`（接的是前面某一条）、`message_update.cut`（这句被打断）、`round`（换话题）。导演的安排不发给界面；`createLiveEngine` 的第三个参数 `debug` 能拿到每一步的安排，只给命令行调参用。

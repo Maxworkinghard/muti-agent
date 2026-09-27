@@ -95,7 +95,7 @@ const t0 = Date.now();
 const clock = () => dim(((Date.now() - t0) / 1000).toFixed(1).padStart(6) + 's');
 
 const minds = {};
-let lastRound = 1;
+let lastArc = '';
 let lastNote = '';
 const styles = {};
 const open = new Map();
@@ -150,7 +150,14 @@ function done(code = 0) {
   void server.close().finally(() => process.exit(code));
 }
 
-const engine = createLiveEngine(createEntertainmentKit(), chatFn);
+// 导演只在命令行里看得到（调参用），网页上不显示
+const engine = createLiveEngine(createEntertainmentKit(), chatFn, (cue, speaker) => {
+  const bits = [];
+  if (cue.arc && cue.arc !== lastArc) { lastArc = cue.arc; bits.push('全场：' + cue.arc); }
+  if (cue.arcNote && cue.arcNote !== lastNote) { lastNote = cue.arcNote; bits.push('打算：' + cue.arcNote); }
+  bits.push(speaker ? '下一句 ' + speaker + (cue.gist ? '（' + cue.gist + (cue.emotion ? '，' + cue.emotion : '') + '）' : '') : '冷场');
+  console.log('        ' + dim('🎬 ' + bits.join('｜')));
+});
 console.log(bold('话题：') + topic + '  ' + dim('（' + model + ' · ' + names.join('、') + '）'));
 console.log(clock(), bold('你') + '：' + opening);
 engine.start({
@@ -181,10 +188,7 @@ engine.start({
         console.log('        ' + dim('✎ ' + nameOf(e.agentId) + ' 的说话状态：' + e.mind.style));
       }
       break;
-    case 'round':
-      if (e.round > lastRound) { flush(); lastRound = e.round; if (e.round > 1) console.log(dim('—— ' + e.label + ' ——')); }
-      if (e.note && e.note !== lastNote) { lastNote = e.note; console.log('        ' + dim('🎬 导演：' + e.note)); }
-      break;
+    case 'round': if (e.round > 1) { flush(); console.log(dim('—— ' + e.label + ' ——')); } break;
     case 'session':
       if (e.state === 'paused') console.log(dim('（暂停）'));
       if (e.state === 'stopped') done(1);
