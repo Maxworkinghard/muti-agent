@@ -50,6 +50,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
   let running = false;
   /** 出错后等用户点重试，期间不自动继续 */
   let paused = false;
+  /** 用户点了暂停：队列停在原地，但用户插话照常回应（见 pump） */
+  let userPaused = false;
   let finished = false;
   let currentRound = 1;
   let currentLabel = '';
@@ -61,6 +63,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
   let spokenThisRound: string[] = [];
 
   const pid = (p: Participant) => p.persona.id;
+  /** 用户插话引起的发言：暂停期间也让这一条先答完 */
+  const isReply = (s: Step) => s.type === 'speak' && !!s.replyTo;
   function pickNext(): Participant {
     const ps = cfg.participants;
     const ids = ps.map(pid);
@@ -172,7 +176,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
     if (running || stopped || paused) return;
     running = true;
     try {
-      while (queue.length && !stopped && !paused) {
+      while (queue.length && !stopped && !paused && (!userPaused || isReply(queue[0]))) {
         let step = queue.shift()!;
         // 待挑人的发言位在轮到时才决定是谁；失败重试时保留已挑中的人
         if (step.type === 'pick') step = { type: 'speak', agent: pickNext(), round: step.round, label: step.label };
@@ -213,7 +217,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
       emit = onEvent;
       opts = readOptions(config.engineOptions);
       memes = opts.memesEnabled ? sample(MEME_CARDS, opts.memeCount) : [];
-      stopped = false; paused = false; finished = false;
+      stopped = false; paused = false; userPaused = false; finished = false;
       ctrl = new AbortController();
       queue.length = 0; history.length = 0; hid = 0; spokenLog.length = 0; spokenThisRound = [];
       emit({ type: 'session', state: 'running' });
@@ -230,6 +234,17 @@ export function createEntertainmentEngine(): DiscussionEngine {
       addHistory(target ? '用户（对' + target.persona.name + '说）' : '用户', text);
       const agent = target ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
       queue.unshift({ type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
+      void pump();
+    },
+    pause() {
+      if (stopped || finished || userPaused) return;
+      userPaused = true;
+      emit({ type: 'session', state: 'paused' });
+    },
+    resume() {
+      if (stopped || !userPaused) return;
+      userPaused = false;
+      if (!finished) emit({ type: 'session', state: 'running' });
       void pump();
     },
     stop() {
