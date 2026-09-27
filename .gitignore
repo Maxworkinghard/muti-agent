@@ -1,0 +1,5 @@
+__pycache__/
+
+# backend：讨论记录只留在本机；模型配置.json 是旧版 Python 引擎放密钥的文件，本机还有的话也别提交
+backend/模型配置.json
+backend/讨论记录/
