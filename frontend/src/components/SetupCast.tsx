@@ -19,8 +19,8 @@ export function SetupCast({ draft, personas, onStart }: {
   const isDebate = draft.sceneId === 'debate';
   // 辩论模式可以调轮数和每次发言的字数上限
   const isRational = draft.mode === 'rational';
-  // 「工作 · 创造项目」工作台的模式都有负责人：负责拆任务、收交付
-  const isWork = modeById(draft.mode).track === 'work';
+  // 「工作 · 创造项目」模式有负责人：负责拆任务、收交付
+  const isWork = draft.mode === 'product';
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
   const available = personas.filter((p) => !p.modes || p.modes.includes(draft.mode));
   const [picked, setPicked] = useState<Record<string, Pick>>({});

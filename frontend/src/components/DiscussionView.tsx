@@ -236,7 +236,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               {ms.map((m) => <Line key={m.id} m={m} byId={byId} />)}
             </div>
           ))}
-          {!focused && tasks.length > 0 && mode.track === 'work' && (
+          {!focused && tasks.length > 0 && config.mode === 'product' && (
             <div className="task-board">
               <div className="round-sep">任务流转</div>
               {tasks.slice(-6).map((t) => (

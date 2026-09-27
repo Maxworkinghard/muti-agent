@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ModeId, Persona, SceneDef, SceneId, SessionConfig, Track } from './types';
+import type { ModeId, Persona, SceneDef, SceneId, SessionConfig } from './types';
 import { SetupScene } from './components/SetupScene';
 import { SetupCast } from './components/SetupCast';
 import { DiscussionCast } from './components/DiscussionCast';
@@ -12,7 +12,6 @@ import { loadCustomScenes, saveCustomScenes } from './data/scenes';
 import { SoundToggle } from './sound';
 
 export interface Draft {
-  track: Track;
   mode: ModeId;
   theme: string;
   sceneId: SceneId;
@@ -21,7 +20,7 @@ export interface Draft {
 export default function App() {
   // 1 模式·主题·场景 → 2 选人物 → 3 讨论室
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [draft, setDraft] = useState<Draft>({ track: modeById('entertainment').track, mode: 'entertainment', theme: '', sceneId: 'roundtable' });
+  const [draft, setDraft] = useState<Draft>({ mode: 'entertainment', theme: '', sceneId: 'roundtable' });
   const [personas, setPersonas] = useState(SAMPLE_PERSONAS);
   const [session, setSession] = useState<SessionConfig | null>(null);
   const [codex, setCodex] = useState(false);

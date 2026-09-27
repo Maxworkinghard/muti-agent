@@ -117,10 +117,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .panel h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
 .panel h2 b { background: var(--ink); color: var(--cream); padding: 1px 6px; font-size: 13px; }
 .panel h2 small { font-weight: normal; color: var(--ink-2); font-size: 13px; }
-.bench + .bench { margin-top: 16px; }
-.bench-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 10px; padding-left: 8px; border-left: 6px solid var(--tc); }
-.bench-head strong { font-size: 15px; }
-.bench-head small { color: var(--ink-2); font-size: 12px; }
 .mode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .mode-card {
   --mc: var(--c-green); text-align: left; border: 3px solid var(--ink); background: var(--paper); padding: 12px 14px;

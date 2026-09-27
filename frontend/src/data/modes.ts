@@ -1,26 +1,12 @@
-import type { ModeDef, ModeId, Track } from '../types.ts';
+import type { ModeDef, ModeId } from '../types.ts';
 
-/** 首页两大入口。两条路线后面都走同一套前端：选模式和主题 → 选人物 → 讨论室 → 结果 */
-export const TRACKS: { id: Track; name: string; tag: string; desc: string; color: string; defaultMode: ModeId; importLabel: string }[] = [
-  {
-    id: 'discuss', name: '讨论与辩论', tag: 'TALK', color: 'var(--c-blue)', defaultMode: 'entertainment',
-    desc: '让几个人物围绕一个问题轮流发言，最后总结共识和分歧',
-    importLabel: '＋ 导入人物 JSON',
-  },
-  {
-    id: 'work', name: '工作 · 创造项目', tag: 'BUILD', color: 'var(--c-green)', defaultMode: 'product',
-    desc: '导入工作 Agent，让它们分工协作，做出网站、App 或设计',
-    importLabel: '＋ 导入工作 Agent JSON',
-  },
-];
-export const trackById = (id: Track) => TRACKS.find((t) => t.id === id)!;
-
+/** 所有模式共用同一套前端：选模式和主题 → 选人物 → 讨论室 → 结果 */
 export const MODES: ModeDef[] = [
   {
     id: 'entertainment',
-    track: 'discuss',
     name: '娱乐',
     tag: 'FUN',
+    importLabel: '＋ 导入人物 JSON',
     desc: '轻松闲聊、角色扮演、脑洞接龙',
     color: 'var(--c-orange)',
     scene: 'roundtable',
@@ -45,9 +31,9 @@ export const MODES: ModeDef[] = [
   },
   {
     id: 'rational',
-    track: 'discuss',
     name: '辩论',
     tag: 'LOGIC',
+    importLabel: '＋ 导入人物 JSON',
     desc: '立场、交锋、收敛，最后输出共识与分歧',
     color: 'var(--c-blue)',
     scene: 'debate',
@@ -73,9 +59,9 @@ export const MODES: ModeDef[] = [
   // 人物和性格来自 backend/ 的人格数据库，流程在 server/discussion.ts（见 src/engines/discussion/）
   {
     id: 'discussion',
-    track: 'discuss',
     name: '理性讨论',
     tag: 'THINK',
+    importLabel: '＋ 导入人物 JSON',
     desc: '人格数据库里的人物各选一种性格，开场、交锋、收尾，最后由主持人总结',
     color: 'var(--c-purple)',
     scene: 'roundtable',
@@ -101,9 +87,9 @@ export const MODES: ModeDef[] = [
   },
   {
     id: 'emotion',
-    track: 'discuss',
     name: '情感交流',
     tag: 'CARE',
+    importLabel: '＋ 导入人物 JSON',
     desc: '七种回应风格围坐，接住情绪、分清事实、给出一小步',
     color: 'var(--c-pink)',
     scene: 'roundtable',
@@ -128,10 +114,10 @@ export const MODES: ModeDef[] = [
   },
   {
     id: 'product',
-    track: 'work',
-    name: '产品开发',
+    name: '工作 · 创造项目',
     tag: 'BUILD',
-    desc: '负责人拆任务，角色交接，最后产出成果',
+    importLabel: '＋ 导入工作 Agent JSON',
+    desc: '负责人拆任务，工作 Agent 分工交接，最后产出网站、App 或设计',
     color: 'var(--c-green)',
     scene: 'office',
     roundLabels: ['任务拆分', '并行执行', '复核交付'],

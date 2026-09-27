@@ -1,5 +1,5 @@
 import type { AgentState, ChatMessage, EngineEvent, ModeDef, ModeId, Participant, SessionConfig, TaskEvent } from '../src/types.ts';
-import { modeById, roundLabel, trackById } from '../src/data/modes.ts';
+import { modeById, roundLabel } from '../src/data/modes.ts';
 import { LlmAgent, LlmTurnError } from './llmAgent.ts';
 import { RECORDER_PROMPT, SIDE_NAME, TITLER_PROMPT, agentSystemPrompt, cleanTitle, clip, extractJson, toResult, whoIs } from './prompts.ts';
 import type { LlmConfig } from './config.ts';
@@ -75,7 +75,7 @@ export class RoundtableSession {
       this.seatAgents();
       await this.waitForTask();
       if (this.ended) return;
-      if (this.mode.track === 'work') await this.runWork();
+      if (this.cfg.mode === 'product') await this.runWork();
       else if (this.cfg.mode === 'rational') await this.runDebate();
       else await this.runTalk();
       await this.drainUser();
@@ -235,7 +235,7 @@ export class RoundtableSession {
 
   /** 由单独的记录员角色把全程整理成共识 / 分歧 / 待验证 / 建议 / 交付物 */
   private async summarize() {
-    const work = this.mode.track === 'work';
+    const work = this.cfg.mode === 'product';
     this.recorder = new LlmAgent('记录员', this.llm, RECORDER_PROMPT);
     const log = this.transcript.filter((m) => m.kind !== 'system' && m.kind !== 'notice').map((m) => this.format(m)).join('\n');
     try {
@@ -253,9 +253,8 @@ export class RoundtableSession {
 
   /** 每位成员一个角色，人格提示词作为 system 消息 */
   private seatAgents() {
-    const bench = trackById(this.mode.track).name;
     for (const p of this.cfg.participants) {
-      this.agents.set(p.agentId, new LlmAgent(p.persona.name, this.llm, agentSystemPrompt(p, this.cfg, this.mode, bench)));
+      this.agents.set(p.agentId, new LlmAgent(p.persona.name, this.llm, agentSystemPrompt(p, this.cfg, this.mode)));
       this.status(p, 'idle', '就座');
     }
   }

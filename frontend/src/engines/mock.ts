@@ -1,7 +1,7 @@
 import type {
   ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Participant, SessionConfig, TaskEvent,
 } from '../types';
-import { modeById, roundLabel } from '../data/modes';
+import { roundLabel } from '../data/modes';
 
 let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
@@ -111,9 +111,8 @@ export function createMockEngine(): DiscussionEngine {
   const taskName = (p: Participant, suffix: string) => (p.persona.knowledge[0] ?? p.persona.name) + suffix;
 
   function plan() {
-    const mode = modeById(cfg.mode);
-    // 「工作 · 创造项目」工作台：负责人拆分派发 → 并行执行、交接 → 复核交付
-    const isWork = mode.track === 'work';
+    // 「工作 · 创造项目」：负责人拆分派发 → 并行执行、交接 → 复核交付
+    const isWork = cfg.mode === 'product';
     const ps = cfg.participants;
     const ordered = cfg.mode === 'rational'
       ? [...ps.filter((p) => p.side === 'host'), ...interleave(ps.filter((p) => p.side === 'pro'), ps.filter((p) => p.side === 'con'))]

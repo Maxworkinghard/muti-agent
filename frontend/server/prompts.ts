@@ -42,7 +42,7 @@ export const SPEAKING_STYLE = `## 说话方式
 `;
 
 /** 人格提示词 + 本场会话规则 + 说话方式，作为这位成员对话的 system 消息 */
-export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: ModeDef, benchName: string): string {
+export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: ModeDef): string {
   const roles = [p.side && `你在${SIDE_NAME[p.side]}。`, p.isLead && '你是本场负责人，负责拆分任务、汇总交付。'].filter(Boolean).join('');
   const members = cfg.participants
     .map((m) => `- ${whoIs(m)}${m.side ? '，' + SIDE_NAME[m.side] : ''}${m.isLead ? '，负责人' : ''}`)
@@ -53,7 +53,7 @@ export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: Mode
 
 # 多人格工作台 · 会话规则
 
-你正在「多人格工作台」的「${benchName} / ${mode.name}」模式里，和其他角色一起工作。${cfg.theme.title.trim() ? `主题是「${cfg.theme.title.trim()}」，只作背景；` : ''}具体要处理什么，以用户在对话里说的为准。
+你正在「多人格工作台」的「${mode.name}」模式里，和其他角色一起工作。${cfg.theme.title.trim() ? `主题是「${cfg.theme.title.trim()}」，只作背景；` : ''}具体要处理什么，以用户在对话里说的为准。
 你叫「${p.persona.name}」，性格是「${personalityOf(p)?.label}」（${p.persona.identity}），说话做事都按上面的人格设定来。${roles}
 在座成员：
 ${members}

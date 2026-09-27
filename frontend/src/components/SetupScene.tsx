@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Draft } from '../App';
 import type { SceneDef } from '../types';
-import { MODES, TRACKS, trackById } from '../data/modes';
+import { MODES } from '../data/modes';
 import { SCENE_LIST } from '../data/scenes';
 import { SceneEditor } from './SceneEditor';
 
@@ -40,27 +40,22 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
   return (
     <main className="setup">
       <section className="panel">
-        <h2><b>01</b> 选择模式 <small>按工作台分组</small></h2>
-        {TRACKS.map((t) => (
-          <div key={t.id} className="bench" style={{ ['--tc' as string]: t.color }}>
-            <div className="bench-head"><strong>{t.name}</strong><small>{t.desc}</small></div>
-            <div className="mode-grid">
-              {MODES.filter((m) => m.track === t.id).map((m) => (
-                <button
-                  key={m.id}
-                  className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
-                  style={{ ['--mc' as string]: m.color }}
-                  onClick={() => { onChange({ ...draft, track: m.track, mode: m.id, sceneId: m.scene }); setPicks(sample(m.presets, PICKS)); }}
-                >
-                  <span className="tag">{m.tag}</span>
-                  <strong>{m.name}</strong>
-                  <small>{m.desc}</small>
-                  <em>{m.roundLabels.join(' → ')}</em>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+        <h2><b>01</b> 选择模式</h2>
+        <div className="mode-grid">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
+              style={{ ['--mc' as string]: m.color }}
+              onClick={() => { onChange({ ...draft, mode: m.id, sceneId: m.scene }); setPicks(sample(m.presets, PICKS)); }}
+            >
+              <span className="tag">{m.tag}</span>
+              <strong>{m.name}</strong>
+              <small>{m.desc}</small>
+              <em>{m.roundLabels.join(' → ')}</em>
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="panel">
@@ -106,7 +101,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
       </section>
 
       <footer className="setup-foot">
-        <span>{trackById(mode.track).name} / {mode.name} · {scenes.find((s) => s.id === draft.sceneId)?.name}</span>
+        <span>{mode.name} · {scenes.find((s) => s.id === draft.sceneId)?.name}</span>
         <button className="px-btn primary" onClick={onNext}>下一步：选择人物 ▶</button>
       </footer>
       {editing && (

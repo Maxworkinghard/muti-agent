@@ -1,6 +1,4 @@
 export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'discussion' | 'product';
-/** 首页两大入口：讨论与辩论 / 工作（创造项目）。两条路线共用同一套前端 */
-export type Track = 'discuss' | 'work';
 /** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
 export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
@@ -70,13 +68,14 @@ export interface SceneDef {
 
 export interface ModeDef {
   id: ModeId;
-  track: Track;
   name: string;
   tag: string;
   desc: string;
   color: string;
   scene: SceneId;
   roundLabels: string[];
+  /** 图鉴里导入按钮的文字 */
+  importLabel: string;
   /** 推荐主题库，第一步每次随机挑几个显示 */
   presets: string[];
   /** 人物和性格来自 backend/ 的人格数据库（/api/discussion/options），不用前端的人物列表，也不能导入 */

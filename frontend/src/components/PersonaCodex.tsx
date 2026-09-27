@@ -1,6 +1,6 @@
 import { Fragment, useRef, useState } from 'react';
 import type { ModeId, Persona } from '../types';
-import { MODES, TRACKS, trackById } from '../data/modes';
+import { MODES } from '../data/modes';
 import { normalizePersona } from '../data/personas';
 import { PixelAvatar } from './PixelAvatar';
 
@@ -56,18 +56,13 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
     <main className="setup codex">
       <section className="panel">
         <h2><b>图鉴</b> 人物模板 <small>点卡片查看详细信息</small></h2>
-        {TRACKS.map((t) => (
-          <div key={t.id} className="bench" style={{ ['--tc' as string]: t.color }}>
-            <div className="bench-head"><strong>{t.name}</strong></div>
-            <div className="codex-tabs">
-              {MODES.filter((x) => x.track === t.id).map((x) => (
-                <button key={x.id} className={'codex-tab' + (x.id === mode ? ' on' : '')} style={{ ['--mc' as string]: x.color }} onClick={() => setMode(x.id)}>
-                  {x.name}<i>{inMode(x.id).length}</i>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+        <div className="codex-tabs">
+          {MODES.map((x) => (
+            <button key={x.id} className={'codex-tab' + (x.id === mode ? ' on' : '')} style={{ ['--mc' as string]: x.color }} onClick={() => setMode(x.id)}>
+              {x.name}<i>{inMode(x.id).length}</i>
+            </button>
+          ))}
+        </div>
       </section>
       <section className="panel">
         <div className="codex-head">
@@ -76,7 +71,7 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
             <div className="cast-tools">
               <input ref={fileRef} type="file" accept=".json,application/json" hidden
                 onChange={(e) => { if (e.target.files?.[0]) onFile(e.target.files[0]); e.target.value = ''; }} />
-              <button className="px-btn primary" onClick={() => fileRef.current?.click()}>{trackById(m.track).importLabel}</button>
+              <button className="px-btn primary" onClick={() => fileRef.current?.click()}>{m.importLabel}</button>
             </div>
           )}
         </div>

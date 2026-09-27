@@ -1,12 +1,12 @@
-import type { Persona } from '../types';
+import type { ModeId, Persona } from '../types';
 import { MODES, isModeId } from './modes';
 
 export const AGENT_COLORS = ['#6f9e6b', '#5f82b0', '#d4b04c', '#d98a4e', '#8a6fb0', '#c0625a', '#4f9a94', '#c47a9a'];
 
-/** 「讨论与辩论」工作台里人物来自前端的模式：娱乐、辩论、情感交流 */
-const TALK_MODES = MODES.filter((m) => m.track === 'discuss' && !m.backendPersonas).map((m) => m.id);
-/** 「工作 · 创造项目」工作台的模式 */
-const WORK_MODES = MODES.filter((m) => m.track === 'work').map((m) => m.id);
+/** 讨论类模式里人物来自前端的模式：娱乐、辩论、情感交流 */
+const TALK_MODES = MODES.filter((m) => m.id !== 'product' && !m.backendPersonas).map((m) => m.id);
+/** 「工作 · 创造项目」模式 */
+const WORK_MODES: ModeId[] = ['product'];
 
 export const SAMPLE_PERSONAS: Persona[] = [
   // 通用人物：只在讨论类模式里出现。他们在产品、设计、技术、数据和风控上的能力已经并进下面产品开发的五个人物
