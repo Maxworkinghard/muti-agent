@@ -58,7 +58,7 @@
 | `LLM_MODEL` | 模型名 | `deepseek-chat` |
 
 - Node 侧依次加载 `.env`、`.env.local`，同名变量以 `.env.local` 为准；旧变量名 `ROUNDTABLE_*` 仍然兼容；
-- Python 辩论后端的优先级：`backend/模型配置.json` → `frontend/.env`（有前者就用前者），其中 `LLM_API_KEY` 还可以被进程环境变量覆盖，因此同一份 `.env` 同时供两个后端使用；
+- Python 辩论后端的优先级：`backend/模型配置.json` → `frontend/.env`（有前者就用前者）；进程环境变量里的 `LLM_*` 覆盖 `.env` 里的同名项，`LLM_API_KEY` 连 `模型配置.json` 里的也覆盖，因此同一份 `.env` 同时供两个后端使用；
 - `.env` 只在服务器端读取，不会打包进前端，也不纳入版本控制；
 - 未配置的后果：四种模式发言时都会提示缺少 `LLM_API_KEY`，辩论后端在启动阶段直接报错退出。
 
@@ -86,13 +86,11 @@ npm run dev
 
 ### 4. 单端口发布（可选）
 
-`node serve.mjs` 把静态页、Node 会话后端和 Python 辩论后端合并到一根端口，并把辩论后端作为子进程启动：
+`node serve.mjs` 把静态页、Node 会话后端和 Python 辩论后端合并到一根端口，并把辩论后端作为子进程启动。`serve.mjs` 在仓库根目录，下面两条也在根目录执行：
 
 ```bash
-cd frontend                # 下面三条都在 frontend/ 里执行
-npm run build              # 构建页面
-npm run build:server       # 构建 Node 后端
-PORT=8080 node serve.mjs   # 默认 5173；辩论后端端口用 DEBATE_PORT 指定，默认 8000
+npm run build              # 构建页面和 Node 后端（即 frontend/ 里的 build 和 build:server）
+PORT=8080 npm start        # 即 node serve.mjs；默认 5173；辩论后端端口用 DEBATE_PORT 指定，默认 8000
 ```
 
-若存在 `frontend/.env.production`，它会覆盖 `.env`（本地 `npm run dev` 不读它）。
+若存在 `frontend/.env.production`，它会覆盖 `.env`，两个后端都生效（本地 `npm run dev` 不读它）。

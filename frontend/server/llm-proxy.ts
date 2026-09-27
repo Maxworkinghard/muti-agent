@@ -5,7 +5,7 @@
  * 换服务商只改 frontend/.env。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { Readable } from 'node:stream';
+import { Readable, pipeline } from 'node:stream';
 import type { LlmConfig } from './config.ts';
 import { unwrapCompletion } from './llmAgent.ts';
 
@@ -36,19 +36,25 @@ export function createLlmHandler(cfg: LlmConfig) {
       return sendJson(res, 400, { error: '请求体不是合法 JSON' });
     }
 
+    // 浏览器中途断开（停止、离开页面）时一并中止到模型服务的请求，不再白白生成
+    const ctrl = new AbortController();
+    res.on('close', () => { if (!res.writableFinished) ctrl.abort(); });
     try {
       const upstream = await fetch(cfg.baseUrl + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.apiKey },
         // 前端没指定模型时用 LLM_MODEL
         body: JSON.stringify({ ...body, model: body.model || cfg.model }),
+        signal: ctrl.signal,
       });
       const type = upstream.headers.get('content-type') || 'application/json';
       res.statusCode = upstream.status;
       res.setHeader('Content-Type', type);
       if (!upstream.body) return res.end();
-      // 流式回复（stream: true）本来就是标准格式，原样转回前端
-      if (type.includes('text/event-stream')) return void Readable.fromWeb(upstream.body as never).pipe(res);
+      // 流式回复（stream: true）本来就是标准格式，原样转回前端。
+      // 用 pipeline 而不是 pipe：模型流中途断开时它会收掉两头并把错误交给回调，
+      // 不会变成没人接的 'error' 事件把整个 Node 进程带崩；前端那边看到的是连接中断，按发言失败处理
+      if (type.includes('text/event-stream')) return void pipeline(Readable.fromWeb(upstream.body as never), res, () => {});
       // 普通回复去掉网关的外层包装，前端拿到的总是标准 OpenAI 格式；不是 JSON 就原样转
       const raw = await upstream.text();
       let out = raw;

@@ -33,8 +33,10 @@ export class RoundtableSession {
   /** 私聊记录：agentId -> 只有他和用户知道的对话；不进 transcript，也不进总结 */
   private whispers = new Map<string, ChatMessage[]>();
   private seen = new Map<string, number>();
-  /** 用户插话队列：target 是点名的人（有值即私聊），whisper 标记这次是悄悄话 */
-  private userQueue: Array<{ target?: string; whisper: boolean }> = [];
+  /** 每位成员已经收到过的私聊条数：和 seen 一样只发新增的，LlmAgent 的历史里已经有的不再重复 */
+  private whisperSeen = new Map<string, number>();
+  /** 用户插话队列：target 是点名的人，有值即私聊 */
+  private userQueue: Array<{ target?: string }> = [];
   /** 用户对全体说的第一句话：这一场要处理的问题或任务，主题只作背景 */
   protected request = '';
   /** 用户填的主题；没填时按第一句话生成 */
@@ -118,7 +120,7 @@ export class RoundtableSession {
     } else {
       this.message({ round: opening ? 1 : this.round, speakerId: 'user', text, kind: 'user' });
     }
-    if (!opening) this.userQueue.push({ target, whisper: !!target });
+    if (!opening) this.userQueue.push({ target });
     this.wake?.();
     this.pauseWake?.();
     if (this.finished) void this.followUp();
@@ -329,14 +331,16 @@ export class RoundtableSession {
     }
   }
 
-  /** 这位成员的私聊记录（点成员说话才有）；其他成员的提示词里拿不到 */
-  private whisperText(agentId: string) {
-    const list = this.whispers.get(agentId);
-    if (!list?.length) return '';
-    const who = (id: string) => (id === 'user' ? '用户' : this.byId(id)?.persona.name ?? id);
+  /**
+   * 这位成员还没收到过的私聊（点成员说话才有）；其他成员的提示词里拿不到。
+   * 之前的私聊和他自己的私下回复都已经在他的对话历史里，这里只补用户新说的，不整段重发
+   */
+  private whisperText(agentId: string, from: number) {
+    const news = (this.whispers.get(agentId) ?? []).slice(from).filter((m) => m.speakerId !== agentId);
+    if (!news.length) return '';
     return '【只有你和用户知道的私下对话】\n'
       + '（其他角色看不到这些内容，也不知道你们聊过；要不要在公开讨论里提起、用它跟别人周旋，由你自己决定。）\n'
-      + list.map((m) => who(m.speakerId) + '：' + m.text).join('\n');
+      + news.map((m) => '用户：' + m.text).join('\n');
   }
 
   /** 把新发言和本轮指令发给这位成员，拿回他的回答（不发到前端） */
@@ -349,7 +353,8 @@ export class RoundtableSession {
       .filter((m) => m.speakerId !== p.agentId && m.kind !== 'system' && m.kind !== 'notice')
       .map((m) => this.format(m));
     const mark = this.transcript.length;
-    const priv = this.whisperText(p.agentId);
+    const whisperMark = this.whispers.get(p.agentId)?.length ?? 0;
+    const priv = this.whisperText(p.agentId, this.whisperSeen.get(p.agentId) ?? 0);
     const prompt = (news.length ? `【新发言】\n${news.join('\n')}\n\n` : '') + (priv ? priv + '\n\n' : '') + instruction;
     this.status(p, 'thinking', whisper ? '想怎么私下回你…' : forUser ? '准备回应用户' : '思考中…');
     for (let attempt = 1; ; attempt++) {
@@ -357,11 +362,17 @@ export class RoundtableSession {
         const text = await agent.ask(prompt);
         this.failures = 0;
         this.seen.set(p.agentId, mark);
+        this.whisperSeen.set(p.agentId, whisperMark);
         return this.ended ? null : text || '（没有说话）';
       } catch (e) {
         if (this.ended) return null;
         const fatal = e instanceof LlmTurnError && e.fatal;
-        if (!fatal && attempt === 1) { await sleep(3000); continue; }
+        if (!fatal && attempt === 1) {
+          await sleep(3000);
+          // 等的这 3 秒里用户可能已经停止了会话，别再发新请求
+          if (this.ended) return null;
+          continue;
+        }
         this.status(p, 'idle', '调用失败');
         this.notice(`${p.persona.name} 调用模型失败：${errMsg(e)}`);
         if (fatal || ++this.failures >= 3) throw new Error('模型调用连续失败，已停止');
@@ -379,14 +390,13 @@ export class RoundtableSession {
   /** 用户插话排在下一位发言之前：点名的成员私下回应（私聊），否则由负责人 / 主持人 / 第一位回应 */
   private async drainUser() {
     while (this.userQueue.length && !this.ended) {
-      const item = this.userQueue.shift();
-      const target = item?.target;
-      const whisper = !!item?.whisper;
+      const target = this.userQueue.shift()?.target;
+      const whisper = !!target;
       const ps = this.cfg.participants;
       const p = (target && this.byId(target)) || ps.find((x) => x.isLead) || ps.find((x) => x.side === 'host') || ps[0];
       const instruction = whisper
         ? `用户刚在私下对你说了话（见上面的私下对话）。请私下回应用户，一句话说清就行，不超过 ${this.maxChars(300)} 字。`
-        : `用户${target ? '对你' : '对全体'}说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 ${this.maxChars(300)} 字。`;
+        : `用户对全体说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 ${this.maxChars(300)} 字。`;
       await this.speak(p, instruction, true, whisper);
     }
   }
@@ -416,7 +426,8 @@ export class RoundtableSession {
   private maxChars(fallback: number) { return Math.trunc(Number(this.cfg.engineOptions?.maxChars)) || fallback; }
 
   private format(m: ChatMessage) {
-    if (m.speakerId === 'user') return `用户${m.targetId ? '对' + this.byId(m.targetId)?.persona.name : '对全体'}说：${m.text}`;
+    // 公开记录里只有用户对全体说的话，点成员的私聊在 whispers 里，由 whisperText 单独拼
+    if (m.speakerId === 'user') return `用户对全体说：${m.text}`;
     const who = this.byId(m.speakerId)?.persona.name ?? m.speakerId;
     return m.kind === 'task' ? `（${who} ${m.text}）` : `${who}：${m.text}`;
   }

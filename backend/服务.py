@@ -7,7 +7,7 @@
 
 接口：
   GET  /api/options                 人物、性格列表
-  POST /api/discuss                 开始一场讨论，用 SSE 逐条推送事件
+  POST /api/discuss                 开始一场讨论，用 SSE 逐条推送事件；会话编号在响应头 X-Session-Id 里
   POST /api/discuss/<会话>/say      用户插话 {text, target}
   POST /api/discuss/<会话>/pause    暂停（下一位发言前停住，插话照常回应）
   POST /api/discuss/<会话>/resume   继续
@@ -21,6 +21,7 @@ import argparse
 import json
 import mimetypes
 import queue
+import secrets
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -132,10 +133,13 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
           "model": cfg["model"] if cfg else "试跑",
           "members": [{k: m[k] for k in ("name", "role", "personality")} for m in members]})
 
-    def call(m, msg, fake, for_user=False):
-        while not for_user and pause is not None and pause.is_set() and not stop.is_set():
+    def hold():
+        # 暂停时停在这里，期间用户的话照常回应；要在拼这次发言的提示词之前等完，暂停期间说的话才带得上
+        while pause is not None and pause.is_set() and not stop.is_set():
             handle_user(cur["round"])
             time.sleep(0.2)
+
+    def call(m, msg, fake):
         if stop.is_set():
             raise Stopped()
         emit({"type": "thinking", "name": m["name"]})
@@ -149,6 +153,7 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
         return E.parse_reply(raw)
 
     def speak(m, rnd, stage):
+        hold()
         others = "、".join(f"{o['name']}（{o['role']}）" for o in members if o is not m)
         pending = None if stage == "开场" else E.open_challenge(log, m["name"])
         msg = E.user_message(ctx, others, log, E.task_for(stage, pending), privs.get(m["name"]))
@@ -183,19 +188,19 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
                 task = (f"旁听的用户刚在私下对你说：“{u['text']}”。"
                         "请私下回应用户（respondsTo 填“用户”）；这句话场上其他人都没有听到，"
                         "要不要在公开讨论里提起由你决定。")
-                r = call(m, E.user_message(ctx, others, log, task, priv), fake, for_user=True)
+                r = call(m, E.user_message(ctx, others, log, task, priv), fake)
                 entry = {"round": rnd, "name": m["name"], **{k: r.get(k) for k in
                          ("speech", "respondsTo", "stance", "newPoint", "challenge", "challengeTarget")},
                          "answered": None}
                 priv.append({"name": m["name"], "speech": entry.get("speech") or ""})
                 emit({"type": "speech", "entry": entry, "toUser": True, "private": True})
                 continue
-            log.append({"round": rnd, "name": "用户", "speech": u["text"], "respondsTo": u.get("target"),
+            log.append({"round": rnd, "name": "用户", "speech": u["text"], "respondsTo": None,
                         "stance": "插话", "newPoint": True, "challenge": None, "challengeTarget": None,
                         "answered": None})
-            task = (f"旁听的用户刚才{'对你' if u.get('target') else '对大家'}说：“{u['text']}”。"
+            task = (f"旁听的用户刚才对大家说：“{u['text']}”。"
                     f"先直接回应用户（respondsTo 填“用户”），再把它和正在讨论的议题联系起来。")
-            r = call(m, E.user_message(ctx, others, log, task), fake, for_user=True)
+            r = call(m, E.user_message(ctx, others, log, task), fake)
             entry = {"round": rnd, "name": m["name"], **{k: r.get(k) for k in
                      ("speech", "stance", "newPoint", "challenge", "challengeTarget")},
                      "respondsTo": "用户", "answered": None}
@@ -229,6 +234,8 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
         full = "\n".join(f"第{x['round']}轮 {x['name']}：{x['speech']}" for x in log)
         final = E.chat(cfg, E.MODERATOR, f"议题：{ctx}\n\n讨论记录：\n{full}").strip()
     emit({"type": "summary", "text": final})
+    # 写总结要等十几秒，这期间 /say 照样收话；接着回答，不能收下就丢
+    handle_user(rounds)
     if keep is not None:
         keep.update(members=members, topic=ctx, log=log, count=count, cfg=cfg, rounds=rounds, host=None,
                     system_key="system", debate=False, summary=final, privs=privs)
@@ -277,8 +284,9 @@ def answer_after(keep, text, target):
     if priv is not None:
         priv.append({"name": m["name"], "speech": speech})
     else:
+        # 私聊不占发言位，只有公开回答才计数（没点名的追问按计数找发言最少的人）
         log.append({"round": keep["rounds"], "name": m["name"], "speech": speech, "respondsTo": "用户"})
-    keep["count"][m["name"]] += 1
+        keep["count"][m["name"]] += 1
     return {"name": m["name"], "speech": speech, "title": m.get("title")}
 
 
@@ -368,12 +376,14 @@ class Handler(BaseHTTPRequestHandler):
             args = prepare(body)
         except ValueError as e:
             return self._json(400, {"error": str(e)})
-        sid = str(body.get("sessionId") or time.time())
+        # 会话编号由服务端随机生成（不用前端传来的）：/say、/stop、/ask 只认这个编号，猜得到就能操控别人的讨论、套出私聊
+        sid = secrets.token_urlsafe(16)
         sess = {"inbox": queue.Queue(), "stop": threading.Event(), "pause": threading.Event(), "keep": {}}
         SESSIONS[sid] = sess
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Session-Id", sid)
         self.send_header("Connection", "close")
         self.end_headers()
         self.close_connection = True

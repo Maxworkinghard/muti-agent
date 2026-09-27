@@ -95,31 +95,15 @@ export function playVoice(id: string, syllables = 5) {
   });
 }
 
+/** 顶部音效开关的状态；components/stageFx.ts 里的舞台音效和背景音乐也看它 */
+export function isMuted() {
+  return muted;
+}
+
 export function setMuted(v: boolean) {
   muted = v;
   localStorage.setItem(MUTE_KEY, v ? '1' : '0');
   listeners.forEach((l) => l());
-}
-
-/**
- * 背景音乐（目前只有娱乐模式用）：循环播放，跟着上面的静音开关走。
- * 讨论开始后调 duck() 把音量压低，别盖过大家说话。浏览器拦截自动播放时静默失败。
- */
-export function createBgm(src: string, volume = 0.3, ducked = 0.1) {
-  const el = new Audio(src);
-  el.loop = true;
-  let target = volume;
-  const apply = () => {
-    el.volume = muted ? 0 : target;
-    if (muted) el.pause();
-    else el.play().catch(() => {});
-  };
-  listeners.add(apply);
-  return {
-    start: apply,
-    duck() { target = ducked; apply(); },
-    stop() { listeners.delete(apply); el.pause(); el.src = ''; },
-  };
 }
 
 export function useMuted() {

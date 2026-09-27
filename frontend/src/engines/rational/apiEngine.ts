@@ -14,9 +14,16 @@ export function createApiEngine(): DiscussionEngine {
   /** 讨论正常结束：还可以追问，走 /ask 接口 */
   let finished = false;
   let paused = false;
+  /** 后端开始写总结 / 判定后，插话接口就没人读了；这之后说的话先存着，结束后按追问一条条发 */
+  let wrapping = false;
+  const held: Array<{ text: string; target?: string }> = [];
   let seq = 0;
   let motion: { motion: string; pro: string; con: string } | undefined;
   const uid = () => 'm-' + Date.now().toString(36) + '-' + (seq++).toString(36);
+  /** 会话编号由后端生成，在 /api/discuss 的响应头里；拿到之前的插话、暂停等它到了再发 */
+  let sid: Promise<string> = new Promise(() => {});
+  let gotSid: (id: string) => void = () => {};
+  let noSid: (err: Error) => void = () => {};
 
   const idOf = (name?: string | null) => cfg.participants.find((p) => p.persona.name === name)?.agentId;
   const message = (m: Omit<ChatMessage, 'id' | 'at'>) => emit({ type: 'message', message: { ...m, id: uid(), at: Date.now() } });
@@ -29,9 +36,12 @@ export function createApiEngine(): DiscussionEngine {
     paused = false;
     allStatus(state === 'finished' ? 'done' : 'idle', state === 'finished' ? '完成' : '已停止');
     emit({ type: 'session', state });
+    const later = held.splice(0);
+    if (finished) void later.reduce((p, h) => p.then(() => ask(h.text, h.target)), Promise.resolve());
+    else if (later.length) emit({ type: 'error', id: 'held-' + uid(), message: `讨论没有正常结束，写总结期间说的 ${later.length} 句话没有送达` });
   };
-  const post = (action: string, body?: unknown) =>
-    fetch('/api/discuss/' + encodeURIComponent(cfg.sessionId) + '/' + action, {
+  const post = async (action: string, body?: unknown) =>
+    fetch('/api/discuss/' + encodeURIComponent(await sid) + '/' + action, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}),
     });
 
@@ -88,6 +98,7 @@ export function createApiEngine(): DiscussionEngine {
       }
       case 'summarizing':
         allStatus('idle', e.text);
+        wrapping = true;
         break;
       case 'summary':
         emit({ type: 'result', result: {
@@ -112,7 +123,6 @@ export function createApiEngine(): DiscussionEngine {
   async function run() {
     ctrl = new AbortController();
     const body = {
-      sessionId: cfg.sessionId,
       question: cfg.theme.title.trim(),
       brief: cfg.theme.brief ?? '',
       rounds: cfg.maxRounds,
@@ -128,6 +138,9 @@ export function createApiEngine(): DiscussionEngine {
       handle({ type: 'error', message: err.error });
       return;
     }
+    const id = res.headers.get('X-Session-Id');
+    if (id) gotSid(id);
+    else noSid(new Error('辩论后端没有返回会话编号'));
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = '';
@@ -143,19 +156,22 @@ export function createApiEngine(): DiscussionEngine {
         if (line) handle(JSON.parse(line.slice(5)));
       }
     }
-    finish('finished');
+    // 流读完了却没收到 done / stopped / error：后端中途退出了（崩溃、重启），不能当成正常结束
+    if (!ended) handle({ type: 'error', message: '和辩论后端的连接断了（后端可能重启过），这场讨论没有正常结束' });
   }
 
   return {
     start(config, onEvent) {
       cfg = config; emit = onEvent; ended = false; round = 0;
+      sid = new Promise((resolve, reject) => { gotSid = resolve; noSid = reject; });
+      sid.catch(() => {}); // 没拿到编号时，由等它的各个请求自己报错
       emit({ type: 'session', state: 'running' });
       allStatus('idle', '就座');
       run().catch((err) => {
         if (ended) return;
         if (err?.name === 'AbortError') finish('stopped');
         else handle({ type: 'error', message: '连不上辩论后端，请先在 backend 文件夹运行 python 服务.py（' + err + '）' });
-      });
+      }).finally(() => noSid(new Error('没有连上辩论后端')));
     },
     sendUserMessage({ text, targetAgentId }) {
       if (ended && !finished) return;
@@ -163,7 +179,10 @@ export function createApiEngine(): DiscussionEngine {
       message({ round, speakerId: 'user', text, kind: 'user', targetId: targetAgentId, private: targetAgentId ? true : undefined });
       const target = cfg.participants.find((p) => p.agentId === targetAgentId)?.persona.name;
       if (finished) { void ask(text, target); return; }
-      post('say', { text, target }).catch(() => emit({ type: 'error', id: 'say-' + uid(), message: '插话没有送达' }));
+      if (wrapping) { held.push({ text, target }); return; }
+      post('say', { text, target })
+        .then((res) => { if (!res.ok) throw new Error(); })
+        .catch(() => emit({ type: 'error', id: 'say-' + uid(), message: '插话没有送达' }));
     },
     pause() {
       if (ended || paused) return;
@@ -179,7 +198,7 @@ export function createApiEngine(): DiscussionEngine {
     },
     stop() {
       if (ended) return;
-      fetch('/api/discuss/' + encodeURIComponent(cfg.sessionId) + '/stop', { method: 'POST' }).catch(() => {});
+      post('stop').catch(() => {});
       ctrl?.abort();
       finish('stopped');
     },

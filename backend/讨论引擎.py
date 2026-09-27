@@ -50,12 +50,16 @@ def load_config():
             k, sep, v = line.partition("=")
             if sep and not k.strip().startswith("#"):
                 env[k.strip()] = v.strip().strip('"').strip("'")
+    # 进程环境变量覆盖 .env，和 Node 后端的顺序一致；serve.mjs 会把合并了 .env.production 的结果这样传进来
+    for k in ("LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY"):
+        if os.environ.get(k):
+            env[k] = os.environ[k]
     if f.exists():
         cfg = json.loads(f.read_text(encoding="utf-8-sig"))
     elif env.get("LLM_BASE_URL") and env.get("LLM_MODEL"):
         cfg = {"base_url": env["LLM_BASE_URL"], "model": env["LLM_MODEL"], "api_key": env.get("LLM_API_KEY", "")}
     else:
-        raise SystemExit("找不到 模型配置.json，frontend/.env 里也没有 LLM_BASE_URL 和 LLM_MODEL。")
+        raise SystemExit("找不到 模型配置.json，frontend/.env 和环境变量里也没有 LLM_BASE_URL 和 LLM_MODEL。")
     cfg["api_key"] = os.environ.get("LLM_API_KEY") or cfg.get("api_key", "") or env.get("LLM_API_KEY", "")
     if not cfg["api_key"] or "在这里" in cfg["api_key"]:
         raise SystemExit("还没有填写 api_key（也可以设置环境变量 LLM_API_KEY）。")

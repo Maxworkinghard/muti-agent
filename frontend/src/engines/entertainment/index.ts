@@ -264,6 +264,9 @@ export function createEntertainmentEngine(): DiscussionEngine {
         const agent = cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
         queue.unshift({ type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
       }
+      // 之前某一步出错停着的话，用户又开口就当作继续：先回应这句，再重试出错的那一步。
+      // 否则用户点了“知道了”之后，后面说的话都只显示、永远没人回
+      paused = false;
       void pump();
     },
     pause() {
