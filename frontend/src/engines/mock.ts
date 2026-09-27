@@ -1,5 +1,5 @@
 import type {
-  ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Participant, SessionConfig, TaskEvent,
+  ChatMessage, DiscussionEngine, EngineEvent, Participant, SessionConfig, TaskEvent,
 } from '../types';
 import { roundLabel } from '../data/modes';
 
@@ -19,7 +19,6 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
   const k = pick(p.persona.knowledge, round + turn) ?? '经验';
   const t = cfg.theme.title;
   const opener = per.opener ?? '';
-  const edge = p.persona.boundaries[0] ?? '注意边界';
   if (cfg.mode === 'product') {
     const lines = [
       [`${opener}关于「${t}」，我从${k}的角度先认领一块：${p.persona.thinking}。`,
@@ -27,7 +26,7 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
       [`${opener}进度同步：${k}相关的初稿已经完成，文件已经放到交换台。`,
        `${opener}我接手了上一位的文件，补充了${k}的约束条件，再往下传。`],
       [`${opener}复核完毕。我这部分的结论：先做最小版本，${p.persona.values}。`,
-       `${opener}交付前最后提醒一句：${edge}。`],
+       `${opener}交付前最后提醒一句：${p.persona.boundaries[0] ?? '注意边界'}。`],
     ];
     return pick(pick(lines, round - 1), turn);
   }
@@ -76,8 +75,7 @@ export function createMockEngine(): DiscussionEngine {
   let stopped = false;
   let cfg: SessionConfig;
   let emit: (e: EngineEvent) => void;
-  let currentRound = 0;
-  let opened = false;
+  let currentRound = 1;
   const queue: Array<() => number> = [];
   let busy = false;
 
@@ -118,9 +116,6 @@ export function createMockEngine(): DiscussionEngine {
 
   const task = (t: Omit<TaskEvent, 'id'>) => emit({ type: 'task', task: { ...t, id: uid('t') } });
 
-  /** 任务名：知识第一项 + 「模块 / 文档」；导入的人物没写知识时用名字 */
-  const taskName = (p: Participant, suffix: string) => (p.persona.knowledge[0] ?? p.persona.name) + suffix;
-
   function plan() {
     const ps = cfg.participants;
     const ordered = cfg.mode === 'rational'
@@ -132,12 +127,12 @@ export function createMockEngine(): DiscussionEngine {
       const label = roundLabel(cfg.mode, r, cfg.maxRounds);
       push(() => { currentRound = r; emit({ type: 'round', round: r, label }); message({ round: r, speakerId: 'system', text: '第 ' + r + ' 轮 · ' + label, kind: 'system' }); return 600; });
 
-      if (isWork && r === 1) {
+      if (cfg.mode === 'product' && r === 1) {
         push(...speakStep(lead, `我来拆分「${cfg.theme.title}」：每人认领一块，文件统一经过中央交换台流转。`, r));
         ps.filter((p) => p !== lead).forEach((p) => push(() => {
-          task({ title: taskName(p, ' 模块'), from: lead.agentId, to: p.agentId, status: 'assigned' });
-          message({ round: r, speakerId: lead.agentId, text: '→ 派给 ' + p.persona.name + '：' + taskName(p, ' 模块'), kind: 'task', targetId: p.agentId });
-          emit({ type: 'status', agentId: p.agentId, state: 'working', action: '处理 ' + taskName(p, '') });
+          task({ title: p.persona.knowledge[0] + ' 模块', from: lead.agentId, to: p.agentId, status: 'assigned' });
+          message({ round: r, speakerId: lead.agentId, text: '→ 派给 ' + p.persona.name + '：' + p.persona.knowledge[0] + ' 模块', kind: 'task', targetId: p.agentId });
+          emit({ type: 'status', agentId: p.agentId, state: 'working', action: '处理 ' + p.persona.knowledge[0] });
           return 1500;
         }));
         continue;
@@ -145,12 +140,12 @@ export function createMockEngine(): DiscussionEngine {
 
       ordered.forEach((p, i) => {
         if (cfg.mode === 'rational' && p.side === 'host' && r > 1 && r < cfg.maxRounds) return;
-        if (isWork && p === lead && r === 2) return;
+        if (cfg.mode === 'product' && p === lead && r === 2) return;
         push(...speakStep(p, speak(p, cfg, r, i), r));
-        if (isWork && r === 2) {
+        if (cfg.mode === 'product' && r === 2) {
           const next = ps[(ps.indexOf(p) + 1) % ps.length];
           push(() => {
-            task({ title: taskName(p, ' 文档'), from: p.agentId, to: next.agentId, status: 'handoff' });
+            task({ title: p.persona.knowledge[0] + ' 文档', from: p.agentId, to: next.agentId, status: 'handoff' });
             emit({ type: 'status', agentId: p.agentId, state: 'working', action: '交接给 ' + next.persona.name });
             return 1500;
           });
@@ -160,14 +155,14 @@ export function createMockEngine(): DiscussionEngine {
 
     push(() => {
       ps.forEach((p) => emit({ type: 'status', agentId: p.agentId, state: 'done', action: '完成' }));
-      if (isWork) ps.filter((p) => p !== lead).forEach((p) => task({ title: '交付物', from: p.agentId, to: lead.agentId, status: 'done' }));
+      if (cfg.mode === 'product') ps.filter((p) => p !== lead).forEach((p) => task({ title: '交付物', from: p.agentId, to: lead.agentId, status: 'done' }));
       emit({ type: 'result', result: buildResult() });
       emit({ type: 'session', state: 'finished' });
       return 10;
     });
   }
 
-  function buildResult(): DiscussionResult {
+  function buildResult() {
     const t = cfg.theme.title;
     const names = cfg.participants.map((p) => p.persona.name);
     return {
@@ -179,35 +174,20 @@ export function createMockEngine(): DiscussionEngine {
     };
   }
 
-  /** 开始这一场：text 是用户的第一句话，就是这一场要处理的事；前端已经显示过时不再回显 */
-  function open(text: string, echo: boolean) {
-    opened = true;
-    if (echo) message({ round: 1, speakerId: 'user', text, kind: 'user' });
-    // 没填主题：模拟引擎直接截取这句话当主题（真实引擎让模型起名）
-    if (!cfg.theme.title.trim()) emit({ type: 'theme', title: text.length > 16 ? text.slice(0, 16) + '…' : text });
-    cfg = { ...cfg, theme: { ...cfg.theme, title: text.length > 30 ? text.slice(0, 30) + '…' : text } };
-    plan();
-  }
-
   return {
     start(config, onEvent) {
       cfg = config; emit = onEvent; stopped = false;
       emit({ type: 'session', state: 'running' });
       cfg.participants.forEach((p) => emit({ type: 'status', agentId: p.agentId, state: 'idle', action: '就座' }));
-      // 前端在用户说出第一句话后才启动引擎，这句话在 theme.brief 里；没有时（直接调用）等用户开口
-      const brief = config.theme.brief?.trim();
-      if (brief) open(brief, false);
-      else emit({ type: 'round', round: 0, label: '等你开口' });
+      plan();
     },
     sendUserMessage({ text, targetAgentId }) {
       if (stopped) return;
-      // 没带 brief 启动时，对全体说的第一句话才开始
-      if (!opened && !targetAgentId) { open(text, true); return; }
       message({ round: currentRound, speakerId: 'user', text, kind: 'user', targetId: targetAgentId });
       const target = cfg.participants.find((p) => p.agentId === targetAgentId)
         ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
       const per = personalityOf(target);
-      const reply = `${per.opener ?? ''}你说“${text.slice(0, 18)}${text.length > 18 ? '…' : ''}”，我记下了。从「${target.persona.knowledge[0] ?? target.persona.name}」的角度，我的看法是：${target.persona.thinking}。`;
+      const reply = `${per.opener ?? ''}你说“${text.slice(0, 18)}${text.length > 18 ? '…' : ''}”，我记下了。从${target.persona.knowledge[0]}的角度，我的看法是：${target.persona.thinking}。`;
       pushFront(...speakStep(target, reply, currentRound, 'reply', 'user'));
       if (!busy && queue.length === 3) pump();
     },

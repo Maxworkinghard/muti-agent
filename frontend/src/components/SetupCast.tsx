@@ -101,7 +101,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
       }
       return {
         agentId: id, seatIndex, color: persona.visual.shirt ?? AGENT_COLORS[i % 8],
-        side: pk.side, isLead: isWork ? id === lead : undefined,
+        side: pk.side, isLead: isProduct ? id === lead : undefined,
         personalityId: pk.personalityId, persona,
       };
     });
@@ -159,11 +159,11 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
                   {p.personalities.map((x) => <option key={x.id} value={x.id}>{x.label}{x.id === p.defaultPersonalityId ? '（默认）' : ''}</option>)}
                 </select>
               </label>
-              <p className="pc-behavior">▸ {per.behavior}{per.style && `　“${per.style}”`}</p>
+              <p className="pc-behavior">▸ {per.behavior}　“{per.style}”</p>
               <div className="pc-actions">
                 <button className={'px-btn ' + (pk ? 'danger' : 'primary')} onClick={() => toggle(p)}>{pk ? '移出' : '入座'}</button>
                 {pk && isDebate && <button className={'px-btn side-' + pk.side} onClick={() => cycleSide(p.id)}>{sideLabel[pk.side!]} ⇄</button>}
-                {pk && isWork && <button className={'px-btn' + (lead === p.id ? ' lead' : '')} onClick={() => setLead(p.id)}>{lead === p.id ? '★ 负责人' : '设为负责人'}</button>}
+                {pk && isProduct && <button className={'px-btn' + (lead === p.id ? ' lead' : '')} onClick={() => setLead(p.id)}>{lead === p.id ? '★ 负责人' : '设为负责人'}</button>}
               </div>
             </article>
           );
