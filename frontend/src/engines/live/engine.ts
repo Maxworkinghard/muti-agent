@@ -163,10 +163,11 @@ class LiveRoom {
     const m = target ? this.minds.get(target) : undefined;
     if (m) return this.whisper(m, clean);
     if (this.finished) this.reopen();
-    // 你开口了，大家接着聊；出错停着的也当作继续，不然后面说的话永远没人回
-    if (this.paused) { this.paused = false; this.emit({ type: 'session', state: 'running' }); }
+    // 出错停着的话，你再开口就当作继续，不然后面说的话永远没人回
     this.hold = false;
     this.addUserLine(clean, true, this.mentionsIn(clean));
+    // 暂停只听暂停 / 继续按钮：这期间大家先听着（心情跟着变、想好怎么接），点「继续」才开口
+    if (this.paused) this.think();
   }
 
   pause() {

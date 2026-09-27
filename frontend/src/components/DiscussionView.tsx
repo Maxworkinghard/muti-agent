@@ -36,13 +36,10 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
   const [errors, setErrors] = useState<ErrorItem[]>([]);
-  // 娱乐模式（活人群聊）：每个人的内心、引擎给的话题段名、打字时自动停下来等你
+  // 娱乐模式（活人群聊）：每个人的内心、引擎给的话题段名
   const live = config.mode === 'entertainment';
   const [minds, setMinds] = useState<Record<string, MindView>>({});
   const [labels, setLabels] = useState<Record<number, string>>({});
-  const [softPause, setSoftPause] = useState(false);
-  /** 打字停下来之后你又点了“继续”：这段草稿再打字就不再停 */
-  const softDismissed = useRef(false);
   // 已经落座的人数；进入讨论页时大家依次入座
   const [seated, setSeated] = useState(0);
   const allSeated = seated >= config.participants.length;
@@ -120,10 +117,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     setSession('running');
     const onEvent = (e: EngineEvent) => {
       switch (e.type) {
-        case 'session':
-          setSession(e.state);
-          if (e.state !== 'paused') setSoftPause(false);
-          break;
+        case 'session': setSession(e.state); break;
         case 'round':
           setRound({ n: e.round, label: e.label });
           setLabels((l) => ({ ...l, [e.round]: e.label }));
@@ -187,28 +181,10 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     if (!text || session === 'stopped') return;
     engineRef.current?.sendUserMessage({ text, targetAgentId: focus ?? undefined });
     setDraft('');
-    // 打字时停下来等你的，说完接着聊（对全体说的话引擎自己会接着聊，私聊要这里叫一声）
-    if (softPause) { engineRef.current?.resume(); setSoftPause(false); }
-    softDismissed.current = false;
-  };
-  /** 娱乐模式：开始打字大家就停下来等你说完；把字删光就接着聊 */
-  const editDraft = (text: string) => {
-    setDraft(text);
-    if (!live) return;
-    if (!text.trim()) {
-      softDismissed.current = false;
-      if (softPause) { engineRef.current?.resume(); setSoftPause(false); }
-    } else if (session === 'running' && !softPause && !softDismissed.current) {
-      engineRef.current?.pause();
-      setSoftPause(true);
-    }
   };
   const togglePause = () => {
     if (session === 'running') engineRef.current?.pause();
-    else if (session === 'paused') {
-      if (softPause) { softDismissed.current = true; setSoftPause(false); }
-      engineRef.current?.resume();
-    }
+    else if (session === 'paused') engineRef.current?.resume();
   };
   const canTalk = session === 'running' || session === 'paused' || session === 'finished';
 
@@ -234,7 +210,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <h1 title={config.theme.title}>主题：{config.theme.title}</h1>
         <SoundToggle />
         <span className="round-tag">{live ? `${round.label} · ${messages.filter((m) => m.kind === 'speech').length} 句` : `R${round.n}/${config.maxRounds} · ${round.label}`}</span>
-        <span className={'live ' + session}>{{ waiting: '○ 等你开场', running: '● LIVE', paused: softPause ? '✎ 等你说完' : '⏸ 已暂停', finished: live ? '■ 散场了 · 再说话能接着聊' : '■ 已结束 · 可追问', stopped: '■ 已停止' }[session]}</span>
+        <span className={'live ' + session}>{{ waiting: '○ 等你开场', running: '● LIVE', paused: '⏸ 已暂停', finished: live ? '■ 散场了 · 再说话能接着聊' : '■ 已结束 · 可追问', stopped: '■ 已停止' }[session]}</span>
       </header>
 
       {/* 中左：场景动态演示 */}
@@ -300,9 +276,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           )}
           {!allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
           {session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
-          {session === 'paused' && (
-            <div className="stage-banner wait">{softPause ? '你在打字 · 大家先停下来等你说完' : '已暂停 · 可以先说你的想法，点「继续」接着讨论'}</div>
-          )}
+          {session === 'paused' && <div className="stage-banner wait">已暂停 · 可以先说你的想法，点「继续」接着讨论</div>}
         </div>
       </section>
 
@@ -398,9 +372,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               placeholder={!canTalk ? '讨论已停止'
                 : session === 'finished' ? (focused ? `讨论结束了，继续私下问 ${focused.persona.name}…` : live ? '散场了，再说一句大家能接着聊（点成员可以私下说）' : '讨论结束了，还可以继续追问（点成员可以私下问）')
                 : focused ? `私下对 ${focused.persona.name} 说…（只有他看得到${live ? '，会改变他的心情和打算' : ''}）`
-                : live ? '对全体说…（@名字 点名；点成员可以私下说；一打字大家就停下来等你）' : '对全体说…（点成员可以私下说）'}
+                : live ? '对全体说…（@名字 点名；点成员可以私下说）' : '对全体说…（点成员可以私下说）'}
               disabled={!canTalk}
-              onChange={(e) => editDraft(e.target.value)}
+              onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
             />
             <button className="px-btn primary" onClick={send} disabled={!canTalk || !draft.trim()}>发送</button>
