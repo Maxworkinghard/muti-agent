@@ -88,9 +88,11 @@ npm run dev
 
 `node serve.mjs` 把静态页、Node 会话后端和 Python 辩论后端合并到一根端口，并把辩论后端作为子进程启动。`serve.mjs` 在仓库根目录，下面两条也在根目录执行：
 
+发布前设置至少 16 个字符的 `APP_ACCESS_PASSWORD`（可放在 `frontend/.env.production` 或进程环境变量）。服务启动后，浏览器访问页面会要求登录：用户名固定为 `roundtable`，密码是该变量的值。页面和全部 API 共用此校验；对外访问请使用 HTTPS，避免 Basic 凭据在传输中泄露。未配置密码时单端口服务会拒绝启动。
+
 ```bash
 npm run build              # 构建页面和 Node 后端（即 frontend/ 里的 build 和 build:server）
-PORT=8080 npm start        # 即 node serve.mjs；默认 5173；辩论后端端口用 DEBATE_PORT 指定，默认 8000
+APP_ACCESS_PASSWORD='replace-with-a-long-random-password' PORT=8080 npm start  # 默认端口 5173；辩论后端端口用 DEBATE_PORT 指定，默认 8000
 ```
 
 若存在 `frontend/.env.production`，它会覆盖 `.env`，两个后端都生效（本地 `npm run dev` 不读它）。

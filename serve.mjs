@@ -11,6 +11,7 @@
  * 约定：监听 process.env.PORT，绑 0.0.0.0；frontend/.env 里的 LLM_* 同时喂给 Node 和 Python。
  */
 import { createServer, request as httpRequest } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { pipeline } from 'node:stream';
 import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, readFileSync } from 'node:fs';
@@ -83,6 +84,28 @@ function readEnvFile(file) {
 // 本地开发时 Vite 的 loadEnv 也是"文件在前、process.env 覆盖在后"，这里保持同样顺序；
 // 中间插一层 .env.production，让线上换模型不用动本机开发用的 .env
 const env = { ...readEnvFile(ENV_FILE), ...readEnvFile(ENV_PROD_FILE), ...process.env };
+const accessPassword = env.APP_ACCESS_PASSWORD || '';
+if (accessPassword.length < 16) {
+  console.error('单端口发布需要至少 16 个字符的 APP_ACCESS_PASSWORD（放在环境变量或 frontend/.env.production）。');
+  process.exit(1);
+}
+const expectedAuth = Buffer.from('roundtable:' + accessPassword);
+
+function authorized(req) {
+  const auth = req.headers.authorization;
+  if (typeof auth !== 'string' || !auth.startsWith('Basic ') || auth.length > 512) return false;
+  const supplied = Buffer.from(auth.slice(6), 'base64');
+  return supplied.length === expectedAuth.length && timingSafeEqual(supplied, expectedAuth);
+}
+
+function sameOrigin(req) {
+  if (req.method === 'GET' || req.method === 'HEAD' || !req.headers.origin) return true;
+  try {
+    return new URL(req.headers.origin).host.toLowerCase() === (req.headers.host || '').toLowerCase();
+  } catch {
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------- Python 辩论后端
 
@@ -247,8 +270,10 @@ function proxyDebate(req, res, pathname) {
     res.end(JSON.stringify({ error: pythonError || '辩论后端未就绪' }));
     return;
   }
+  const headers = { ...req.headers };
+  delete headers.authorization;
   const upstream = httpRequest(
-    { host: '127.0.0.1', port: DEBATE_PORT, method: req.method, path: req.url, headers: { ...req.headers, host: `127.0.0.1:${DEBATE_PORT}` } },
+    { host: '127.0.0.1', port: DEBATE_PORT, method: req.method, path: req.url, headers: { ...headers, host: `127.0.0.1:${DEBATE_PORT}` } },
     (up) => {
       res.writeHead(up.statusCode || 502, up.headers);
       // 用 pipeline 而不是 pipe：两头任一边断了都会把另一边一起收掉，出错也不会抛到进程上
@@ -269,6 +294,19 @@ function proxyDebate(req, res, pathname) {
 // ---------------------------------------------------------------- 主服务
 
 const server = createServer((req, res) => {
+  // 发布入口统一保护页面和 API；浏览器完成一次 Basic 登录后，同源请求会沿用凭据。
+  if (!authorized(req)) {
+    res.writeHead(401, {
+      'WWW-Authenticate': 'Basic realm="Roundtable", charset="UTF-8"',
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    return res.end('需要访问密码');
+  }
+  if (!sameOrigin(req)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('跨站请求被拒绝');
+  }
   const pathname = (req.url || '/').split('?')[0];
 
   if (NODE_API.some((p) => pathname.startsWith(p))) {

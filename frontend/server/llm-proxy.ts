@@ -9,10 +9,22 @@ import { Readable, pipeline } from 'node:stream';
 import type { LlmConfig } from './config.ts';
 import { unwrapCompletion } from './llmAgent.ts';
 
+const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_TOKENS = 10000;
+class BodyTooLarge extends Error {}
+
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (c) => (data += c));
+    let bytes = 0;
+    req.on('data', (c: Buffer) => {
+      bytes += c.length;
+      if (bytes > MAX_BODY_BYTES) {
+        reject(new BodyTooLarge('请求体超过 1 MB'));
+        return;
+      }
+      data += c;
+    });
     req.on('end', () => resolve(data));
     req.on('error', reject);
   });
@@ -32,9 +44,23 @@ export function createLlmHandler(cfg: LlmConfig) {
     let body: Record<string, unknown>;
     try {
       body = JSON.parse(await readBody(req));
-    } catch {
-      return sendJson(res, 400, { error: '请求体不是合法 JSON' });
+    } catch (e) {
+      return e instanceof BodyTooLarge
+        ? sendJson(res, 413, { error: e.message })
+        : sendJson(res, 400, { error: '请求体不是合法 JSON' });
     }
+    if (!body || typeof body !== 'object' || !Array.isArray(body.messages)) return sendJson(res, 400, { error: '缺少消息列表' });
+
+    // 浏览器只用这些参数；模型与输出上限由服务端决定，避免直接转发任意高额度请求。
+    const tokens = Number(body.max_tokens);
+    const payload = {
+      messages: body.messages,
+      model: cfg.model,
+      max_tokens: Number.isFinite(tokens) ? Math.min(Math.max(Math.trunc(tokens), 1), MAX_TOKENS) : MAX_TOKENS,
+      ...(typeof body.temperature === 'number' && Number.isFinite(body.temperature) && body.temperature >= 0 && body.temperature <= 2
+        ? { temperature: body.temperature } : {}),
+      stream: body.stream === true,
+    };
 
     // 浏览器中途断开（停止、离开页面）时一并中止到模型服务的请求，不再白白生成
     const ctrl = new AbortController();
@@ -43,8 +69,7 @@ export function createLlmHandler(cfg: LlmConfig) {
       const upstream = await fetch(cfg.baseUrl + '/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.apiKey },
-        // 前端没指定模型时用 LLM_MODEL
-        body: JSON.stringify({ ...body, model: body.model || cfg.model }),
+        body: JSON.stringify(payload),
         signal: ctrl.signal,
       });
       const type = upstream.headers.get('content-type') || 'application/json';

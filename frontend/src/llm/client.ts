@@ -131,6 +131,7 @@ export async function chatStream(messages: LlmMessage[], onDelta: (chunk: string
   let buf = '';
   let full = '';
   let finish: string | undefined;
+  let completed = false;
   const onAbort = () => reader.cancel().catch(() => {});
   opt.signal?.addEventListener('abort', onAbort);
   try {
@@ -145,7 +146,7 @@ export async function chatStream(messages: LlmMessage[], onDelta: (chunk: string
         const t = line.trim();
         if (!t.startsWith('data:')) continue;
         const payload = t.slice(5).trim();
-        if (payload === '[DONE]') { buf = ''; break; }
+        if (payload === '[DONE]') { completed = true; buf = ''; break; }
         try {
           const choice = JSON.parse(payload).choices?.[0];
           if (choice?.finish_reason) finish = choice.finish_reason;
@@ -159,6 +160,8 @@ export async function chatStream(messages: LlmMessage[], onDelta: (chunk: string
   } finally {
     opt.signal?.removeEventListener('abort', onAbort);
   }
+  if (finish === 'length') throw new LlmError('empty', '模型输出达到长度上限，发言不完整，请调大 maxTokens 后重试', true);
+  if (!completed && finish !== 'stop') throw new LlmError('network', '模型流在发言完成前结束，请重试', true);
   if (!full.trim()) throw emptyError(finish);
   return full;
 }
