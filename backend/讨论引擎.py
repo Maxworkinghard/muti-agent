@@ -9,6 +9,8 @@
 角色决定知识和看问题的角度，性格决定态度和说话方式。
 不写 --人物 时，使用下面 DEMO 里的一组示例搭配。
 
+每个人物发言前，都会拿到从开场到现在的全部发言原文（不做摘要压缩，也不只取最近几条）。
+
 模型配置：复制 模型配置.示例.json 为 模型配置.json，填好 base_url、model、api_key。
 只用 Python 标准库，不需要安装任何包。
 """
@@ -26,7 +28,6 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 from 组装提示词 import build, _find_persona  # noqa: E402
 
-RECENT = 4  # 每次调用带上最近几条发言原文
 MAX_TURNS = 2  # 交锋轮里每人最多发言几次，避免两个人一直对吵
 DEMO = ["老苏:温和狡猾", "阿澜:轻快好奇", "灰先生:冷幽默"]
 sys.stdout.reconfigure(line_buffering=True)  # 不加 -u 也能实时看到输出
@@ -38,9 +39,6 @@ MODERATOR = """你是一场理性讨论的中立主持人，不偏向任何一�
 3. 仍然存在的分歧
 4. 谁在讨论中改变了看法，因为什么
 用简洁、自然的中文写成几段话，不用列表、加粗和“首先、其次、综上所述”，不要加入你自己的观点。"""
-
-SUMMARY = """用 150 字以内概括下面这段讨论到目前为止的进展：各人的立场、主要争论点、谁回应了谁。只输出概括。"""
-
 
 def load_config():
     f = ROOT / "模型配置.json"
@@ -151,10 +149,21 @@ def next_speaker(members, log, spoken):
     return None
 
 
-def user_message(question, others, summary, log, task):
-    recent = "\n".join(f"{x['name']}：{x['speech']}" for x in log[-RECENT:]) or "（还没有人发言）"
-    return (f"议题：{question}\n\n参与者：{others}\n\n前情摘要：{summary}\n\n"
-            f"最近发言：\n{recent}\n\n本轮任务：{task}")
+def record_line(x):
+    """一条发言写成一行：辩论里有辩位和阶段时一并带上，方便看清谁在第几轮说了什么。"""
+    who = (x.get("title") or "") + str(x["name"])
+    phase = f"（{x['phase']}）" if x.get("phase") else ""
+    return f"{who}{phase}：{x['speech']}"
+
+
+def user_message(question, others, log, task):
+    """每次调用发给成员的那条消息：议题、参与者、从开场到现在的全部发言，最后是本轮任务。
+
+    这里不做压缩：不写前情摘要，也不只带最近几条，整场讨论都在上下文里。
+    """
+    record = "\n".join(record_line(x) for x in log) or "（还没有人发言）"
+    return (f"议题：{question}\n\n参与者：{others}\n\n发言记录（从开场到现在）：\n{record}\n\n"
+            f"本轮任务：{task}")
 
 
 def parse_setting(s):
@@ -188,7 +197,7 @@ def main():
                         "personality": personality, "system": system})
 
     cfg = None if a.dry else load_config()
-    log, summary = [], "讨论刚开始。"
+    log = []
     print(f"\n议题：{question}")
     for m in members:
         print(f"  {m['name']}（{m['role']}）性格：{m['personality']}")
@@ -196,7 +205,7 @@ def main():
     def speak(m, rnd, stage):
         others = "、".join(f"{o['name']}（{o['role']}）" for o in members if o is not m)
         pending = None if stage == "开场" else open_challenge(log, m["name"])
-        msg = user_message(question, others, summary, log, task_for(stage, pending))
+        msg = user_message(question, others, log, task_for(stage, pending))
         if a.dry:
             print(f"\n[试跑] 发给 {m['name']} 的用户消息：\n{msg}")
             target = next((o["name"] for o in members if o is not m), None)
@@ -229,9 +238,6 @@ def main():
         else:  # 开场和收尾：每人一次，按选择顺序；收尾时有未回应的质疑会先回应
             for m in members:
                 speak(m, rnd, stage)
-        if not a.dry and rnd < a.rounds:
-            full = "\n".join(f"{x['name']}：{x['speech']}" for x in log)
-            summary = chat(cfg, SUMMARY, f"议题：{question}\n\n{full}").strip()
 
     if a.dry:
         final = "（试跑模式，不生成总结）"
