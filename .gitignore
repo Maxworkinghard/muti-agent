@@ -4,3 +4,6 @@ server-dist/
 
 node_modules/
 *.log
+
+# npm run legacy 检出的旧版（git worktree）
+.legacy/

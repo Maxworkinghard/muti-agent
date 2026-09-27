@@ -2,6 +2,36 @@
 
 多人格讨论工作台：选模式和主题，选几个人物入座，看他们围绕你的问题讨论或分工协作。讨论中可以暂停、插话、继续，讨论结束后还能接着追问。
 
+> **项目准备换方向。** 下面介绍的是换方向之前的版本（圆桌版：娱乐 / 辩论 / 情感分析 / 工作四个模式），它已经完整冻结在分支 [`legacy/v1-roundtable`](https://github.com/Maxworkinghard/muti-agent/tree/legacy/v1-roundtable) 上，之后 main 上的改动不会影响它。
+
+## 换方向之前的版本
+
+### 体验旧版
+
+在仓库根目录执行（第一次会自动检出旧版、安装依赖）：
+
+```bash
+npm run legacy
+```
+
+脚本把旧版检出到 `.legacy/v1-roundtable`（git worktree，不影响当前工作区，已加入 `.gitignore`），同时启动旧版的页面和辩论后端，打开 http://localhost:5174 即可。端口和新版默认的 5173 / 8000 错开，两个版本可以同时开着对比；要换端口用 `LEGACY_PORT`、`LEGACY_DEBATE_PORT`。模型配置沿用当前的 `frontend/.env`；没有 key 时辩论模式以试跑方式运行（示例发言），其余三个模式会提示缺少 `LLM_API_KEY`。
+
+不用 git 的话，也可以在 GitHub 上切到 `legacy/v1-roundtable` 分支下载 ZIP，按那份 README 的「运行」一节启动。
+
+### 回退
+
+旧版的代码只在 `legacy/v1-roundtable` 上保留一份，**不要删除或改动这个分支**。新方向走不通、需要整体回到旧版时：
+
+```bash
+git fetch origin legacy/v1-roundtable
+git checkout -b rollback-v1 origin/main
+git restore --source=origin/legacy/v1-roundtable --worktree --staged .   # 工作区整体换成旧版内容
+git commit -m "回退到换方向之前的版本（legacy/v1-roundtable）"
+git push -u origin rollback-v1                                           # 再开 PR 合进 main
+```
+
+这样回退是一次普通提交，换方向期间的历史都还在，随时可以再改回来；不需要改写 main 的历史。只想取回旧版的个别文件时，把最后的 `.` 换成对应路径即可。
+
 ## 界面
 
 **1. 模式 · 主题 · 场景**：娱乐 / 辩论 / 情感分析 / 工作 四选一，填上想讨论的问题，再挑一张场景图。
@@ -86,9 +116,11 @@ npm run dev
 
 ### 4. 单端口发布（可选）
 
-`node serve.mjs` 把静态页、Node 会话后端和 Python 辩论后端合并到一根端口，并把辩论后端作为子进程启动。`serve.mjs` 在仓库根目录，下面两条也在根目录执行：
+`node serve.mjs` 把静态页、Node 会话后端和 Python 辩论后端合并到一根端口，并把辩论后端作为子进程启动。
 
 发布前设置至少 16 个字符的 `APP_ACCESS_PASSWORD`（可放在 `frontend/.env.production` 或进程环境变量）。服务启动后，浏览器访问页面会要求登录：用户名固定为 `roundtable`，密码是该变量的值。页面和全部 API 共用此校验；对外访问请使用 HTTPS，避免 Basic 凭据在传输中泄露。未配置密码时单端口服务会拒绝启动。
+
+`serve.mjs` 在仓库根目录，下面两条也在根目录执行：
 
 ```bash
 npm run build              # 构建页面和 Node 后端（即 frontend/ 里的 build 和 build:server）
