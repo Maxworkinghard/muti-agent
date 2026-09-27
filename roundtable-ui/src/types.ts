@@ -1,4 +1,4 @@
-export type ModeId = 'entertainment' | 'rational' | 'product' | 'emotion';
+export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
 /** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
 export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
@@ -112,6 +112,8 @@ export interface ChatMessage {
   kind: 'speech' | 'user' | 'reply' | 'system' | 'task';
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
+  /** 发言者身份和环节，例如「正方一辩 · 质询」（辩论引擎用） */
+  tag?: string;
   at: number;
 }
 
@@ -129,6 +131,13 @@ export interface DiscussionResult {
   openQuestions: string[];
   suggestions: string[];
   deliverables?: string[];
+  /** 主持人写的整段总结（辩论引擎用） */
+  summary?: string;
+  /** 正式辩论的判定 */
+  verdict?: {
+    winner?: string; proScore?: number; conScore?: number; reason?: string; judge?: string;
+    motion?: { motion: string; pro: string; con: string };
+  };
 }
 
 /** 引擎回传给前端的事件 */

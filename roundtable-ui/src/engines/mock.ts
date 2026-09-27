@@ -30,14 +30,6 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
     ];
     return pick(pick(lines, round - 1), turn);
   }
-  if (cfg.mode === 'emotion') {
-    const lines = [
-      `${opener}先说一句：遇到「${t}」，心里不舒服是正常的。我从${k}的角度听到的，是你挺在意这件事。`,
-      `${opener}我们把事实和感受分开看：发生了什么是一回事，你怎么解读它是另一回事。${p.persona.thinking}。`,
-      `${opener}下一步可以很小：今天先做一件能让自己好受一点的事。${p.persona.values}。`,
-    ];
-    return pick(lines, round - 1);
-  }
   if (cfg.mode === 'rational') {
     // 轮数可调：第 1 轮立论，最后一轮总结，中间都是交锋
     const phase = round <= 1 ? 1 : round >= cfg.maxRounds ? 3 : 2;
@@ -55,6 +47,17 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
       `${opener}总结我方观点：${p.persona.values}。我们愿意承认的分歧是执行成本，但方向没错。`,
     ];
     return pick(lines, phase - 1);
+  }
+  if (cfg.mode === 'emotion') {
+    const lines = [
+      [`${opener}听你说「${t}」，这事搁谁身上都不好受，先把这份难受放一放，不用急着解决。`,
+       `${opener}我先说我的感觉：你在意这件事，是因为你在意这段关系。${per.behavior}。`],
+      [`${opener}我们分开看：发生了什么是事实，你觉得被忽视是感受，两样都算数。`,
+       `${opener}从${k}的角度，有些想法可能是担心放大出来的，先别急着下结论。`],
+      [`${opener}给你一小步：今天就做一件能做完的小事，${p.persona.values}。`,
+       `${opener}最后一句——${per.style}。有需要随时再来聊。`],
+    ];
+    return pick(pick(lines, round - 1), turn);
   }
   const lines = [
     [`${opener}「${t}」？我先来！作为${p.persona.identity.split(' · ')[0]}，我第一反应是……${k}！`,
