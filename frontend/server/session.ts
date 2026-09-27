@@ -73,7 +73,7 @@ export class RoundtableSession {
     this.emit({ type: 'session', state: 'running' });
     try {
       this.seatAgents();
-      await this.waitForTask();
+      await this.awaitOpening();
       if (this.ended) return;
       if (this.cfg.mode === 'product') await this.runWork();
       else if (this.cfg.mode === 'rational') await this.runDebate();
@@ -124,8 +124,20 @@ export class RoundtableSession {
     this.emit({ type: 'theme', title: this.theme });
   }
 
+  /**
+   * 这一场要处理的事：前端在用户说出第一句话后才开会话，这句话在 theme.brief 里（前端已经显示过，这里只记进记录，不再回显）；
+   * 直接调接口没带 brief 时，进房间后等用户对全体开口
+   */
+  protected async awaitOpening() {
+    const brief = this.cfg.theme.brief?.trim();
+    if (!brief) return this.waitForTask();
+    this.request = brief;
+    this.transcript.push({ id: uid('m'), round: 0, speakerId: 'user', text: brief, kind: 'user', at: Date.now() });
+    if (!this.theme) void this.nameTheme(brief);
+  }
+
   /** 进房间后不自动开始，等用户对全体开口；这期间单独点名的话照常回应 */
-  protected async waitForTask() {
+  private async waitForTask() {
     this.emit({ type: 'round', round: 0, label: '等你开口' });
     while (!this.request && !this.ended) {
       if (this.userQueue.length) { await this.drainUser(); continue; }

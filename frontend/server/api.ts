@@ -98,6 +98,7 @@ function validate(b: any): string {
   if (!b || typeof b !== 'object') return '请求体不是 JSON 对象';
   if (!isModeId(b.mode)) return '未知模式：' + b.mode;
   if (typeof b.theme?.title !== 'string') return '缺少主题字段（可以是空字符串）';
+  if (b.theme.brief !== undefined && typeof b.theme.brief !== 'string') return 'theme.brief 要是字符串';
   if (!Array.isArray(b.participants) || b.participants.length === 0) return '至少需要一位成员';
   for (const p of b.participants) {
     if (!p?.agentId || !p.persona?.name || !Array.isArray(p.persona.personalities)) return '成员资料不完整';

@@ -158,7 +158,7 @@ export class DiscussionSession extends RoundtableSession {
     this.emit({ type: 'session', state: 'running' });
     try {
       this.cfg.participants.forEach((p) => this.status(p, 'idle', '就座'));
-      await this.waitForTask();
+      await this.awaitOpening();
       if (this.ended) return;
       await this.discuss();
       if (this.ended) return;

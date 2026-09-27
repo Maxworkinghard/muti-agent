@@ -23,12 +23,13 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const engineRef = useRef<DiscussionEngine | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Record<string, Status>>({});
-  const [round, setRound] = useState({ n: 0, label: '准备中' });
+  const [round, setRound] = useState({ n: 0, label: '等你开口' });
   // 每一轮的名字以引擎发来的为准（轮数可变的引擎，比如理性讨论，中间几轮都叫交锋）
   const [roundNames, setRoundNames] = useState<Record<number, string>>({});
   // 没填主题时由引擎按用户第一句话生成，收到 theme 事件后更新
   const [theme, setTheme] = useState(config.theme.title);
-  const [session, setSession] = useState<'running' | 'finished' | 'stopped'>('running');
+  // 进房间后先等用户开口（waiting），说出第一句话才启动引擎
+  const [session, setSession] = useState<'waiting' | 'running' | 'finished' | 'stopped'>('waiting');
   const [result, setResult] = useState<DiscussionResult | null>(null);
   const [tasks, setTasks] = useState<TaskEvent[]>([]);
   const [flights, setFlights] = useState<Flight[]>([]);
@@ -75,9 +76,12 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
   const seatOf = (id: string) => scene.seats[byId[id]?.seatIndex ?? 0];
 
-  useEffect(() => {
+  // 用户说出第一句话后才启动引擎：这句话放在 theme.brief 里交给引擎，前端作为第 0 轮显示，引擎不再回显
+  const startWith = (brief: string) => {
     const engine = engineInfo.create();
     engineRef.current = engine;
+    setMessages([{ id: 'brief', round: 0, speakerId: 'user', text: brief, kind: 'user', at: Date.now() }]);
+    setSession('running');
     const onEvent = (e: EngineEvent) => {
       switch (e.type) {
         case 'session': setSession(e.state); break;
@@ -103,13 +107,12 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
       }
     };
     try {
-      engine.start(config, onEvent);
+      engine.start({ ...config, theme: { ...config.theme, brief } }, onEvent);
     } catch (err) {
       onEvent({ type: 'error', id: 'start', message: '引擎启动失败：' + (err as Error).message });
     }
-    return () => engine.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config]);
+  };
+  useEffect(() => () => engineRef.current?.stop(), []);
 
   // 自动滚到底部
   useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, focus, result, errors]);
@@ -120,16 +123,20 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 
   const send = () => {
     const text = draft.trim();
-    if (!text || session !== 'running') return;
-    // 入场还没播完就开口，直接让大家全部就座
-    if (!allSeated) skipIntro();
+    if (!text) return;
+    if (session === 'waiting') {
+      // 第一句话：入场还没播完就直接让大家全部就座，然后开始
+      skipIntro();
+      startWith(text);
+      setDraft('');
+      return;
+    }
+    if (session !== 'running') return;
     engineRef.current?.sendUserMessage({ text, targetAgentId: focus ?? undefined });
     setDraft('');
   };
 
   const focused = focus ? byId[focus] : null;
-  // 进房间后不自动开始，用户对全体说了第一句话才开始
-  const opened = messages.some((m) => m.kind === 'user' && !m.targetId);
   const visible = focused
     // 引擎提示（比如调用失败、还没开场）在只看某个人时也显示
     ? messages.filter((m) => m.kind === 'notice' || m.speakerId === focus || (m.speakerId === 'user' && m.targetId === focus))
@@ -152,7 +159,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <h1 title={theme}>主题：{theme || '说出第一句话后自动生成'}</h1>
         <SoundToggle />
         <span className="round-tag">R{round.n}/{config.maxRounds} · {round.label}</span>
-        <span className={'live ' + session}>{session === 'running' ? '● LIVE' : session === 'finished' ? '■ 已结束' : '■ 已停止'}</span>
+        <span className={'live ' + session}>{session === 'waiting' ? '○ 等你开场' : session === 'running' ? '● LIVE' : session === 'finished' ? '■ 已结束' : '■ 已停止'}</span>
       </header>
 
       {/* 中左：场景动态演示 */}
@@ -228,11 +235,17 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         </div>
         {focused && <PersonaStrip p={focused} status={status[focused.agentId]} />}
         <div className="log" ref={logRef}>
-          {rounds.length === 0 && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : !allSeated ? '大家正在入座…' : opened ? '等待第一位发言…' : '在下面说出你的问题或任务，大家收到后才开始'}</p>}
-          {rounds.length === 0 && !focused && !opened && charCap > 0 && <p className="empty">本场 {config.maxRounds} 轮，每人每次发言不超过 {charCap} 字。</p>}
+          {session === 'waiting' && !focused && (
+            <div className="brief-tip">
+              <b>{allSeated ? '大家已就座，等你开口' : '大家正在入座…'}</b>
+              <p>想说什么都可以，发出去讨论就开始。</p>
+              {charCap > 0 && <p>本场 {config.maxRounds} 轮，每人每次发言不超过 {charCap} 字。</p>}
+            </div>
+          )}
+          {rounds.length === 0 && session !== 'waiting' && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : '等待第一位发言…'}</p>}
           {rounds.map(([r, ms]) => (
             <div key={r} className="round-block">
-              <div className="round-sep">{r === 0 ? '准备' : `第 ${r} 轮 · ${roundNames[r] ?? roundLabel(config.mode, r, config.maxRounds)}`}</div>
+              <div className="round-sep">{r === 0 ? '开场 · 你的理解' : `第 ${r} 轮 · ${roundNames[r] ?? roundLabel(config.mode, r, config.maxRounds)}`}</div>
               {ms.map((m) => <Line key={m.id} m={m} byId={byId} />)}
             </div>
           ))}
@@ -259,17 +272,37 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             </div>
           ))}
         </div>
-        <div className="send">
-          <input
-            className="px-input"
-            value={draft}
-            placeholder={session !== 'running' ? '讨论已结束' : focused ? `对 ${focused.persona.name} 说…` : opened ? '对全体说…（点成员可以单独对话）' : '对全体说出问题或任务后才开始…'}
-            disabled={session !== 'running'}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
-          />
-          <button className="px-btn primary" onClick={send} disabled={session !== 'running' || !draft.trim()}>发送</button>
-        </div>
+        {session === 'waiting' ? (
+          <div className="send brief">
+            <textarea
+              className="px-input"
+              rows={5}
+              autoFocus
+              value={draft}
+              placeholder={theme
+                ? `可以说说你对「${theme}」的理解、背景或关心的点，大家会围绕它讨论；也可以只说一句“OK，开始吧”。（Ctrl+Enter 发送）`
+                : '说说你想讨论的问题或想做的事，背景和关心的点也可以一起写，发出去讨论就开始。（Ctrl+Enter 发送）'}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send(); }}
+            />
+            <div className="brief-foot">
+              <small />
+              <button className="px-btn primary" onClick={send} disabled={!draft.trim()}>发送</button>
+            </div>
+          </div>
+        ) : (
+          <div className="send">
+            <input
+              className="px-input"
+              value={draft}
+              placeholder={session !== 'running' ? '讨论已结束' : focused ? `对 ${focused.persona.name} 说…` : '对全体说…（点成员可以单独对话）'}
+              disabled={session !== 'running'}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
+            />
+            <button className="px-btn primary" onClick={send} disabled={session !== 'running' || !draft.trim()}>发送</button>
+          </div>
+        )}
       </aside>
 
       {/* 底部：成员 */}

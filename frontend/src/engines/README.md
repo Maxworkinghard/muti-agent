@@ -40,7 +40,7 @@ await chatStream(messages, (chunk) => { /* 追加到当前发言 */ });
 
 ## 引擎要遵守的几条约定
 
-- 进入讨论页后不自动开始：`start()` 时只让大家就座（可以 emit `round` 0「等你开口」）。用户对全体说的第一句话（`sendUserMessage` 不带 `targetAgentId`）才开始，这句话就是这一场要处理的事；在那之前点名某个成员只是单聊。没填主题时可以 emit `theme` 事件，按这句话起一个主题。
+- 进入讨论页后不自动开始：前端等用户说出第一句话后才调用 `start()`，这句话放在 `config.theme.brief` 里，前端已经把它作为第 0 轮显示，引擎不要再回显。讨论要围绕它展开：没填主题时它就是要讨论的问题，填了主题时它是补充说明；没填主题时可以 emit `theme` 事件，按它起一个主题。后端会话（`server/session.ts`）在直接调接口、没带 brief 时，仍然等用户对全体说的第一句话。
 - 默认 `maxTokens` 是 10000（`DEFAULT_MAX_TOKENS`），默认超时 90 秒。当前模型会先思考，思考也算在额度里，别调得太小，否则会报“没写出回复”。
 - 所有失败都会抛 `LlmError`，带 `kind`（aborted / timeout / network / auth / quota / rate_limit / server / bad_request / empty）、`retryable` 和中文 `message`。用户点停止引起的中断用 `isAbort(e)` 判断，不要当成错误显示。
 - `stop()` 必须中断正在进行的请求：每次讨论建一个 `AbortController`，把 `signal` 传给 `chat` / `chatStream`，`stop()` 里调 `abort()`。

@@ -99,7 +99,8 @@ export interface SessionConfig {
   sessionId: string;
   mode: ModeId;
   sceneId: SceneId;
-  theme: { title: string };
+  /** brief：用户进讨论页后说的第一句话，前端收到它才调用 start()；没填 title 时它就是要讨论的问题 */
+  theme: { title: string; brief?: string };
   maxRounds: number;
   participants: Participant[];
   /** 引擎可调参数，默认值在各引擎文件夹的 config.ts 里 */

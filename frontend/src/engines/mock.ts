@@ -170,25 +170,30 @@ export function createMockEngine(): DiscussionEngine {
     };
   }
 
+  /** 开始这一场：text 是用户的第一句话，就是这一场要处理的事；前端已经显示过时不再回显 */
+  function open(text: string, echo: boolean) {
+    opened = true;
+    if (echo) message({ round: 1, speakerId: 'user', text, kind: 'user' });
+    // 没填主题：模拟引擎直接截取这句话当主题（真实引擎让模型起名）
+    if (!cfg.theme.title.trim()) emit({ type: 'theme', title: text.length > 16 ? text.slice(0, 16) + '…' : text });
+    cfg = { ...cfg, theme: { ...cfg.theme, title: text.length > 30 ? text.slice(0, 30) + '…' : text } };
+    plan();
+  }
+
   return {
     start(config, onEvent) {
       cfg = config; emit = onEvent; stopped = false;
       emit({ type: 'session', state: 'running' });
       cfg.participants.forEach((p) => emit({ type: 'status', agentId: p.agentId, state: 'idle', action: '就座' }));
-      emit({ type: 'round', round: 0, label: '等你开口' });
+      // 前端在用户说出第一句话后才启动引擎，这句话在 theme.brief 里；没有时（直接调用）等用户开口
+      const brief = config.theme.brief?.trim();
+      if (brief) open(brief, false);
+      else emit({ type: 'round', round: 0, label: '等你开口' });
     },
     sendUserMessage({ text, targetAgentId }) {
       if (stopped) return;
-      // 进房间后不自动开始：对全体说的第一句话才开始，并且它就是这一场要处理的事
-      if (!opened && !targetAgentId) {
-        opened = true;
-        message({ round: 1, speakerId: 'user', text, kind: 'user' });
-        // 没填主题：模拟引擎直接截取这句话当主题（真实引擎让模型起名）
-        if (!cfg.theme.title.trim()) emit({ type: 'theme', title: text.length > 16 ? text.slice(0, 16) + '…' : text });
-        cfg = { ...cfg, theme: { title: text.length > 30 ? text.slice(0, 30) + '…' : text } };
-        plan();
-        return;
-      }
+      // 没带 brief 启动时，对全体说的第一句话才开始
+      if (!opened && !targetAgentId) { open(text, true); return; }
       message({ round: currentRound, speakerId: 'user', text, kind: 'user', targetId: targetAgentId });
       const target = cfg.participants.find((p) => p.agentId === targetAgentId)
         ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
