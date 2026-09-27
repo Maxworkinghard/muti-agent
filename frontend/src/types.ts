@@ -1,4 +1,4 @@
-export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'discussion' | 'product';
+export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
 /** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
 export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
@@ -25,7 +25,7 @@ export interface PersonaVisual {
   hairStyle?: 'short' | 'long' | 'bun' | 'cap' | 'spiky' | 'curly' | 'side' | 'middle' | 'hood' | 'beanie';
   /** 表情和配饰，可以叠加；围巾用 accent 颜色 */
   extras?: Array<'brows' | 'glasses' | 'sleepy' | 'happy' | 'grin' | 'blush' | 'sweat' | 'ears' | 'scarf'>;
-  /** 头像图片地址；有图片时显示图片，不画像素小人 */
+  /** 头像图片地址；为空时画像素小人 */
   image?: string;
 }
 
@@ -51,8 +51,6 @@ export interface Seat {
   x: number; // 占底图宽度的百分比
   y: number; // 占底图高度的百分比
   group?: Side;
-  /** 坐在这里的人朝哪边，和底图里椅子的朝向一致；不写就看向场景中心 */
-  face?: Facing;
 }
 
 export interface SceneDef {
@@ -60,6 +58,7 @@ export interface SceneDef {
   name: string;
   image: string;
   description: string;
+  recommendedMode: ModeId;
   maxSeats: number;
   seats: Seat[];
   /** 场景中心：圆桌中心 / 文件交换台 */
@@ -76,12 +75,9 @@ export interface ModeDef {
   color: string;
   scene: SceneId;
   roundLabels: string[];
-  /** 图鉴里导入按钮的文字 */
-  importLabel: string;
-  /** 推荐主题库，第一步每次随机挑几个显示 */
   presets: string[];
-  /** 人物和性格来自 backend/ 的人格数据库（/api/discussion/options），不用前端的人物列表，也不能导入 */
-  backendPersonas?: boolean;
+  /** 选人物页导入按钮的文字 */
+  importLabel: string;
 }
 
 /** 前端交给引擎的会话配置 */
@@ -99,9 +95,11 @@ export interface SessionConfig {
   sessionId: string;
   mode: ModeId;
   sceneId: SceneId;
-  /** brief：用户进讨论页后说的第一句话，前端收到它才调用 start()；没填 title 时它就是要讨论的问题 */
+  /** brief：用户在讨论开始前发的第一句话，即对项目的详细理解 */
   theme: { title: string; brief?: string };
   maxRounds: number;
+  /** 每次发言的字数上限；不填表示不限制 */
+  maxChars?: number;
   participants: Participant[];
   /** 引擎可调参数，默认值在各引擎文件夹的 config.ts 里 */
   engineOptions: Record<string, unknown>;
@@ -120,9 +118,9 @@ export interface ChatMessage {
   kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice';
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
+  /** 发言者身份和环节，例如「正方一辩 · 质询」（辩论引擎用） */
+  tag?: string;
   at: number;
-  /** 理性讨论引擎给出的发言标注：立场、回应了谁、质疑了谁 */
-  meta?: { stance?: string; respondsTo?: string | null; challenge?: string | null; challengeTarget?: string | null; answered?: string | null };
 }
 
 export interface TaskEvent {
@@ -139,13 +137,18 @@ export interface DiscussionResult {
   openQuestions: string[];
   suggestions: string[];
   deliverables?: string[];
-  /** 主持人总结原文（理性讨论引擎直接给一段话） */
+  /** 主持人写的整段总结（辩论引擎用） */
   summary?: string;
+  /** 正式辩论的判定 */
+  verdict?: {
+    winner?: string; proScore?: number; conScore?: number; reason?: string; judge?: string;
+    motion?: { motion: string; pro: string; con: string };
+  };
 }
 
 /** 引擎回传给前端的事件 */
 export type EngineEvent =
-  | { type: 'session'; state: 'running' | 'finished' | 'stopped' }
+  | { type: 'session'; state: 'running' | 'paused' | 'finished' | 'stopped' }
   | { type: 'round'; round: number; label: string }
   | { type: 'status'; agentId: string; state: AgentState; action: string }
   | { type: 'message'; message: ChatMessage }
@@ -161,8 +164,12 @@ export type EngineEvent =
 /** 各小组实现的讨论引擎都遵守这个接口 */
 export interface DiscussionEngine {
   start(config: SessionConfig, emit: (event: EngineEvent) => void): void;
-  /** 用户插话；targetAgentId 为空表示对全体 */
+    /** 用户插话；targetAgentId 为空表示对全体。暂停中和讨论结束后也可以发，被问到的人会回应 */
   sendUserMessage(input: { text: string; targetAgentId?: string }): void;
+    /** 暂停：正在说的人说完这一句就停下，期间用户发的话照常回应 */
+    pause(): void;
+    /** 从暂停的地方接着讨论 */
+    resume(): void;
   /** 停止讨论：清掉计时器，并中断正在进行的 AI 请求（把 AbortSignal 传给 chat / chatStream） */
   stop(): void;
 }

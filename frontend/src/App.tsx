@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
-import type { ModeId, Persona, SceneDef, SceneId, SessionConfig } from './types';
+import type { ModeId, SceneDef, SceneId, SessionConfig } from './types';
 import { SetupScene } from './components/SetupScene';
 import { SetupCast } from './components/SetupCast';
-import { DiscussionCast } from './components/DiscussionCast';
 import { DiscussionView } from './components/DiscussionView';
 import { PersonaCodex } from './components/PersonaCodex';
 import { LIBRARY_PERSONAS } from './data/personas';
-import { MODES, modeById } from './data/modes';
-import { loadOptions, toPersona } from './data/backendPersonas';
+import { DB_PREFIX, loadOptions, toPersona } from './data/backendPersonas';
 import { loadCustomScenes, saveCustomScenes } from './data/scenes';
 import { SoundToggle } from './sound';
 
@@ -18,14 +16,26 @@ export interface Draft {
 }
 
 export default function App() {
-  // 1 模式·主题·场景 → 2 选人物 → 3 讨论室
+  // 1 模式·主题·场景 → 2 选人物 → 3 讨论室；娱乐、辩论、工作共用这三步
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [draft, setDraft] = useState<Draft>({ mode: 'entertainment', theme: '', sceneId: 'roundtable' });
-  // 人物来自 frontend/personas/ 下的 JSON（人物库），图鉴里导入的人物也加进来
   const [personas, setPersonas] = useState(LIBRARY_PERSONAS);
+  /** 辩论用 backend/人物 里的人物数据库，读不到时在选人物页提示 */
+  const [dbNotice, setDbNotice] = useState('');
+  useEffect(() => {
+    loadOptions()
+      .then((o) => {
+        const db = o.personas.map((p, i) => toPersona(p, i, o.personalities));
+        setPersonas((old) => [...old.filter((x) => !x.id.startsWith(DB_PREFIX)), ...db]);
+        setDbNotice(o.dryRun ? '辩论后端是试跑模式：不调用模型，只显示示例发言' : o.configError ? '⚠ ' + o.configError : '');
+      })
+      .catch(() => setDbNotice('⚠ 连不上辩论后端，请先在 backend 文件夹运行 python 服务.py，然后刷新页面'));
+  }, []);
+  /** 辩论只用人物数据库里的人物，娱乐和工作模式照旧 */
+  const isRational = draft.mode === 'rational';
+  const castPersonas = isRational ? personas.filter((p) => p.id.startsWith(DB_PREFIX)) : personas;
   const [session, setSession] = useState<SessionConfig | null>(null);
   const [codex, setCodex] = useState(false);
-  // 用户自己添加的场景存在浏览器本地；图片太大存不下时只在本次打开时可用
   const [customScenes, setCustomScenes] = useState<SceneDef[]>(loadCustomScenes);
   const [sceneMsg, setSceneMsg] = useState('');
   const updateScenes = (list: SceneDef[]) => {
@@ -35,30 +45,21 @@ export default function App() {
   const saveScene = (s: SceneDef) => updateScenes([...customScenes.filter((x) => x.id !== s.id), s]);
   const deleteScene = (id: string) => {
     updateScenes(customScenes.filter((x) => x.id !== id));
-    if (draft.sceneId === id) setDraft({ ...draft, sceneId: modeById(draft.mode).scene });
+    if (draft.sceneId === id) setDraft({ ...draft, sceneId: 'roundtable' });
   };
-  // 第一页没有上一步，不显示返回键
   const canBack = codex || step === 2;
   const back = () => (codex ? setCodex(false) : setStep(1));
-  const importPersonas = (list: Persona[]) =>
+  const importPersonas = (list: typeof personas) =>
     setPersonas((old) => [...old.filter((o) => !list.some((n) => n.id === o.id)), ...list]);
-
-  // 理性讨论的人物在 backend 的人格数据库里：打开图鉴时向 backend 要一次，没启动就先不显示
-  useEffect(() => {
-    if (!codex) return;
-    const mode = MODES.find((m) => m.backendPersonas);
-    if (!mode) return;
-    loadOptions()
-      .then((o) => importPersonas(o.personas.map((p, i) => toPersona(p, i, o.personalities, mode.id))))
-      .catch(() => {});
-  }, [codex]);
 
   return (
     <div className="app">
       {step < 3 && (
         <header className="topbar">
           <div className="topbar-left">
-            {canBack && <button className="back-btn" onClick={back} title={codex ? '关闭图鉴' : '返回上一步'}>◀ 返回</button>}
+            {canBack && (
+              <button className="back-btn" onClick={back} title={codex ? '关闭图鉴' : '返回上一步'}>◀ 返回</button>
+            )}
             <span className="logo">多人格讨论工作台</span>
           </div>
           <ol className="steps">
@@ -68,37 +69,31 @@ export default function App() {
               </li>
             ))}
           </ol>
-          <div className="topbar-right">
-            <SoundToggle className="top" />
-            <button className={'codex-btn' + (codex ? ' on' : '')} onClick={() => setCodex(!codex)} title="查看各模式的人物模板">▤ 图鉴</button>
-          </div>
+          <SoundToggle className="top" />
+          <button className={'codex-btn' + (codex ? ' on' : '')} onClick={() => setCodex(!codex)} title="查看各模式的人物模板">▤ 图鉴</button>
         </header>
       )}
       {sceneMsg && step === 1 && !codex && <p className="scene-warn" onClick={() => setSceneMsg('')}>{sceneMsg}（点击关闭）</p>}
       {codex && step < 3 && <PersonaCodex personas={personas} initialMode={draft.mode} onImport={importPersonas} onClose={() => setCodex(false)} />}
-      {/* 打开图鉴时第 1、2 步只是藏起来，不卸载，关掉图鉴后已选的人物还在 */}
-      <div className="screen" hidden={codex}>
-        {step === 1 && (
-          <SetupScene
-            draft={draft}
-            onChange={setDraft}
-            onNext={() => setStep(2)}
-            customScenes={customScenes}
-            onSaveScene={saveScene}
-            onDeleteScene={deleteScene}
-          />
-        )}
-        {/* 返回统一用顶栏左上角的按钮，页脚不再放返回 */}
-        {step === 2 && (modeById(draft.mode).backendPersonas
-          ? <DiscussionCast draft={draft} onStart={(cfg) => { setSession(cfg); setStep(3); }} />
-          : (
-            <SetupCast
-              draft={draft}
-              personas={personas}
-              onStart={(cfg) => { setSession(cfg); setStep(3); }}
-            />
-          ))}
-      </div>
+      {!codex && step === 1 && (
+        <SetupScene
+          draft={draft}
+          onChange={setDraft}
+          onNext={() => setStep(2)}
+          customScenes={customScenes}
+          onSaveScene={saveScene}
+          onDeleteScene={deleteScene}
+        />
+      )}
+      {!codex && step === 2 && (
+        <SetupCast
+          draft={draft}
+          personas={castPersonas}
+          maxMembers={isRational ? 5 : undefined}
+          notice={isRational ? dbNotice : undefined}
+          onStart={(cfg) => { setSession(cfg); setStep(3); }}
+        />
+      )}
       {step === 3 && session && <DiscussionView key={session.sessionId} config={session} onExit={() => setStep(2)} />}
     </div>
   );

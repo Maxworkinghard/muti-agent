@@ -1,4 +1,4 @@
-import type { Persona } from '../types';
+import type { ModeId, Persona } from '../types';
 import { isModeId } from './modes';
 // 协议格式的校验规则只维护一份，前端直接复用 persona-protocol 里的实现
 import { loadPersona } from '../../../persona-protocol/src/protocol.mjs';
@@ -14,9 +14,10 @@ export interface PersonaCheck {
 }
 
 /**
- * 人物库：自动读取 frontend/personas/ 下的所有 JSON，按路径排序（文件名前面的数字决定先后）。
- * 文件夹名是模式 id 时（entertainment、rational、emotion、product）就是默认模式；文件里写了 modes 时以文件为准。
- * 同时支持协议 v1.0（{ schemaVersion, persona }）和前端简化格式，说明见 personas/README.md。
+ * 人物库：自动读取项目根目录 personas/ 下的所有 JSON。
+ * personas/entertainment、personas/rational、personas/product、personas/emotion 分别放四个模式的人物，
+ * 文件夹名就是默认模式；文件里写了 modes 时以文件为准。
+ * 同时支持协议 v1.0（{ schemaVersion, persona }）和前端简化格式。
  */
 const files = import.meta.glob('../../personas/**/*.json', { eager: true, import: 'default' });
 
@@ -24,7 +25,7 @@ function loadLibrary(): { personas: Persona[]; issues: PersonaCheck[] } {
   const out: Persona[] = [];
   const issues: PersonaCheck[] = [];
   Object.entries(files).sort(([a], [b]) => a.localeCompare(b)).forEach(([path, raw]) => {
-    const folder = path.split('/').slice(-2, -1)[0];
+    const folder = path.split('/').slice(-2, -1)[0] as ModeId;
     const c = checkPersona(raw, out.length, 'personas/' + path.split('/personas/')[1]);
     if (c.errors.length || c.warnings.length) {
       issues.push(c);
@@ -35,11 +36,13 @@ function loadLibrary(): { personas: Persona[]; issues: PersonaCheck[] } {
       issues.push({ source: c.source, errors: ['人物 id "' + c.persona.id + '" 和别的文件重复，已跳过'], warnings: [] });
       return;
     }
-    if (!c.persona.modes?.length && isModeId(folder)) c.persona.modes = [folder];
+    if (!c.persona.modes?.length && MODE_IDS.includes(folder)) c.persona.modes = [folder];
     out.push(c.persona);
   });
   return { personas: out, issues };
 }
+
+const MODE_IDS: ModeId[] = ['entertainment', 'rational', 'product', 'emotion'];
 
 const VERBOSITY: Record<string, string> = { short: '简短', medium: '适中', long: '详细' };
 const HUMOR: Record<string, string> = { none: '不开玩笑', light: '偶尔幽默', frequent: '经常开玩笑' };
@@ -51,7 +54,7 @@ function avatarUrl(a: unknown): string | undefined {
   return a.startsWith('https://') ? a : '/' + a;
 }
 
-/** 人格资料包协议 v1.0（已经通过校验的 persona）转成前端人物结构 */
+/** 人格资料包协议 v1.0（{ schemaVersion, persona }）转成前端人物结构 */
 function fromProtocol(p: Record<string, any>): Persona {
   const traits: any[] = p.personality?.traitOptions ?? [];
   const cs = p.communicationStyle ?? {};
@@ -85,7 +88,7 @@ function fromProtocol(p: Record<string, any>): Persona {
       ...(b.mustNot ?? []).map((t: string) => (String(t).startsWith('不') ? String(t) : '不' + t)),
       ...(b.forbiddenTopics ?? []).map((t: string) => '不涉及' + t),
     ],
-    // 协议里没有像素形象，用 visual.color 作衣服颜色；有头像图片时显示图片，没有时画像素小人
+    // 协议里没有像素形象，用 visual.color 作衣服颜色；avatar 为空时前端画像素占位头像
     visual: { skin: '#f1c9a5', hair: '#2b2136', shirt: p.visual.color, accent: '#fbf5e4', hairStyle: 'short', image: avatarUrl(p.visual.avatar) },
     protocol: p,
   };
@@ -95,9 +98,9 @@ function fromProtocol(p: Record<string, any>): Persona {
 const pretty = (line: string) => line.replace(/^\$\.?/, '顶层').replace(/^persona\./, '');
 
 /**
- * 校验并补全一个人物 JSON（人物库的文件和图鉴里导入的文件都走这里）。
+ * 校验并补全一个人物 JSON。
  * 协议 v1.0（{ schemaVersion, persona }）走 persona-protocol 的完整校验；
- * 其余按前端简化格式处理，字段和 src/types.ts 的 Persona 一样。
+ * 其余按前端简化格式处理（demo 人物用的就是这种）。
  */
 export function checkPersona(raw: unknown, index: number, source: string): PersonaCheck {
   const fail = (msg: string): PersonaCheck => ({ source, errors: [msg], warnings: [] });
@@ -137,7 +140,6 @@ export function checkPersona(raw: unknown, index: number, source: string): Perso
 }
 
 const library = loadLibrary();
-/** 人物库里加载成功的人物 */
 export const LIBRARY_PERSONAS: Persona[] = library.personas;
-/** 人物库里有错误或提醒的文件，图鉴里可以查看 */
+/** 人物库里有问题的文件，选人物页会列出来 */
 export const LIBRARY_ISSUES: PersonaCheck[] = library.issues;

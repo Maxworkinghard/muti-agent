@@ -3,6 +3,8 @@ import type {
 } from '../types';
 import { roundLabel } from '../data/modes';
 
+/** 演示用的模拟引擎，三个模式暂时共用。真实引擎到位后各自替换 */
+
 let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
 const pick = <T,>(arr: T[], n: number) => arr[Math.abs(n) % arr.length];
@@ -47,6 +49,17 @@ function speak(p: Participant, cfg: SessionConfig, round: number, turn: number):
     ];
     return pick(lines, phase - 1);
   }
+  if (cfg.mode === 'emotion') {
+    const lines = [
+      [`${opener}听你说「${t}」，这事搁谁身上都不好受，先把这份难受放一放，不用急着解决。`,
+       `${opener}我先说我的感觉：你在意这件事，是因为你在意这段关系。${per.behavior}。`],
+      [`${opener}我们分开看：发生了什么是事实，你觉得被忽视是感受，两样都算数。`,
+       `${opener}从${k}的角度，有些想法可能是担心放大出来的，先别急着下结论。`],
+      [`${opener}给你一小步：今天就做一件能做完的小事，${p.persona.values}。`,
+       `${opener}最后一句——${per.style}。有需要随时再来聊。`],
+    ];
+    return pick(pick(lines, round - 1), turn);
+  }
   const lines = [
     [`${opener}「${t}」？我先来！作为${p.persona.identity.split(' · ')[0]}，我第一反应是……${k}！`,
      `${opener}这个话题我喜欢。${per.behavior}，所以我的答案可能有点意外。`],
@@ -69,7 +82,6 @@ export function createMockEngine(): DiscussionEngine {
   let busy = false;
 
   const later = (fn: () => void, ms: number) => {
-    // 发言速度倍率来自 engineOptions.speed（默认值在各引擎的 config.ts）
     const speed = Number(cfg?.engineOptions?.speed ?? 1) || 1;
     const id = window.setTimeout(() => { if (!stopped) fn(); }, ms / speed);
     timers.push(id);
@@ -91,17 +103,16 @@ export function createMockEngine(): DiscussionEngine {
     emit({ type: 'message', message: { ...m, id: uid('m'), at: Date.now() } });
 
   const speakStep = (p: Participant, raw: string, round: number, kind: ChatMessage['kind'] = 'speech', targetId?: string) => {
-    // 选人页设了字数上限（engineOptions.maxChars）时，超出的部分截掉
-    const limit = Number(cfg.engineOptions?.maxChars) || 0;
+    const limit = cfg.maxChars;
     const text = limit && raw.length > limit ? raw.slice(0, limit - 1) + '…' : raw;
     return [
-      () => { emit({ type: 'status', agentId: p.agentId, state: 'thinking', action: '思考中…' }); return 700; },
-      () => {
-        emit({ type: 'status', agentId: p.agentId, state: 'speaking', action: kind === 'reply' ? '回应用户' : '发言中' });
-        message({ round, speakerId: p.agentId, text, kind, targetId });
-        return 1800 + Math.min(text.length * 25, 1600);
-      },
-      () => { emit({ type: 'status', agentId: p.agentId, state: 'idle', action: '倾听' }); return 250; },
+    () => { emit({ type: 'status', agentId: p.agentId, state: 'thinking', action: '思考中…' }); return 700; },
+    () => {
+      emit({ type: 'status', agentId: p.agentId, state: 'speaking', action: kind === 'reply' ? '回应用户' : '发言中' });
+      message({ round, speakerId: p.agentId, text, kind, targetId });
+      return 1800 + Math.min(text.length * 25, 1600);
+    },
+    () => { emit({ type: 'status', agentId: p.agentId, state: 'idle', action: '倾听' }); return 250; },
     ];
   };
 
@@ -111,8 +122,6 @@ export function createMockEngine(): DiscussionEngine {
   const taskName = (p: Participant, suffix: string) => (p.persona.knowledge[0] ?? p.persona.name) + suffix;
 
   function plan() {
-    // 「工作 · 创造项目」：负责人拆分派发 → 并行执行、交接 → 复核交付
-    const isWork = cfg.mode === 'product';
     const ps = cfg.participants;
     const ordered = cfg.mode === 'rational'
       ? [...ps.filter((p) => p.side === 'host'), ...interleave(ps.filter((p) => p.side === 'pro'), ps.filter((p) => p.side === 'con'))]
@@ -202,6 +211,8 @@ export function createMockEngine(): DiscussionEngine {
       pushFront(...speakStep(target, reply, currentRound, 'reply', 'user'));
       if (!busy && queue.length === 3) pump();
     },
+    pause() {},
+    resume() {},
     stop() {
       stopped = true;
       timers.forEach(clearTimeout); timers = []; queue.length = 0;
@@ -215,4 +226,3 @@ function interleave<T>(a: T[], b: T[]) {
   for (let i = 0; i < Math.max(a.length, b.length); i++) { if (a[i]) out.push(a[i]); if (b[i]) out.push(b[i]); }
   return out;
 }
-

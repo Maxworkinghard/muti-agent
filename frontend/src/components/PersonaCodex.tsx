@@ -19,14 +19,12 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
   const [showChecks, setShowChecks] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const m = MODES.find((x) => x.id === mode)!;
-  // 人物来自 backend 的模式只列 backend 的人物；其他模式里没写 modes 的人物处处可用
-  const inMode = (id: ModeId) => personas.filter((p) => (MODES.find((x) => x.id === id)?.backendPersonas ? p.modes?.includes(id) : !p.modes || p.modes.includes(id)));
-  const list = inMode(mode);
+  const list = personas.filter((p) => !p.modes || p.modes.includes(mode));
 
   const onFile = async (f: File) => {
     let data: unknown;
     try {
-      data = JSON.parse((await f.text()).replace(/^﻿/, ''));
+      data = JSON.parse((await f.text()).replace(/^\uFEFF/, ''));
     } catch (e) {
       setImportMsg('导入失败：' + f.name + ' 不是合法的 JSON');
       setChecks([{ source: f.name, errors: ['JSON 格式错误：' + (e as Error).message], warnings: [] }]);
@@ -34,15 +32,14 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
       return;
     }
     const arr = Array.isArray(data) ? data : [data];
-    // 序号按文件里的位置算，报错时能对上是第几项
     const results = arr.map((raw, i) => checkPersona(raw, personas.length + i, arr.length > 1 ? f.name + ' 第 ' + (i + 1) + ' 项' : f.name));
     const ok = results.flatMap((r) => (r.persona ? [r.persona] : []));
     // 导入的人物如果没写 modes，默认放进当前标签的模式
     ok.forEach((p) => { if (!p.modes?.length) p.modes = [mode]; });
     onImport(ok);
-    const wrongMode = ok.filter((p) => p.modes && !p.modes.includes(mode)).map((p) => p.name);
     const failed = results.filter((r) => !r.persona).length;
     const warned = results.filter((r) => r.persona && r.warnings.length).length;
+    const wrongMode = ok.filter((p) => p.modes && !p.modes.includes(mode)).map((p) => p.name);
     setImportMsg(
       `导入 ${ok.length} 个人物到${m.name}` + (failed ? `，${failed} 个失败` : '') + (warned ? `，${warned} 个有提醒` : '')
       + (wrongMode.length ? `；${wrongMode.join('、')} 属于其他模式，请切换标签查看` : ''),
@@ -59,7 +56,7 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
         <div className="codex-tabs">
           {MODES.map((x) => (
             <button key={x.id} className={'codex-tab' + (x.id === mode ? ' on' : '')} style={{ ['--mc' as string]: x.color }} onClick={() => setMode(x.id)}>
-              {x.name}<i>{inMode(x.id).length}</i>
+              {x.name}<i>{personas.filter((p) => !p.modes || p.modes.includes(x.id)).length}</i>
             </button>
           ))}
         </div>
@@ -67,18 +64,16 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
       <section className="panel">
         <div className="codex-head">
           <h2><b>{m.tag}</b> {m.name}模式 · {list.length} 位人物</h2>
-          {!m.backendPersonas && (
-            <div className="cast-tools">
-              <input ref={fileRef} type="file" accept=".json,application/json" hidden
-                onChange={(e) => { if (e.target.files?.[0]) onFile(e.target.files[0]); e.target.value = ''; }} />
-              <button className="px-btn primary" onClick={() => fileRef.current?.click()}>{m.importLabel}</button>
-              {checks.length > 0 && (
-                <button className="px-btn tiny" onClick={() => setShowChecks(!showChecks)}>
-                  {showChecks ? '收起' : '查看'}问题（{checks.length}）
-                </button>
-              )}
-            </div>
-          )}
+          <div className="cast-tools">
+            <input ref={fileRef} type="file" accept=".json,application/json" hidden
+              onChange={(e) => { if (e.target.files?.[0]) onFile(e.target.files[0]); e.target.value = ''; }} />
+            <button className="px-btn primary" onClick={() => fileRef.current?.click()}>{m.importLabel}</button>
+            {checks.length > 0 && (
+              <button className="px-btn tiny" onClick={() => setShowChecks(!showChecks)}>
+                {showChecks ? '收起' : '查看'}问题（{checks.length}）
+              </button>
+            )}
+          </div>
         </div>
         {importMsg && <p className="hint">{importMsg}</p>}
         {showChecks && checks.length > 0 && (
@@ -94,8 +89,7 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
             ))}
           </div>
         )}
-        {list.length === 0 && <p className="empty">{m.backendPersonas ? '这个模式的人物来自 backend/ 的人格数据库，现在没读到：确认 backend/ 还在，并且是用 npm run dev 启动的' : '这个模式还没有人物模板'}</p>}
-        {m.backendPersonas && list.length > 0 && <p className="hint">人物来自 backend 的人格数据库，每个人在开讨论前自选一种性格</p>}
+        {list.length === 0 && <p className="empty">这个模式还没有人物模板</p>}
         <div className="codex-grid">
           {list.map((p, i) => (
             <button key={p.id} className="codex-card" style={{ ['--ac' as string]: p.visual.shirt, animationDelay: i * 40 + 'ms' }} onClick={() => setOpen(p)}>
@@ -116,7 +110,6 @@ export function PersonaCodex({ personas, initialMode, onImport, onClose }: {
 }
 
 function PersonaDetail({ p, onClose }: { p: Persona; onClose: () => void }) {
-  // 按人格资料包协议 v1.0 导入的人物，额外展示协议里才有的字段
   const raw = p.protocol as Record<string, any> | undefined;
   const style = raw?.communicationStyle;
   const rows: Array<[string, string | undefined]> = [

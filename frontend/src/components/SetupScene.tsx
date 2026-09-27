@@ -5,19 +5,6 @@ import { MODES } from '../data/modes';
 import { SCENE_LIST } from '../data/scenes';
 import { SceneEditor } from './SceneEditor';
 
-/** 推荐主题一次显示几个 */
-const PICKS = 3;
-
-/** 从主题库里随机挑 n 个（洗牌后取前 n 个） */
-function sample(list: string[], n: number) {
-  const a = [...list];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a.slice(0, n);
-}
-
 export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene, onDeleteScene }: {
   draft: Draft;
   onChange: (d: Draft) => void;
@@ -30,13 +17,6 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
   const scenes = [...SCENE_LIST, ...customScenes];
   // null：关闭；'new'：添加；其他：编辑这个场景
   const [editing, setEditing] = useState<SceneDef | 'new' | null>(null);
-  // 每次进入这一步、切换模式或点「换一批」都重新随机
-  const [picks, setPicks] = useState(() => sample(mode.presets, PICKS));
-  const reshuffle = () => {
-    // 尽量换成这次没出现过的
-    const rest = mode.presets.filter((p) => !picks.includes(p));
-    setPicks(sample(rest.length >= PICKS ? rest : mode.presets, PICKS));
-  };
   return (
     <main className="setup">
       <section className="panel">
@@ -47,7 +27,8 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
               key={m.id}
               className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
               style={{ ['--mc' as string]: m.color }}
-              onClick={() => { onChange({ ...draft, mode: m.id, sceneId: m.scene }); setPicks(sample(m.presets, PICKS)); }}
+              // 换模式时，上一个模式的预设主题不再适用，清空；用户手写的主题保留
+              onClick={() => onChange({ ...draft, mode: m.id, sceneId: m.scene, theme: mode.presets.includes(draft.theme) ? '' : draft.theme })}
             >
               <span className="tag">{m.tag}</span>
               <strong>{m.name}</strong>
@@ -68,10 +49,9 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
           onChange={(e) => onChange({ ...draft, theme: e.target.value })}
         />
         <div className="chips">
-          {picks.map((p) => (
+          {mode.presets.map((p) => (
             <button key={p} className="chip" onClick={() => onChange({ ...draft, theme: p })}>{p}</button>
           ))}
-          <button className="chip shuffle" onClick={reshuffle} title="换一批推荐主题">↻ 换一批</button>
         </div>
       </section>
 
@@ -85,6 +65,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
                 <strong>{s.name}</strong>
                 <span>{s.maxSeats} 席</span>
                 {s.custom && <i className="mine">自定义</i>}
+                {s.recommendedMode === draft.mode && <i className="rec">推荐</i>}
               </div>
               <small>{s.description}</small>
               {s.custom && (
@@ -101,12 +82,13 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
       </section>
 
       <footer className="setup-foot">
-        <span>{mode.name} · {scenes.find((s) => s.id === draft.sceneId)?.name}</span>
-        <button className="px-btn primary" onClick={onNext}>下一步：选择人物 ▶</button>
+        <span>{mode.name} · {scenes.find((s) => s.id === draft.sceneId)?.name} · {draft.theme || '（还没有主题）'}</span>
+        <button className="px-btn primary" disabled={!draft.theme.trim()} onClick={onNext}>下一步：选择人物 ▶</button>
       </footer>
       {editing && (
         <SceneEditor
           initial={editing === 'new' ? undefined : editing}
+          defaultMode={draft.mode}
           onClose={() => setEditing(null)}
           onSave={(s) => { onSaveScene(s); onChange({ ...draft, sceneId: s.id }); setEditing(null); }}
           onDelete={editing === 'new' ? undefined : () => { onDeleteScene(editing.id); setEditing(null); }}

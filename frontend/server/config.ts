@@ -7,11 +7,11 @@ export interface LlmConfig {
   model: string;
 }
 
-/** 读 frontend/.env.local 里的 ROUNDTABLE_* 配置 */
+/** 读 frontend/.env 里的 LLM_* 配置（和辩论后端共用一份）；也认 PR6 原来的 ROUNDTABLE_* 写法 */
 export function readConfig(env: Record<string, string | undefined>): LlmConfig {
   return {
-    baseUrl: (env.ROUNDTABLE_API_BASE_URL || 'https://api.cline.bot/api/v1').replace(/\/+$/, ''),
-    apiKey: env.ROUNDTABLE_API_KEY ?? '',
-    model: env.ROUNDTABLE_MODEL || 'cline-pass/deepseek-v4.1-flash',
+    baseUrl: (env.LLM_BASE_URL || env.ROUNDTABLE_API_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, ''),
+    apiKey: env.LLM_API_KEY || env.ROUNDTABLE_API_KEY || '',
+    model: env.LLM_MODEL || env.ROUNDTABLE_MODEL || 'deepseek-chat',
   };
 }

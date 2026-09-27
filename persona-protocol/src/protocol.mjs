@@ -2,7 +2,7 @@
 export const SCHEMA_VERSION = '1.0';
 
 export const ENUMS = Object.freeze({
-  modes: ['entertainment', 'rational', 'emotion'],
+  modes: ['entertainment', 'rational'],
   originType: ['original', 'inspired', 'historical', 'composite'],
   builtinTraits: ['cautious', 'direct', 'skeptical', 'empathetic', 'critical', 'optimistic', 'pragmatic', 'humorous'],
   verbosity: ['short', 'medium', 'long'],
@@ -12,7 +12,7 @@ export const ENUMS = Object.freeze({
   uncertainty: ['admit_and_ask', 'admit_only'],
   outOfScope: ['decline', 'brief_then_defer'],
   factVsOpinion: ['always_label', 'label_when_relevant'],
-  scene: ['roundtable', 'debate', 'office', 'classroom', 'meadow'],
+  scene: ['roundtable', 'debate', 'office'],
   userParticipation: ['observer', 'participant'],
 });
 

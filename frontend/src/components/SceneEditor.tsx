@@ -1,5 +1,6 @@
-import { useRef, useState, type MouseEvent } from 'react';
-import type { SceneDef, Seat } from '../types';
+import { useRef, useState } from 'react';
+import type { ModeId, SceneDef, Seat } from '../types';
+import { MODES } from '../data/modes';
 
 const MAX_SEATS = 10;
 
@@ -30,8 +31,9 @@ async function toSceneImage(f: File): Promise<string> {
 }
 
 /** 添加或编辑自定义场景：上传底图，在图上点出座位 */
-export function SceneEditor({ initial, onSave, onDelete, onClose }: {
+export function SceneEditor({ initial, defaultMode, onSave, onDelete, onClose }: {
   initial?: SceneDef;
+  defaultMode: ModeId;
   onSave: (s: SceneDef) => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -39,6 +41,7 @@ export function SceneEditor({ initial, onSave, onDelete, onClose }: {
   const [image, setImage] = useState(initial?.image ?? '');
   const [name, setName] = useState(initial?.name ?? '');
   const [desc, setDesc] = useState(initial?.description ?? '');
+  const [mode, setMode] = useState<ModeId>(initial?.recommendedMode ?? defaultMode);
   const [seats, setSeats] = useState<Seat[]>(initial?.seats ?? []);
   const [err, setErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -54,7 +57,7 @@ export function SceneEditor({ initial, onSave, onDelete, onClose }: {
     }
   };
 
-  const place = (e: MouseEvent<HTMLDivElement>) => {
+  const place = (e: React.MouseEvent<HTMLDivElement>) => {
     if (seats.length >= MAX_SEATS) return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = +(((e.clientX - r.left) / r.width) * 100).toFixed(2);
@@ -70,6 +73,7 @@ export function SceneEditor({ initial, onSave, onDelete, onClose }: {
       name: name.trim(),
       image,
       description: desc.trim() || '自己添加的场景',
+      recommendedMode: mode,
       maxSeats: seats.length,
       seats,
       custom: true,
@@ -121,6 +125,11 @@ export function SceneEditor({ initial, onSave, onDelete, onClose }: {
         <div className="se-form">
           <label>名称<input className="px-input" value={name} maxLength={16} placeholder="比如：宿舍楼顶" onChange={(e) => setName(e.target.value)} /></label>
           <label>描述<input className="px-input" value={desc} maxLength={40} placeholder="一句话介绍这个场景" onChange={(e) => setDesc(e.target.value)} /></label>
+          <label>推荐模式
+            <select value={mode} onChange={(e) => setMode(e.target.value as ModeId)}>
+              {MODES.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </label>
         </div>
 
         <div className="se-foot">

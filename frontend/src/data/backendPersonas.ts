@@ -1,48 +1,44 @@
-import type { ModeId, Persona } from '../types';
+import type { Persona } from '../types';
 
-/** /api/discussion/options 返回的人物（来自 backend/人物/理性/ 下的 JSON） */
+/** /api/options 返回的人物（backend/人物/理性/*.json）和性格库（backend/性格库/性格.json） */
 export interface ApiPersona {
   id: string; name: string; role: string; profession: string; description: string;
   domains: string[]; tradition: string; coreValues: string[]; coreConviction: string; color: string;
   judgmentFocus: string[];
   raw: Record<string, unknown>;
 }
-export interface ApiPersonality { id: string; name: string; description: string }
+export interface ApiPersonality { id: string; name: string; description: string; behaviors?: string[]; habits?: string[] }
 export interface Options {
-  personas: ApiPersona[];
-  personalities: ApiPersonality[];
-  model: string;
-  configError: string | null;
-  limits: { members: [number, number]; rounds: [number, number]; maxChars: [number, number] };
+  personas: ApiPersona[]; personalities: ApiPersonality[];
+  dryRun: boolean; model: string | null; configError: string | null;
 }
 
-const HAIR = ['#2b2136', '#6b4a3a', '#6b6272', '#3d3550', '#8a5a3c'];
-const HAIR_STYLE = ['short', 'long', 'bun', 'short', 'cap'] as const;
+/** 后端人物数据库里的人物，id 加前缀和前端示例人物区分 */
+export const DB_PREFIX = 'db-';
 
-/**
- * 把后端人物转成像素界面用的 Persona；原始资料放进 protocol，图鉴详情会读取。
- * 任何人物都能配任何性格，所以性格库整个作为可选性格；人物没有默认性格，要用户自己选。
- */
-export function toPersona(p: ApiPersona, i: number, personalities: ApiPersonality[], mode: ModeId): Persona {
+const HAIR = ['#2b2136', '#6b4a3a', '#6b6272', '#3d3550', '#8a5a3c'];
+const HAIR_STYLE = ['short', 'long', 'bun', 'cap'] as const;
+
+/** 把后端人物转成本前端的 Persona：每个人物都能从整个性格库里挑 1 个，性格 id 就用性格名 */
+export function toPersona(p: ApiPersona, i: number, lib: ApiPersonality[]): Persona {
   return {
-    id: p.id, name: p.name, modes: [mode],
-    identity: p.role + ' · ' + p.profession,
+    id: DB_PREFIX + p.id, name: p.name, modes: ['rational'],
+    identity: p.role + (p.profession ? ' · ' + p.profession : ''),
     knowledge: p.domains, thinking: p.tradition, values: p.coreValues.join('、'),
-    personalities: personalities.map((s) => ({ id: s.name, label: s.name, behavior: s.description, style: '' })),
-    defaultPersonalityId: '',
+    personalities: lib.map((s) => ({ id: s.name, label: s.name, behavior: s.description, style: s.habits?.[0] ?? '' })),
+    defaultPersonalityId: lib[0]?.name ?? '',
     boundaries: [],
-    visual: { skin: i % 2 ? '#f3d2b3' : '#f1c9a5', hair: HAIR[i % HAIR.length], shirt: p.color, accent: '#fbf5e4', hairStyle: HAIR_STYLE[i % 5] },
+    visual: { skin: i % 2 ? '#f3d2b3' : '#f1c9a5', hair: HAIR[i % HAIR.length], shirt: p.color, accent: '#fbf5e4', hairStyle: HAIR_STYLE[i % HAIR_STYLE.length] },
     protocol: p.raw,
   };
 }
 
 let cache: Promise<Options> | null = null;
-/** 人物、性格只向后端要一次；失败了下次再要 */
+/** 人物和性格只向后端要一次；失败后下次再试 */
 export function loadOptions(): Promise<Options> {
-  cache ??= fetch('/api/discussion/options').then(async (r) => {
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error ?? 'HTTP ' + r.status);
-    return data;
+  cache ??= fetch('/api/options').then((r) => {
+    if (!r.ok) throw new Error(String(r.status));
+    return r.json();
   }).catch((e) => { cache = null; throw e; });
   return cache;
 }

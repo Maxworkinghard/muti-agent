@@ -9,7 +9,7 @@ export interface LlmMessage {
 }
 
 export interface ChatOptions {
-  /** 不填就用服务器 .env.local 里的 ROUNDTABLE_MODEL */
+  /** 不填就用服务器 .env 里的 LLM_MODEL */
   model?: string;
   temperature?: number;
   maxTokens?: number;
@@ -68,7 +68,7 @@ async function failText(res: Response) {
 
 function httpError(status: number, detail: string): LlmError {
   const d = String(detail).slice(0, 200);
-  if (status === 401 || status === 403) return new LlmError('auth', 'API Key 无效或没有权限，请检查 .env.local 里的 ROUNDTABLE_API_KEY（' + d + '）', false, status);
+  if (status === 401 || status === 403) return new LlmError('auth', 'API Key 无效或没有权限，请检查 .env 里的 LLM_API_KEY（' + d + '）', false, status);
   if (status === 402) return new LlmError('quota', '账户余额不足，请到服务商后台充值（' + d + '）', false, status);
   if (status === 429) return new LlmError('rate_limit', '请求太频繁或额度用完，稍等一会儿再试（' + d + '）', true, status);
   if (status >= 500) return new LlmError('server', '模型服务暂时出错（' + status + '），可以重试（' + d + '）', true, status);

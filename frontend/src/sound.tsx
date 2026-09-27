@@ -3,15 +3,14 @@ import { useSyncExternalStore } from 'react';
 /** 8-bit 音效：用 Web Audio 现场合成，不需要音频文件 */
 
 const MUTE_KEY = 'roundtable.muted';
-// 浏览器禁用本地存储时读写会抛错，这时只是记不住静音设置
-let muted = (() => { try { return localStorage.getItem(MUTE_KEY) === '1'; } catch { return false; } })();
+let muted = localStorage.getItem(MUTE_KEY) === '1';
 const listeners = new Set<() => void>();
 let ctx: AudioContext | null = null;
 
 function audio() {
   if (muted) return null;
   ctx ??= new AudioContext();
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  if (ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
 
@@ -55,9 +54,37 @@ export function playReady() {
   [523, 659, 784, 1047].forEach((f, i) => tone(ac, f, 0.14, i * 0.09, undefined, 0.06));
 }
 
+/** 每个人的嗓音：按 id 算出固定的音高、音色和语速，同一个人每次听起来都一样 */
+function voiceOf(id: string) {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619) >>> 0;
+  const types: OscillatorType[] = ['square', 'triangle', 'sawtooth', 'square'];
+  return {
+    base: 180 + (h % 17) * 22,           // 180 ~ 530 Hz，低沉到尖细
+    type: types[(h >>> 5) % types.length],
+    gap: 0.075 + ((h >>> 9) % 4) * 0.012, // 每个音节的间隔（语速）
+    spread: 0.25 + ((h >>> 13) % 4) * 0.1, // 音节之间音高的起伏
+    glide: (h >>> 17) % 2 === 0 ? 1.18 : 0.82, // 每个音节往上挑还是往下落
+  };
+}
+
+/**
+ * 说话音效：像素游戏村民那种“叽叽咕咕”，几个短促的音节连在一起。
+ * syllables 控制长短，文字多就多说几个音节
+ */
+export function playVoice(id: string, syllables = 5) {
+  const ac = audio();
+  if (!ac) return;
+  const v = voiceOf(id);
+  for (let i = 0; i < syllables; i++) {
+    const f = v.base * (1 + (Math.random() * 2 - 1) * v.spread);
+    tone(ac, f, v.gap * 0.8, i * v.gap, f * v.glide, v.type === 'sawtooth' ? 0.035 : 0.05, v.type);
+  }
+}
+
 export function setMuted(v: boolean) {
   muted = v;
-  try { localStorage.setItem(MUTE_KEY, v ? '1' : '0'); } catch { /* 记不住也不影响本次 */ }
+  localStorage.setItem(MUTE_KEY, v ? '1' : '0');
   listeners.forEach((l) => l());
 }
 
@@ -68,8 +95,8 @@ export function useMuted() {
 export function SoundToggle({ className = '' }: { className?: string }) {
   const m = useMuted();
   return (
-    <button className={'sound-btn ' + (m ? 'off ' : '') + className} onClick={() => setMuted(!m)} title={m ? '打开音效' : '关闭音效'}>
-      ♪<span>{m ? ' 静音' : ' 音效'}</span>
+    <button className={'sound-btn ' + className} onClick={() => setMuted(!m)} title={m ? '打开音效' : '关闭音效'}>
+      {m ? '♪ 静音' : '♪ 音效'}
     </button>
   );
 }

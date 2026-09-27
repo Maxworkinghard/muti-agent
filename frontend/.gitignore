@@ -1,8 +1,6 @@
-node_modules/
-dist/
-*.log
-.vite/
-
-# 本地密钥（ROUNDTABLE_API_KEY 等），不要提交
-*.local
+node_modules
+dist
 .env
+.env.local
+
+*.log

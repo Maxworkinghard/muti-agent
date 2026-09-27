@@ -4,23 +4,23 @@ import type { SessionConfig } from '../src/types.ts';
 import { DEBATE_CHARS, DEBATE_ROUNDS, isModeId } from '../src/data/modes.ts';
 import { readConfig } from './config.ts';
 import { RoundtableSession } from './session.ts';
-import { DiscussionSession, LIMITS, prepareDiscussion } from './discussion.ts';
-import { readOptions } from './personaDb.ts';
 import { createLlmHandler } from './llm-proxy.ts';
 
 /**
- * 后端接口（挂在 Vite 开发 / 预览服务器上，Key 只在这里读取，不会进前端代码）：
+ * 后端接口（来自 PR6，挂在 Vite 开发 / 预览服务器上，Key 只在这里读取，不会进前端代码）。
+ * 情感分析和工作两个模式用这里的会话流程；娱乐在浏览器里跑，辩论走 backend/ 的 Python 服务。
  *   GET  /api/health                     当前模型和配置状态
- *   GET  /api/discussion/options         理性讨论的人物、性格和人数 / 轮数 / 字数范围（读 personaDir 里的人格数据库）
  *   POST /api/sessions                   用 SessionConfig 开一场会话 → { sessionId }
  *   GET  /api/sessions/:id/events        SSE 推送 EngineEvent，断线重连按 Last-Event-ID 补发
- *   POST /api/sessions/:id/messages      用户插话 { text, targetAgentId? }
+ *   POST /api/sessions/:id/messages      用户插话 { text, targetAgentId? }（讨论结束后也能发，成员会接着回答）
+ *   POST /api/sessions/:id/pause         暂停（下一位发言前停住）
+ *   POST /api/sessions/:id/resume        继续
  *   POST /api/sessions/:id/stop          停止会话并中断进行中的模型请求
  *   POST /api/llm/chat                   转发给模型服务（OpenAI 兼容），给在浏览器里写流程的引擎用
  */
-export function createApi(env: Record<string, string | undefined>, personaDir: string) {
+export function createApi(env: Record<string, string | undefined>) {
   const cfg = readConfig(env);
-  const setupError = cfg.apiKey ? '' : '没有配置 ROUNDTABLE_API_KEY（在 frontend/.env.local 里设置）';
+  const setupError = cfg.apiKey ? '' : '没有配置 LLM_API_KEY（在 frontend/.env 里设置）';
   const sessions = new Map<string, RoundtableSession>();
   const llm = createLlmHandler(cfg);
 
@@ -31,13 +31,6 @@ export function createApi(env: Record<string, string | undefined>, personaDir: s
     if (req.method === 'GET' && section === 'health') {
       return json(res, 200, { ok: !setupError, error: setupError || undefined, model: cfg.model, baseUrl: cfg.baseUrl });
     }
-    if (req.method === 'GET' && section === 'discussion' && id === 'options') {
-      try {
-        return json(res, 200, { ...(await readOptions(personaDir)), model: cfg.model, configError: setupError || null, limits: LIMITS });
-      } catch (e) {
-        return json(res, 500, { error: (e as Error).message });
-      }
-    }
     if (section === 'llm' && id === 'chat') return llm(req, res);
     if (section !== 'sessions') return json(res, 404, { error: '没有这个接口' });
 
@@ -47,16 +40,10 @@ export function createApi(env: Record<string, string | undefined>, personaDir: s
       const problem = validate(body);
       if (problem) return json(res, 400, { error: problem });
       const sid = randomUUID();
-      let session: RoundtableSession;
-      if (body.mode === 'discussion') {
-        const seats = await prepareDiscussion(body as SessionConfig, personaDir);
-        if (typeof seats === 'string') return json(res, 400, { error: seats });
-        session = new DiscussionSession(sid, body as SessionConfig, cfg, seats, personaDir);
-      } else {
-        session = new RoundtableSession(sid, body as SessionConfig, cfg);
-      }
+      const session = new RoundtableSession(sid, body as SessionConfig, cfg);
       sessions.set(sid, session);
-      void session.run().finally(() => setTimeout(() => sessions.delete(sid), 10 * 60_000).unref());
+      // 讨论结束后还要能追问，会话保留一小时
+      void session.run().finally(() => setTimeout(() => { session.stop(); sessions.delete(sid); }, 60 * 60_000).unref());
       return json(res, 200, { sessionId: sid });
     }
 
@@ -82,6 +69,10 @@ export function createApi(env: Record<string, string | undefined>, personaDir: s
     }
     if (req.method === 'POST' && action === 'stop') {
       session.stop();
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && (action === 'pause' || action === 'resume')) {
+      if (action === 'pause') session.pause(); else session.resume();
       return json(res, 200, { ok: true });
     }
     return json(res, 404, { error: '没有这个接口' });

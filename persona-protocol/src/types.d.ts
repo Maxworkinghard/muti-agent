@@ -1,5 +1,5 @@
 // 人格资料包协议 v1.0 的 TypeScript 类型，前端和引擎共用。校验以 protocol.mjs 为准。
-export type Mode = 'entertainment' | 'rational' | 'emotion';
+export type Mode = 'entertainment' | 'rational';
 export type BuiltinTrait = 'cautious' | 'direct' | 'skeptical' | 'empathetic' | 'critical' | 'optimistic' | 'pragmatic' | 'humorous';
 export type TraitId = BuiltinTrait | `custom-${string}`;
 
@@ -63,7 +63,7 @@ export interface SessionFile { $schema?: string; schemaVersion: '1.0'; session: 
 export interface Session {
   id: string;
   mode: Mode;
-  scene: 'roundtable' | 'debate' | 'office' | 'classroom' | 'meadow';
+  scene: 'roundtable' | 'debate' | 'office';
   question: string;
   userParticipation: 'observer' | 'participant';
   participants: { personaId: string; seat: number; traitSelection?: TraitId[] }[]; // 1 到 8 人

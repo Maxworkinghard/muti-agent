@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
 import { sceneById } from '../data/scenes';
-import { DEBATE_CHARS, DEBATE_ROUNDS, modeById, roundLabel } from '../data/modes';
+import { DEBATE_CHARS, DEBATE_ROUNDS, EMOTION_SEATS, modeById, roundLabel } from '../data/modes';
 import { AGENT_COLORS } from '../data/personas';
 import { engineFor } from '../engines/registry';
 import { playLeave, playSeat } from '../sound';
@@ -10,17 +10,24 @@ import { PixelAvatar } from './PixelAvatar';
 
 interface Pick { personalityId: string; side?: Side }
 
-export function SetupCast({ draft, personas, onStart }: {
+export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   draft: Draft;
   personas: Persona[];
+  /** 引擎能接受的最多人数（辩论引擎最多 5 人） */
+  maxMembers?: number;
+  /** 显示在标题右侧的提示，例如辩论后端的状态 */
+  notice?: string;
   onStart: (cfg: SessionConfig) => void;
 }) {
-  const scene = sceneById(draft.sceneId);
-  const isDebate = draft.sceneId === 'debate';
-  // 辩论模式可以调轮数和每次发言的字数上限
   const isRational = draft.mode === 'rational';
-  // 「工作 · 创造项目」模式有负责人：负责拆任务、收交付
-  const isWork = draft.mode === 'product';
+  const scene = sceneById(draft.sceneId);
+  // 辩论模式不管选哪个场景都分正反方；其他模式即使选了辩论室也不分
+  const isDebate = isRational;
+  const isProduct = draft.mode === 'product';
+  const isEmotion = draft.mode === 'emotion';
+  // 辩论最多 7 人（正 3 反 3 主持 1）；情感分析最多 7 位回应风格；其他模式按场景和引擎上限
+  const maxSeats = isDebate ? Math.min(7, scene.maxSeats)
+    : Math.min(scene.maxSeats, maxMembers ?? scene.maxSeats, isEmotion ? EMOTION_SEATS : Infinity);
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
   const available = personas.filter((p) => !p.modes || p.modes.includes(draft.mode));
   const [picked, setPicked] = useState<Record<string, Pick>>({});
@@ -28,7 +35,7 @@ export function SetupCast({ draft, personas, onStart }: {
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
   const [rounds, setRounds] = useState(DEBATE_ROUNDS.default);
-  const [maxChars, setMaxChars] = useState(Number(engineFor(draft.mode).defaults.maxChars) || DEBATE_CHARS.default);
+  const [maxChars, setMaxChars] = useState(DEBATE_CHARS.default);
   // 刚入座的卡片播一次落座动画
   const [landed, setLanded] = useState<string | null>(null);
 
@@ -50,13 +57,12 @@ export function SetupCast({ draft, personas, onStart }: {
       playLeave();
       return;
     }
-    if (order.length >= scene.maxSeats) return;
+    if (order.length >= maxSeats) return;
     const side = nextSide();
     if (isDebate && !side) return;
     setPicked({ ...picked, [p.id]: { personalityId: personality[p.id] ?? p.defaultPersonalityId, side } });
     setOrder([...order, p.id]);
-    // 第一个入座的人先当负责人，可以再改
-    if (isWork && !lead) setLead(p.id);
+    if (isProduct && !lead) setLead(p.id);
     setLanded(p.id);
     playSeat(order.length);
   };
@@ -87,7 +93,12 @@ export function SetupCast({ draft, personas, onStart }: {
       const persona = personas.find((p) => p.id === id)!;
       const pk = picked[id];
       let seatIndex = i;
-      if (isDebate && pk.side) { seatIndex = pk.side === 'pro' ? used.pro : pk.side === 'con' ? 3 + used.con : 6; used[pk.side]++; }
+      // 辩论室按座位上标的 group 入座（正方蓝桌、反方红桌、主持讲台）；其他场景按顺序坐
+      if (isDebate && pk.side && scene.seats.some((s) => s.group)) {
+        const seats = scene.seats.map((s, k) => ({ s, k })).filter(({ s }) => s.group === pk.side);
+        seatIndex = seats[used[pk.side]]?.k ?? i;
+        used[pk.side]++;
+      }
       return {
         agentId: id, seatIndex, color: persona.visual.shirt ?? AGENT_COLORS[i % 8],
         side: pk.side, isLead: isWork ? id === lead : undefined,
@@ -98,9 +109,11 @@ export function SetupCast({ draft, personas, onStart }: {
       sessionId: 's-' + Date.now().toString(36),
       mode: draft.mode, sceneId: draft.sceneId,
       theme: { title: draft.theme.trim() },
-      maxRounds: isRational ? rounds : modeById(draft.mode).roundLabels.length,
+      // 娱乐模式不固定轮数：每场随机 7～8 轮，太短不好看
+      maxRounds: isRational ? rounds : draft.mode === 'entertainment' ? 7 + Math.floor(Math.random() * 2) : modeById(draft.mode).roundLabels.length,
+      maxChars: isRational ? maxChars : undefined,
       participants,
-      engineOptions: { ...engineFor(draft.mode).defaults, ...(isRational ? { maxChars } : {}) },
+      engineOptions: { ...engineFor(draft.mode).defaults },
       createdAt: new Date().toISOString(),
     });
   };
@@ -110,9 +123,9 @@ export function SetupCast({ draft, personas, onStart }: {
   return (
     <main className="setup cast">
       <section className="panel cast-head">
-        <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{scene.maxSeats}
+        <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{maxSeats}
           {isDebate && `（正方 ${sideCount('pro')}/3 · 反方 ${sideCount('con')}/3 · 主持 ${sideCount('host')}/1）`}</small></h2>
-        <span className="hint">想加新人物？到右上角「图鉴」里导入</span>
+        <span className="hint">{notice || '想加新人物？到右上角「图鉴」里导入'}</span>
       </section>
 
       <div className="persona-grid">
@@ -158,7 +171,7 @@ export function SetupCast({ draft, personas, onStart }: {
       </div>
 
       {isRational && (
-        <section className="panel">
+        <section className="panel rt-settings">
           <h2><b>05</b> 辩论设置 <small>选好人物后，定下几轮、每人每次说多少</small></h2>
           <div className="rt-rows">
             <label>
@@ -177,16 +190,12 @@ export function SetupCast({ draft, personas, onStart }: {
               <li key={i}><i>{i + 1}</i>{roundLabel('rational', i + 1, rounds)}</li>
             ))}
           </ol>
-          <p className="hint">第 1 轮开场立论，最后一轮总结陈词，中间都是交锋；主持人只在开场和收尾发言。</p>
+          <p className="hint">主持开场宣布辩题和双方持方 → 正方一辩、反方一辩立论 → 交锋轮里双方互相质询、被问的一方必须正面作答 → 反方先、正方最后总结陈词 → 主持人（没有主持时由中立裁判）判定胜负并打分。</p>
         </section>
       )}
 
       <footer className="setup-foot">
-        <span>
-          {draft.theme.trim() ? `「${draft.theme.trim()}」` : '主题会按你的第一句话自动生成'}
-          {isRational && ` · ${rounds} 轮 · 每次 ≤${maxChars} 字`}
-          {!debateOk && ' · 辩论需要正反方各至少 1 人'}
-        </span>
+        <span>「{draft.theme}」{isRational && ` · ${rounds} 轮 · 每次 ≤${maxChars} 字`}{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
         <button className="px-btn primary" disabled={!canStart} onClick={start}>进入对话 ▶</button>
       </footer>
     </main>
