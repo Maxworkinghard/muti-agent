@@ -15,7 +15,7 @@
   POST /api/discuss/<会话>/stop     停止
 其余路径返回 ../frontend/dist 里构建好的网页。
 
-讨论流程完全复用 讨论引擎.py 里的函数，那个文件没有改动。
+讨论流程完全复用 讨论引擎.py 里的函数。
 """
 import argparse
 import json
@@ -124,7 +124,7 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
     dry = OPT["dry"]
     ctx = question + (f"\n（用户开场时的补充说明：{brief}）" if brief else "")
     cfg = None if dry else E.load_config()
-    log, summary, count = [], "讨论刚开始。", {m["name"]: 0 for m in members}
+    log, count = [], {m["name"]: 0 for m in members}
     cur = {"round": 1}
     emit({"type": "start", "question": question, "rounds": rounds, "maxChars": max_chars,
           "model": cfg["model"] if cfg else "试跑",
@@ -149,7 +149,7 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
     def speak(m, rnd, stage):
         others = "、".join(f"{o['name']}（{o['role']}）" for o in members if o is not m)
         pending = None if stage == "开场" else E.open_challenge(log, m["name"])
-        msg = E.user_message(ctx, others, summary, log, E.task_for(stage, pending))
+        msg = E.user_message(ctx, others, log, E.task_for(stage, pending))
         target = next((o["name"] for o in members if o is not m), None)
         r = call(m, msg, {"speech": f"（试跑）{m['name']} 在第 {rnd} 轮{stage}时的示例发言。",
                           "respondsTo": None if stage == "开场" else target,
@@ -176,7 +176,7 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
             others = "、".join(n for n in names if n != m["name"])
             task = (f"旁听的用户刚才{'对你' if u.get('target') else '对大家'}说：“{u['text']}”。"
                     f"先直接回应用户（respondsTo 填“用户”），再把它和正在讨论的议题联系起来。")
-            r = call(m, E.user_message(ctx, others, summary, log, task),
+            r = call(m, E.user_message(ctx, others, log, task),
                      {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
                       "stance": "部分同意", "newPoint": True, "challenge": None, "challengeTarget": None},
                      for_user=True)
@@ -204,10 +204,6 @@ def run(question, brief, members, rounds, max_chars, emit, inbox, stop, pause=No
             for m in members:
                 handle_user(rnd)
                 speak(m, rnd, stage)
-        if not dry and rnd < rounds:
-            emit({"type": "summarizing", "text": "主持人正在整理前情摘要…"})
-            full = "\n".join(f"{x['name']}：{x['speech']}" for x in log)
-            summary = E.chat(cfg, E.SUMMARY, f"议题：{ctx}\n\n{full}").strip()
     handle_user(rounds)
 
     emit({"type": "summarizing", "text": "主持人正在写总结…"})
@@ -238,8 +234,7 @@ def answer_after(keep, text, target):
     m = next((x for x in members if x["name"] == target), None) or keep.get("host") \
         or min(members, key=lambda x: keep["count"][x["name"]])
     log = keep["log"]
-    log.append({"round": keep["rounds"], "name": "用户", "title": "观众", "speech": text, "respondsTo": target,
-                "phase": "赛后追问"})
+    log.append({"round": keep["rounds"], "name": "用户", "speech": text, "respondsTo": target})
     others = "、".join(o["name"] for o in members if o is not m)
     if keep["debate"]:
         how = ("作为主持人兼裁判中立地回答，可以解释你的判定理由" if m.get("side") == "host"
@@ -252,14 +247,10 @@ def answer_after(keep, text, target):
         time.sleep(OPT["delay"])
         speech = f"（试跑）{m['name']} 回答你的追问：“{text[:20]}”。"
     else:
-        if keep["debate"]:
-            msg = E.full_message(keep["topic"], others, log, task, keep.get("verdict", ""))
-        else:
-            msg = E.user_message(keep["topic"], others, keep["summary"], log, task)
-        raw = E.chat(keep["cfg"], m[keep["system_key"]], msg, want_json=True)
+        raw = E.chat(keep["cfg"], m[keep["system_key"]],
+                     E.user_message(keep["topic"], others, log, task), want_json=True)
         speech = E.parse_reply(raw).get("speech") or raw.strip()
-    log.append({"round": keep["rounds"], "name": m["name"], "title": m.get("title", ""), "speech": speech,
-                "respondsTo": "用户", "phase": "回答追问"})
+    log.append({"round": keep["rounds"], "name": m["name"], "speech": speech, "respondsTo": "用户"})
     keep["count"][m["name"]] += 1
     return {"name": m["name"], "speech": speech, "title": m.get("title")}
 

@@ -50,7 +50,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
   let running = false;
   /** 出错后等用户点重试，期间不自动继续 */
   let paused = false;
-  /** 用户点了暂停：当前这一步做完就停，用户的话照常回应 */
+  /** 用户点了暂停：队列停在原地，但用户插话照常回应（见 pump） */
   let userPaused = false;
   let finished = false;
   let currentRound = 1;
@@ -63,6 +63,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
   let spokenThisRound: string[] = [];
 
   const pid = (p: Participant) => p.persona.id;
+  /** 用户插话引起的发言：暂停期间也让这一条先答完 */
+  const isReply = (s: Step) => s.type === 'speak' && !!s.replyTo;
   function pickNext(): Participant {
     const ps = cfg.participants;
     const ids = ps.map(pid);
@@ -174,7 +176,6 @@ export function createEntertainmentEngine(): DiscussionEngine {
     if (running || stopped || paused) return;
     running = true;
     try {
-      // 暂停时只执行回应用户的步骤，其余步骤留在队列里等继续
       while (queue.length && !stopped && !paused && (!userPaused || isReply(queue[0]))) {
         let step = queue.shift()!;
         // 待挑人的发言位在轮到时才决定是谁；失败重试时保留已挑中的人
@@ -198,14 +199,12 @@ export function createEntertainmentEngine(): DiscussionEngine {
     }
   }
 
-  const isReply = (s: Step) => s.type === 'speak' && !!s.replyTo;
-
   function plan() {
     for (let r = 1; r <= cfg.maxRounds; r++) {
       const label = roundLabel(cfg.mode, r, cfg.maxRounds);
       queue.push({ type: 'round', round: r, label });
-      // 每轮条数不固定：人数 到 人数+2 条，轮到时再挑是谁说
-      const turns = cfg.participants.length + Math.floor(Math.random() * (EXTRA_PER_ROUND + 1));
+      const n = cfg.participants.length;
+      const turns = n + Math.floor(Math.random() * (EXTRA_PER_ROUND + 1));
       for (let i = 0; i < turns; i++) queue.push({ type: 'pick', round: r, label });
     }
     queue.push({ type: 'finish' });
@@ -217,7 +216,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
       emit = onEvent;
       opts = readOptions(config.engineOptions);
       memes = opts.memesEnabled ? sample(MEME_CARDS, opts.memeCount) : [];
-      stopped = false; paused = false; finished = false;
+      stopped = false; paused = false; userPaused = false; finished = false;
       ctrl = new AbortController();
       queue.length = 0; history.length = 0; hid = 0; spokenLog.length = 0; spokenThisRound = [];
       emit({ type: 'session', state: 'running' });
@@ -233,9 +232,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
       const target = cfg.participants.find((p) => p.agentId === targetAgentId);
       addHistory(target ? '用户（对' + target.persona.name + '说）' : '用户', text);
       const agent = target ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
-      // 插到已排队的回应之后、普通发言之前，连发几句时按顺序回答
-      const at = queue.findIndex((s) => !isReply(s));
-      queue.splice(at < 0 ? queue.length : at, 0, { type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
+      queue.unshift({ type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
       void pump();
     },
     pause() {
