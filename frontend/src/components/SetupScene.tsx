@@ -1,25 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { Draft } from '../App';
 import type { SceneDef } from '../types';
 import { MODES } from '../data/modes';
 import { SCENE_LIST } from '../data/scenes';
 import { SceneEditor } from './SceneEditor';
-
-/** 主题候选一次显示几条 */
-const TOPIC_BATCH = 5;
-
-/** 从题池里挑一批：「换一批」换个种子重排；seed 为 0（刚进页面 / 刚换模式）时按原顺序取前几条 */
-function pickTopics(pool: string[], seed: number): string[] {
-  if (seed <= 0 || pool.length <= TOPIC_BATCH) return pool.slice(0, TOPIC_BATCH);
-  const a = [...pool];
-  let s = seed;
-  for (let i = a.length - 1; i > 0; i--) {
-    s = (s * 9301 + 49297) % 233280;
-    const j = s % (i + 1);
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a.slice(0, TOPIC_BATCH);
-}
 
 export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene, onDeleteScene }: {
   draft: Draft;
@@ -31,9 +15,6 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
 }) {
   const mode = MODES.find((m) => m.id === draft.mode)!;
   const scenes = [...SCENE_LIST, ...customScenes];
-  // 主题候选的批次编号：「↻ 换一批」加一，换模式时归零
-  const [topicSeed, setTopicSeed] = useState(0);
-  const topics = useMemo(() => pickTopics(mode.presets, topicSeed), [mode, topicSeed]);
   // null：关闭；'new'：添加；其他：编辑这个场景
   const [editing, setEditing] = useState<SceneDef | 'new' | null>(null);
   // 主题推荐：每次显示 3 个，点“换一批”换成 3 个不同的
@@ -55,10 +36,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
               className={'mode-card' + (m.id === draft.mode ? ' on' : '')}
               style={{ ['--mc' as string]: m.color }}
               // 换模式时，上一个模式的预设主题不再适用，清空；用户手写的主题保留
-              onClick={() => {
-                setTopicSeed(0);
-                onChange({ ...draft, mode: m.id, sceneId: m.scene, theme: mode.presets.includes(draft.theme) ? '' : draft.theme });
-              }}
+              onClick={() => onChange({ ...draft, mode: m.id, sceneId: m.scene, theme: mode.presets.includes(draft.theme) ? '' : draft.theme })}
             >
               <span className="tag">{m.tag}</span>
               <strong>{m.name}</strong>
@@ -70,10 +48,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
       </section>
 
       <section className="panel">
-        <h2>
-          <b>02</b> 讨论主题
-          <button className="px-btn tiny refresh" onClick={() => setTopicSeed((s) => s + 1)} title="刷新主题：从题池里再挑一批">↻ 换一批</button>
-        </h2>
+        <h2><b>02</b> 讨论主题</h2>
         <input
           className="px-input big"
           placeholder="输入你想讨论的问题…"

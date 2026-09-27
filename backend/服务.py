@@ -251,7 +251,7 @@ def answer_after(keep, text, target):
         if keep["debate"]:
             msg = E.full_message(keep["topic"], others, log, task, keep.get("verdict", ""))
         else:
-            msg = E.user_message(keep["topic"], others, keep["summary"], log, task)
+            msg = E.user_message(keep["topic"], others, log, task)
         raw = E.chat(keep["cfg"], m[keep["system_key"]], msg, want_json=True)
         speech = E.parse_reply(raw).get("speech") or raw.strip()
     log.append({"round": keep["rounds"], "name": m["name"], "title": m.get("title", ""), "speech": speech,

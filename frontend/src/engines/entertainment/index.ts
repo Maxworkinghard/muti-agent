@@ -2,7 +2,7 @@ import type {
   ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, EngineModule, Participant, SessionConfig,
 } from '../../types';
 import { chat, chatStream, isAbort } from '../../llm/client';
-import { modeById } from '../../data/modes';
+import { roundLabel } from '../../data/modes';
 import { ENTERTAINMENT_DEFAULTS, readOptions, type EntertainmentOptions } from './config';
 import { MEME_CARDS, type MemeCard } from './material';
 import { buildMessages, buildSummaryMessages, type HistoryItem } from './prompt';
@@ -50,7 +50,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
   let running = false;
   /** 出错后等用户点重试，期间不自动继续 */
   let paused = false;
-  /** 用户点了暂停：队列停在原地，但用户插话照常回应（见 pump） */
+  /** 用户点了暂停：当前这一步做完就停，用户的话照常回应 */
   let userPaused = false;
   let finished = false;
   let currentRound = 1;
@@ -174,6 +174,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
     if (running || stopped || paused) return;
     running = true;
     try {
+      // 暂停时只执行回应用户的步骤，其余步骤留在队列里等继续
       while (queue.length && !stopped && !paused && (!userPaused || isReply(queue[0]))) {
         let step = queue.shift()!;
         // 待挑人的发言位在轮到时才决定是谁；失败重试时保留已挑中的人
@@ -197,10 +198,11 @@ export function createEntertainmentEngine(): DiscussionEngine {
     }
   }
 
+  const isReply = (s: Step) => s.type === 'speak' && !!s.replyTo;
+
   function plan() {
-    const labels = modeById(cfg.mode).roundLabels;
     for (let r = 1; r <= cfg.maxRounds; r++) {
-      const label = labels[r - 1] ?? '第 ' + r + ' 轮';
+      const label = roundLabel(cfg.mode, r, cfg.maxRounds);
       queue.push({ type: 'round', round: r, label });
       // 每轮条数不固定：人数 到 人数+2 条，轮到时再挑是谁说
       const turns = cfg.participants.length + Math.floor(Math.random() * (EXTRA_PER_ROUND + 1));
@@ -231,7 +233,9 @@ export function createEntertainmentEngine(): DiscussionEngine {
       const target = cfg.participants.find((p) => p.agentId === targetAgentId);
       addHistory(target ? '用户（对' + target.persona.name + '说）' : '用户', text);
       const agent = target ?? cfg.participants[Math.floor(Math.random() * cfg.participants.length)];
-      queue.unshift({ type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
+      // 插到已排队的回应之后、普通发言之前，连发几句时按顺序回答
+      const at = queue.findIndex((s) => !isReply(s));
+      queue.splice(at < 0 ? queue.length : at, 0, { type: 'speak', agent, round: currentRound, label: currentLabel, replyTo: text });
       void pump();
     },
     pause() {
