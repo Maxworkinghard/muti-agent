@@ -1,28 +1,26 @@
-import type { Participant } from '../../types';
+import type { DiscussionResult, Participant, SessionConfig } from '../../types';
 import type { LlmMessage } from '../../llm/client';
+import type { MoodDef, ReactionInput, Temperament } from '../live/types';
+import { extractJson } from '../live/json';
 import { FACT_RULES, SAFETY_RULES, type MemeCard } from './material';
 
-/** 与 entertainment_pack/test_harness/run_tests.py 保持同一套措辞，方便把测试结论迁移到界面 */
-const OPENING = '你正在参加一个多人娱乐讨论，扮演下面这个虚构角色。人物配置描述的是这个角色的稳定倾向，'
-  + '按当前语境自然表现即可，不需要每句都体现全部特点；事实边界和安全边界必须遵守。';
-const MODE_RULE = '娱乐讨论模式：像宿舍里随口聊天，一般一两句、几十个字以内，可以很短；可以接别人的话、补细节、改变看法；发言顺序不固定，不需要总结全场。'
-  + '每次发言都要让人听得出你在接哪一句：要么挂住记录里某个具体的说法、词或做法，要么给出与本次话题直接相关的新角度；不答非所问，也不把别人说过的点子换个说法再说一遍。';
-const OUTPUT_RULE = '只输出这一次的发言正文，不加自己的名字前缀（不要写成“名字：发言”这种聊天记录格式）、不加动作描写或舞台说明，也不要解释你在扮演角色。';
+const OPENING = '你在一场多人闲聊里扮演下面这个虚构角色。这不是轮流发言的节目：没人安排谁说话，谁想说谁说，也可以一直不说。'
+  + '像真人一样，先有反应和情绪，再决定说不说、怎么说。人物配置描述的是这个角色的稳定倾向，按当前语境自然表现即可，'
+  + '不需要每句都体现全部特点；事实边界和安全边界必须遵守。';
+
+const CHAT_RULES = [
+  '像宿舍里、群聊里随口聊天：一条消息通常几个字到二十来字，最多三十来字；想说的多就拆成两三条短的连着发，别写长段。',
+  '可以只发很短的反应，比如“？？？”“哈哈哈哈”“啊这”“不是……”。',
+  '情绪决定你怎么说：上头时句子短、语气冲，可能连发，甚至不等对方说完就插嘴；委屈、没面子时可能嘴硬、阴阳怪气，或者干脆不吭声；'
+    + '开心时话多、爱接梗；无聊时敷衍几句，或者把话题岔开。',
+  '别为了客气附和。有分歧就接着杠，真被说服了再改口，改口也要给自己找台阶，怎么找按你的性格来。',
+  '用户是群里的一个真人朋友，不是主持人也不是裁判，你可以同意也可以不同意他；他点名问你时要回应。',
+  '每句话都要让人听得出你在接哪一句：挂住记录里某条具体的说法，或者回应用户；不答非所问，也不把别人说过的点子换个说法再说一遍。可以翻旧账，比如“你刚才不是说……”。',
+  '只写说出口的话：不加自己的名字前缀、不写动作描写和舞台说明，也不解释你在扮演角色。',
+];
+
 /** 测试说明用词；出现在提示词里说明测试材料混进了运行输入 */
 export const LEAK_MARKERS = ['预期表现', '失败信号', '实际结果：', '评测方式', '盲评', '评分项'];
-
-/** 轮次标签对应的轻提示，只给方向，不规定说法 */
-const ROUND_HINTS: Record<string, string> = {
-  开场破冰: '现在是开场，可以先说说你对这个话题的第一反应。',
-  脑洞接龙: '现在是接龙阶段，可以接住前面某条具体发言往下延伸，也可以补一个新角度。',
-  投票收尾: '现在是收尾阶段，可以说说刚才哪个说法最打动你、为什么，想改变看法也可以直说。',
-};
-
-export interface HistoryItem {
-  id: string;
-  speaker: string;
-  text: string;
-}
 
 type Proto = Record<string, any>;
 
@@ -36,7 +34,7 @@ function rulesBlock() {
 }
 
 /**
- * 人物配置：直接使用协议 persona，去掉展示和版本信息。
+ * 人物配置：直接使用协议 persona，去掉展示、版本信息和性情参数（性情另外用话说）。
  * 性格部分改写成说明：默认性格是同时具备的，界面上选中的那项在本场更突出。
  */
 function personaBlock(p: Participant) {
@@ -88,68 +86,98 @@ function publicIntro(p: Participant) {
   return '- ' + p.persona.name + '：' + role + (desc ? '。' + desc : '');
 }
 
-const dump = (v: unknown) => JSON.stringify(v, null, 2);
-
-export interface PromptInput {
-  speaker: Participant;
-  participants: Participant[];
-  topic: string;
-  memes: MemeCard[];
-  roundLabel: string;
-  history: HistoryItem[];
-  /** 用户点名或对全体插话后，由这个角色回应 */
-  replyTo?: string;
-  /** 这次是私下回应用户（点成员说话），回复也只进双方的私聊记录 */
-  whisper?: boolean;
-  /** 只有这位角色和用户知道的私下对话；其他角色的提示词里没有这段 */
-  privates?: HistoryItem[];
+/** 性情参数翻成话，让模型自己判断情绪时和代码记的账对得上 */
+function temperWords(t: Temperament) {
+  const out: string[] = [];
+  if (t.temper >= 1.2) out.push('脾气急，火气来得快');
+  else if (t.temper <= 0.6) out.push('脾气好，不太容易生气');
+  if (t.sensitivity >= 1.1) out.push('心思细，容易觉得没面子、受委屈');
+  else if (t.sensitivity <= 0.6) out.push('脸皮厚，被笑也不太往心里去');
+  if (t.grudge >= 0.6) out.push('记仇，谁刚才怼过你你记得清清楚楚');
+  else if (t.grudge <= 0.2) out.push('不记仇，吵完就忘');
+  if (t.face >= 0.7) out.push('特别要面子，很难当场认输');
+  else if (t.face <= 0.3) out.push('不太在乎输赢，说不过就认');
+  if (t.talk >= 0.75) out.push('话多，爱抢话');
+  else if (t.talk <= 0.4) out.push('话少，不怎么主动开口');
+  if (t.speed >= 1.3) out.push('嘴快');
+  return out.length ? out.join('；') + '。' : '普通人的脾气。';
 }
 
-export function buildMessages(x: PromptInput): LlmMessage[] {
-  const parts: string[] = [OPENING, rulesBlock(), '【人物配置】\n' + dump(personaBlock(x.speaker))];
-  const others = x.participants.filter((p) => p.agentId !== x.speaker.agentId);
-  if (others.length) parts.push('【其他参与者公开简介】\n' + others.map(publicIntro).join('\n'));
-  const topic = '【本次话题】\n' + x.topic + '\n（没有附带话题卡和背景资料。）';
-  parts.push(topic);
-  parts.push(x.memes.length ? '【可用梗卡】\n' + dump(x.memes) : '【可用梗卡】\n本次没有提供梗卡。');
-  parts.push('【讨论模式】\n' + MODE_RULE);
-  parts.push('【输出要求】\n' + OUTPUT_RULE);
-  const system = parts.join('\n\n');
+function schemaBlock(moods: MoodDef[]) {
+  const mood = '{' + moods.map((d) => '"' + d.key + '": 0').join(', ') + '}';
+  return [
+    '只输出一个 JSON 对象，不要任何别的文字：',
+    '{"inner": "", "mood": ' + mood + ', "toward": {}, "stance": "", "hooks": [], "plan": "", "urge": 0, '
+      + '"interrupt": false, "cut_after": "", "reply_to": "", "say": [], "react": "", "topic": "", "private_reply": ""}',
+    '字段说明：',
+    '- inner：你心里的真实反应，一句话，第一人称，25 字以内。',
+    '- mood：刚才这一下各种情绪变了多少，-3 到 3 的整数，没变就 0。被戳到、被笑、被否定、被冷落会不爽或委屈；被附和、被逗乐、占了上风会开心；车轱辘话、跟你没关系会无聊。',
+    '- toward：你对谁的好感变了多少（-3 到 3），键写名字，用户就写“用户”；没变就 {}。',
+    '- stance：你对话题的态度；只有刚开聊或者你真改了看法时才写，否则留空。',
+    '- hooks：刚开聊时写一两个你能拿出来说的具体私货（比如你这个角色身上的一件小事），之后留空。',
+    '- plan：接下来想干嘛（比如“逮着他前后矛盾不放”），没什么打算就留空。',
+    '- urge：你现在有多想开口，0~10。被点名、被戳到、憋着话、有好梗就高；插不上嘴、跟你没关系、懒得理就低。',
+    '- interrupt：对方话还没说完你就忍不住要插嘴时才写 true（上头、被冤枉、急着纠正的时候）。',
+    '- cut_after：interrupt 为 true 时，照抄对方原话里让你忍不住的那几个字（你听到这里就插进去了），say 只针对这之前听到的内容；否则留空。',
+    '- reply_to：你要接的那条消息的编号，比如 "m12"。',
+    '- say：要说出口的话，1~3 条短消息；不想说就 []。',
+    '- react：不抢话、只是顺口冒出来的小反应（比如“哈哈哈哈”“？”），多数时候留空；say 不为空时留空。',
+    '- topic：只有你这句是把话题岔到一个新方向时，写 4~8 个字的新话题名，否则留空。',
+    '- private_reply：只有用户私下找你时才写，是你私下回他的一句话；其他时候留空。',
+  ].join('\n');
+}
 
+const dump = (v: unknown) => JSON.stringify(v, null, 2);
+
+/** 一个人听完最新的话之后的内心反应：system 放不变的人设和规则，user 按“记录 → 私聊 → 状态 → 现在”排，前面的部分能命中缓存 */
+export function buildReactionMessages(x: ReactionInput & { memes: MemeCard[]; moods: MoodDef[] }): LlmMessage[] {
+  const others = x.cfg.participants.filter((p) => p.agentId !== x.self.agentId);
+  const topic = '【本次话题】\n' + (x.cfg.theme.title || '随便聊聊') + '\n（没有附带话题卡和背景资料。）';
+  const parts = [
+    OPENING,
+    rulesBlock(),
+    '【人物配置】\n' + dump(personaBlock(x.self)),
+    '【你的性情】\n' + temperWords(x.temper),
+    '【在场的人】\n' + [...others.map(publicIntro), '- 用户：群里的一个真人朋友，也在聊，不是主持人也不是裁判。'].join('\n'),
+    topic,
+    x.memes.length ? '【可用梗卡】\n' + dump(x.memes) : '【可用梗卡】\n本次没有提供梗卡。',
+    '【闲聊规则】\n' + CHAT_RULES.map((r) => '- ' + r).join('\n'),
+    '【输出格式】\n' + schemaBlock(x.moods),
+  ];
   // 只查规则、人物配置、梗卡这些静态素材：测试说明混进运行输入只会从这里进来。
-  // 话题、用户的话（插话、私聊）和角色发言是运行时内容，说到“盲评”之类的词很正常；
-  // 查它们的话这一步每次重试都会拼出同样的提示词、同样报错，整场讨论就卡死了
+  // 话题、用户的话和角色发言是运行时内容，说到“盲评”之类的词很正常，不查
   const leaked = LEAK_MARKERS.filter((w) => parts.some((s) => s !== topic && s.includes(w)));
   if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
 
-  let user = x.history.length
-    ? '【公开讨论记录】\n' + x.history.map((m) => '[' + m.id + '] ' + m.speaker + '：' + m.text).join('\n') + '\n\n'
-    : '【公开讨论记录】\n（暂无，你是第一个发言的。）\n\n';
-  // 私聊：点成员说话时，只有这位角色看得到这段，其他人拿不到
-  if (x.privates?.length) {
-    user += '【只有你和用户知道的私下对话】\n'
-      + '（其他角色看不到这些内容，也不知道你们聊过；要不要在公开讨论里提起、或者用它跟别人周旋，由你自己决定。）\n'
-      + x.privates.map((m) => '[' + m.id + '] ' + m.speaker + '：' + m.text).join('\n') + '\n\n';
-  }
-  user += '现在轮到' + x.speaker.persona.name + '发言。';
-  if (x.replyTo) user += '用户刚才对你说：“' + x.replyTo + '”，这次先回应用户。';
-  else if (x.whisper) user += '用户刚在私下对你说了话（见上面的私下对话），这次私下回应用户。';
-  else {
-    // 中间轮次名带序号（如“脑洞接龙 3”），去掉序号再找提示
-    const hint = ROUND_HINTS[x.roundLabel.replace(/\s*\d+$/, '')];
-    if (hint) user += hint;
-  }
-  // 放在最后：离生成最近的位置再对一次引用一致性
-  user += '\n（发言前对一下记录：你接住的那句要和原文一致；引用别人的话别改意思，也别把别人的“可能”说成确定。）';
+  const user = [
+    '【聊天记录】（方括号里是编号，最新的在最后）\n' + x.transcript,
+    x.privates ? '【只有你和用户知道的私下对话】（其他人看不到，也不知道你们聊过；要不要在公开场合用上，由你决定）\n' + x.privates : '',
+    '【你现在的状态】\n' + x.state,
+    '【现在】\n' + x.now,
+  ].filter(Boolean).join('\n\n');
+  return [{ role: 'system', content: parts.join('\n\n') }, { role: 'user', content: user }];
+}
+
+/** 散场后的总结：只看公开记录 */
+export function buildSummaryMessages(cfg: SessionConfig, log: string): LlmMessage[] {
+  const system = '你是这场闲聊的记录员。根据下面的聊天记录做一个简短总结，只根据记录内容，不补充记录里没有的事实。'
+    + '只输出 JSON，格式为 {"recap": "", "consensus": [], "disagreements": [], "openQuestions": [], "suggestions": []}：'
+    + 'recap 用两三句话说这场聊天的情绪走向——谁跟谁杠上了、谁被说服了、哪句是名场面；'
+    + 'consensus 是大家基本认同的点，disagreements 是还有分歧的点（写清是谁和谁），openQuestions 是没聊完的，'
+    + 'suggestions 是可以接着聊或者试试看的点子。每个数组 0 到 3 条中文短句。';
+  const user = '话题：' + (cfg.theme.title || '随便聊聊') + '\n\n聊天记录：\n' + log;
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 
-/** 总结请求：只看公开讨论记录 */
-export function buildSummaryMessages(topic: string, history: HistoryItem[]): LlmMessage[] {
-  const system = '你是讨论记录员。根据下面的娱乐讨论记录做一个简短总结，只根据记录内容，不补充记录里没有的事实。'
-    + '只输出 JSON，格式为 {"consensus": [], "disagreements": [], "openQuestions": [], "suggestions": []}，'
-    + '每项 0 到 3 条中文短句：consensus 是大家基本认同的点，disagreements 是还有分歧的点（写清是谁和谁），'
-    + 'openQuestions 是没聊清楚的问题，suggestions 是可以接着聊或试试看的点子。';
-  const user = '话题：' + topic + '\n\n讨论记录：\n' + history.map((m) => m.speaker + '：' + m.text).join('\n');
-  return [{ role: 'system', content: system }, { role: 'user', content: user }];
+export function parseSummary(text: string): DiscussionResult {
+  const j = extractJson(text);
+  const list = (v: unknown) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean).slice(0, 5) : []);
+  if (!j) return { consensus: [], disagreements: [], openQuestions: [], suggestions: [], summary: text.trim().slice(0, 300) };
+  return {
+    consensus: list(j.consensus),
+    disagreements: list(j.disagreements),
+    openQuestions: list(j.openQuestions),
+    suggestions: list(j.suggestions),
+    summary: typeof j.recap === 'string' && j.recap.trim() ? j.recap.trim() : undefined,
+  };
 }

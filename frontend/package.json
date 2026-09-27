@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "build:server": "vite build --config vite.server.config.ts",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sim": "node scripts/sim.mjs"
   },
   "dependencies": {
     "react": "^19.3.0",

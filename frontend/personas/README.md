@@ -43,3 +43,20 @@
 性格分两层：人物文件的 `personality.defaultTraits` 是默认值；用户在选人物页选的性格只存在本次 session（`participants[].traitSelection`），不改公共人物文件。首版开讨论后不能再切换。`selectedTraits`、`session`、`runtime`、`turnOrder`、`round` 这些字段写进人物文件会直接报错。
 
 注意：协议的 `modes` 目前没有工作模式，`product/` 里的人物暂时还用前端的简化格式。
+
+## 性情（娱乐模式用，`x-temperament`）
+
+娱乐模式没有轮次，谁想说谁说，情绪会攒、会上头、会冷下来。同一句话落在不同人身上激起多大情绪、多想开口，由 `persona["x-temperament"]` 决定（`x-` 前缀是协议允许的扩展，校验照常通过）：
+
+| 字段 | 含义 | 范围 |
+| --- | --- | --- |
+| `temper` | 脾气：火气放大倍数，1 是普通人 | 0.2～2 |
+| `sensitivity` | 玻璃心：委屈放大倍数 | 0.2～2 |
+| `grudge` | 记仇：越大火气和好恶消得越慢 | 0～1 |
+| `face` | 要面子：越大越难当场认输 | 0～1 |
+| `talk` | 话痨：越大开口门槛越低 | 0～1 |
+| `speed` | 嘴快：反应和说话速度的倍数 | 0.4～2 |
+| `baseline` | 平时的情绪，键是 `火气`、`委屈`、`开心`、`无聊` | 0～10 |
+| `relations` | 开场时对某人的好恶，键是对方的人物 id | -10～10 |
+
+都可以不写：没写的项按 `communicationStyle` 估（情绪外放的脾气急一点，篇幅长、爱开玩笑的话多一点）。例子见 `entertainment/ent-counter-contrarian-001.persona.json`：小正脾气急、记仇，开场就对老方 -3。

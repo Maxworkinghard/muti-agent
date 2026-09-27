@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Participant, SessionConfig, TaskEvent,
+  AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, MindView, Participant, PersonaVisual, SessionConfig, TaskEvent,
 } from '../types';
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
@@ -16,6 +16,10 @@ interface ErrorItem { id: string; agentId?: string; message: string; retry?: () 
 const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
 /** 入场时每个人落座的间隔 */
 const SEAT_GAP = 750;
+/** 心情会换掉的表情；人物自己的配饰（眼镜、围巾……）保留 */
+const FACE_EXTRAS = new Set(['brows', 'sleepy', 'happy', 'grin', 'blush', 'sweat']);
+const withFace = (v: PersonaVisual, mind?: MindView): PersonaVisual =>
+  mind ? { ...v, extras: [...(v.extras ?? []).filter((e) => !FACE_EXTRAS.has(e)), ...mind.face] } : v;
 
 export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
   const scene = sceneById(config.sceneId);
@@ -32,6 +36,13 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
   const [errors, setErrors] = useState<ErrorItem[]>([]);
+  // 娱乐模式（活人群聊）：每个人的内心、引擎给的话题段名、打字时自动停下来等你
+  const live = config.mode === 'entertainment';
+  const [minds, setMinds] = useState<Record<string, MindView>>({});
+  const [labels, setLabels] = useState<Record<number, string>>({});
+  const [softPause, setSoftPause] = useState(false);
+  /** 打字停下来之后你又点了“继续”：这段草稿再打字就不再停 */
+  const softDismissed = useRef(false);
   // 已经落座的人数；进入讨论页时大家依次入座
   const [seated, setSeated] = useState(0);
   const allSeated = seated >= config.participants.length;
@@ -109,21 +120,28 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     setSession('running');
     const onEvent = (e: EngineEvent) => {
       switch (e.type) {
-        case 'session': setSession(e.state); break;
-        case 'round': setRound({ n: e.round, label: e.label }); break;
+        case 'session':
+          setSession(e.state);
+          if (e.state !== 'paused') setSoftPause(false);
+          break;
+        case 'round':
+          setRound({ n: e.round, label: e.label });
+          setLabels((l) => ({ ...l, [e.round]: e.label }));
+          break;
+        case 'mind': setMinds((ms) => ({ ...ms, [e.agentId]: e.mind })); break;
         case 'status':
           if (e.state === 'thinking' && showEntrance) playThinking();
           setStatus((s) => ({ ...s, [e.agentId]: { state: e.state, action: e.action } }));
           break;
         case 'message': {
           speakerOf.current[e.message.id] = e.message.speakerId;
-          if (e.message.kind === 'speech' || e.message.kind === 'reply') chatter(e.message.speakerId, e.message.id, e.message.text);
+          if (e.message.kind === 'speech' || e.message.kind === 'reply' || e.message.kind === 'react') chatter(e.message.speakerId, e.message.id, e.message.text);
           setMessages((m) => [...m, e.message]);
           break;
         }
         case 'message_update':
           chatter(speakerOf.current[e.id] ?? '', e.id, e.text);
-          setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text } : x)));
+          setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text, cut: e.cut ?? x.cut } : x)));
           break;
         case 'result': setResult(e.result); break;
         case 'error':
@@ -169,10 +187,28 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     if (!text || session === 'stopped') return;
     engineRef.current?.sendUserMessage({ text, targetAgentId: focus ?? undefined });
     setDraft('');
+    // 打字时停下来等你的，说完接着聊（对全体说的话引擎自己会接着聊，私聊要这里叫一声）
+    if (softPause) { engineRef.current?.resume(); setSoftPause(false); }
+    softDismissed.current = false;
+  };
+  /** 娱乐模式：开始打字大家就停下来等你说完；把字删光就接着聊 */
+  const editDraft = (text: string) => {
+    setDraft(text);
+    if (!live) return;
+    if (!text.trim()) {
+      softDismissed.current = false;
+      if (softPause) { engineRef.current?.resume(); setSoftPause(false); }
+    } else if (session === 'running' && !softPause && !softDismissed.current) {
+      engineRef.current?.pause();
+      setSoftPause(true);
+    }
   };
   const togglePause = () => {
     if (session === 'running') engineRef.current?.pause();
-    else if (session === 'paused') engineRef.current?.resume();
+    else if (session === 'paused') {
+      if (softPause) { softDismissed.current = true; setSoftPause(false); }
+      engineRef.current?.resume();
+    }
   };
   const canTalk = session === 'running' || session === 'paused' || session === 'finished';
 
@@ -197,8 +233,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         <span className="mode-tag" style={{ background: mode.color }} title={engineFor(config.mode).name + ' · ' + engineFor(config.mode).owner}>{mode.name}</span>
         <h1 title={config.theme.title}>主题：{config.theme.title}</h1>
         <SoundToggle />
-        <span className="round-tag">R{round.n}/{config.maxRounds} · {round.label}</span>
-        <span className={'live ' + session}>{{ waiting: '○ 等你开场', running: '● LIVE', paused: '⏸ 已暂停', finished: '■ 已结束 · 可追问', stopped: '■ 已停止' }[session]}</span>
+        <span className="round-tag">{live ? `${round.label} · ${messages.filter((m) => m.kind === 'speech').length} 句` : `R${round.n}/${config.maxRounds} · ${round.label}`}</span>
+        <span className={'live ' + session}>{{ waiting: '○ 等你开场', running: '● LIVE', paused: softPause ? '✎ 等你说完' : '⏸ 已暂停', finished: live ? '■ 散场了 · 再说话能接着聊' : '■ 已结束 · 可追问', stopped: '■ 已停止' }[session]}</span>
       </header>
 
       {/* 中左：场景动态演示 */}
@@ -211,15 +247,18 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             const st = status[p.agentId]?.state ?? 'idle';
             const seat = scene.seats[p.seatIndex];
             const msg = st === 'speaking' ? lastSpeech(p.agentId) : undefined;
+            const mind = minds[p.agentId];
             return (
               <button
                 key={p.agentId}
                 className={`seat st-${st}${landing.has(p.agentId) ? ' arrive' : ''}${sitting.has(p.agentId) && st !== 'speaking' ? ' sitdown' : ''}${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}${hasError(p.agentId) ? ' err' : ''}`}
                 style={{ left: seat.x + '%', top: seat.y + '%', ['--ac' as string]: p.color }}
                 onClick={() => setFocus(focus === p.agentId ? null : p.agentId)}
+                title={mind ? `${p.persona.name} · ${mind.emoji} ${mind.label}${mind.inner ? '\n心里：' + mind.inner : ''}` : undefined}
               >
                 {landing.has(p.agentId) && <span className="landing" />}
                 {hasError(p.agentId) && <span className="err-badge" title="发言失败，在右侧工作区可以重试">!</span>}
+                {mind && mind.label !== '平静' && <span key={mind.emoji} className="mood-badge">{mind.emoji}</span>}
                 {st === 'thinking' && (
                   <span className={'thought' + (seat.y < 30 ? ' below' : '')} aria-label="思考中">
                     <span className="cloud"><i /><i /><i /></span>
@@ -228,7 +267,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
                 )}
                 {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
                 {st === 'working' && <span className="work-icon">⌨</span>}
-                <span className="body"><PixelAvatar v={p.persona.visual} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} /></span>
+                <span className="body"><PixelAvatar v={withFace(p.persona.visual, mind)} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} /></span>
                 <span className="nameplate">{p.isLead ? '★' : ''}{p.persona.name}</span>
               </button>
             );
@@ -261,7 +300,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           )}
           {!allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
           {session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
-          {session === 'paused' && <div className="stage-banner wait">已暂停 · 可以先说你的想法，点「继续」接着讨论</div>}
+          {session === 'paused' && (
+            <div className="stage-banner wait">{softPause ? '你在打字 · 大家先停下来等你说完' : '已暂停 · 可以先说你的想法，点「继续」接着讨论'}</div>
+          )}
         </div>
       </section>
 
@@ -272,7 +313,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           {focused ? (
             <>
               <span className="wh-dot" style={{ background: focused.color }} />
-              <strong>工作区 · {focused.persona.name} 的每轮发言</strong>
+              <strong>工作区 · {focused.persona.name} {live ? '的发言和私聊' : '的每轮发言'}</strong>
               <button className="px-btn tiny" onClick={() => setFocus(null)}>返回全部</button>
             </>
           ) : (
@@ -280,6 +321,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           )}
         </div>
         {focused && <PersonaStrip p={focused} status={status[focused.agentId]} />}
+        {focused && minds[focused.agentId] && <MindPanel mind={minds[focused.agentId]} />}
         <div className="log" ref={logRef}>
           {session === 'waiting' && !focused && (
             <div className="brief-tip">
@@ -291,7 +333,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           {rounds.length === 0 && session !== 'waiting' && <p className="empty">{focused ? focused.persona.name + ' 还没有发言' : '等待第一位发言…'}</p>}
           {rounds.map(([r, ms]) => (
             <div key={r} className="round-block">
-              <div className="round-sep">{r === 0 ? '开场 · 你的理解' : `第 ${r} 轮 · ${roundLabel(config.mode, r, config.maxRounds)}`}</div>
+              <div className="round-sep">
+                {r === 0 ? '开场 · 你的理解' : live ? (labels[r] ?? '开聊') : `第 ${r} 轮 · ${roundLabel(config.mode, r, config.maxRounds)}`}
+              </div>
               {ms.map((m) => <Line key={m.id} m={m} byId={byId} />)}
             </div>
           ))}
@@ -299,9 +343,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             .filter((p) => status[p.agentId]?.state === 'thinking' && (!focus || focus === p.agentId))
             .map((p) => (
               <div key={'thinking-' + p.agentId} className="line thinking-line" style={{ ['--ac' as string]: p.color }}>
-                <span className="l-avatar"><PixelAvatar v={p.persona.visual} size={28} /></span>
+                <span className="l-avatar"><PixelAvatar v={withFace(p.persona.visual, minds[p.agentId])} size={28} /></span>
                 <div>
-                  <div className="who">{p.persona.name}<i>思考中</i></div>
+                  <div className="who">{p.persona.name}<i>{live ? status[p.agentId]?.action ?? '想说话' : '思考中'}</i></div>
                   <p className="typing"><i /><i /><i /></p>
                 </div>
               </div>
@@ -317,7 +361,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               ))}
             </div>
           )}
-          {result && !focused && <ResultCard r={result} />}
+          {result && !focused && <ResultCard r={result} live={live} />}
           {errors.filter((e) => !focused || !e.agentId || e.agentId === focus).map((e) => (
             <div key={e.id} className="err-line" role="alert">
               <b>{e.agentId ? (byId[e.agentId]?.persona.name ?? e.agentId) + ' 这次发言失败' : '讨论出错'}</b>
@@ -352,10 +396,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               className="px-input"
               value={draft}
               placeholder={!canTalk ? '讨论已停止'
-                : session === 'finished' ? (focused ? `讨论结束了，继续私下问 ${focused.persona.name}…` : '讨论结束了，还可以继续追问（点成员可以私下问）')
-                : focused ? `私下对 ${focused.persona.name} 说…（只有他看得到）` : '对全体说…（点成员可以私下说）'}
+                : session === 'finished' ? (focused ? `讨论结束了，继续私下问 ${focused.persona.name}…` : live ? '散场了，再说一句大家能接着聊（点成员可以私下说）' : '讨论结束了，还可以继续追问（点成员可以私下问）')
+                : focused ? `私下对 ${focused.persona.name} 说…（只有他看得到${live ? '，会改变他的心情和打算' : ''}）`
+                : live ? '对全体说…（@名字 点名；点成员可以私下说；一打字大家就停下来等你）' : '对全体说…（点成员可以私下说）'}
               disabled={!canTalk}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => editDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send(); }}
             />
             <button className="px-btn primary" onClick={send} disabled={!canTalk || !draft.trim()}>发送</button>
@@ -377,7 +422,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
                 style={{ ['--ac' as string]: p.color }}
                 onClick={() => setFocus(focus === p.agentId ? null : p.agentId)}
               >
-                <span className="m-avatar"><PixelAvatar v={p.persona.visual} size={40} /></span>
+                <span className="m-avatar"><PixelAvatar v={withFace(p.persona.visual, minds[p.agentId])} size={40} /></span>
                 <span className="m-info">
                   <strong>{p.isLead && '★'}{p.persona.name}{p.side && <i className={'side side-' + p.side}>{{ pro: '正', con: '反', host: '主' }[p.side]}</i>}</strong>
                   <small>{p.persona.personalities.find((x) => x.id === p.personalityId)?.label} · {count} 条</small>
@@ -399,6 +444,10 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 
 function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }) {
   if (m.kind === 'notice') return <div className="line notice"><p>⚠ {m.text}</p></div>;
+  if (m.kind === 'react') {
+    const p = byId[m.speakerId];
+    return p ? <div className="line react" style={{ ['--ac' as string]: p.color }}><b>{p.persona.name}</b><span>{m.text}</span></div> : null;
+  }
   if (m.speakerId === 'user') {
     const to = m.targetId ? byId[m.targetId]?.persona.name : '全体';
     return (
@@ -410,12 +459,43 @@ function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }
   const p = byId[m.speakerId];
   if (!p) return null;
   return (
-    <div className={'line ' + m.kind + (m.private ? ' private' : '')} style={{ ['--ac' as string]: p.color }}>
+    <div className={'line ' + m.kind + (m.private ? ' private' : '') + (m.cut ? ' cut' : '')} style={{ ['--ac' as string]: p.color }}>
       <span className="l-avatar"><PixelAvatar v={p.persona.visual} size={28} /></span>
       <div>
-        <div className="who">{p.persona.name}{m.tag && <em className="line-tag">{m.tag}</em>}{m.kind === 'reply' && <i>{m.private ? '私下回复你' : '回复你'}</i>}</div>
+        <div className="who">
+          {p.persona.name}{m.tag && <em className="line-tag">{m.tag}</em>}{m.cut && <em className="line-tag">被打断</em>}
+          {m.kind === 'reply' && <i>{m.private ? '私下回复你' : '回复你'}</i>}
+        </div>
+        {m.quote && <div className="quote">↪ {m.quote.name}：{m.quote.text}</div>}
         <p>{m.text}</p>
       </div>
+    </div>
+  );
+}
+
+/** 点开某个人时看到的内心：情绪、态度、打算、心里话、对谁有意见 */
+function MindPanel({ mind }: { mind: MindView }) {
+  return (
+    <div className="mind-panel">
+      <div className="mood-bars">
+        {mind.mood.map((x) => (
+          <span key={x.key} className="mood-bar" style={{ ['--mc' as string]: x.color }}>
+            {x.key}<i><b style={{ width: x.value * 10 + '%' }} /></i>{Math.round(x.value)}
+          </span>
+        ))}
+      </div>
+      <dl>
+        <dt>心情</dt><dd>{mind.emoji} {mind.label}{mind.urge !== undefined && <small> · 想开口 {mind.urge}/10</small>}</dd>
+        {mind.stance && <><dt>态度</dt><dd>{mind.stance}</dd></>}
+        {mind.plan && <><dt>打算</dt><dd>{mind.plan}</dd></>}
+        {mind.inner && <><dt>心里</dt><dd>{mind.inner}</dd></>}
+        {mind.toward.length > 0 && (
+          <><dt>对人</dt><dd>{mind.toward.map((t) => (
+            <span key={t.id} className={'rel ' + (t.value > 0 ? 'good' : 'bad')}>{t.name} {t.value > 0 ? '+' : ''}{t.value}</span>
+          ))}</dd></>
+        )}
+        {mind.whisper && <><dt>你说过</dt><dd className="whisper">“{mind.whisper}”</dd></>}
+      </dl>
     </div>
   );
 }
@@ -433,7 +513,7 @@ function PersonaStrip({ p, status }: { p: Participant; status?: Status }) {
   );
 }
 
-function ResultCard({ r }: { r: DiscussionResult }) {
+function ResultCard({ r, live }: { r: DiscussionResult; live?: boolean }) {
   const sec: Array<[string, string[] | undefined, string]> = [
     ['共识', r.consensus, 'green'], ['分歧', r.disagreements, 'orange'],
     [r.verdict ? '被回避的质询' : '待验证', r.openQuestions, 'blue'], ['建议', r.suggestions, 'purple'], ['交付物', r.deliverables, 'yellow'],
@@ -454,7 +534,7 @@ function ResultCard({ r }: { r: DiscussionResult }) {
           {v.reason && <p className="summary-text">{v.reason}</p>}
         </div>
       )}
-      {r.summary && <div className="res res-blue"><b>{v ? '赛后总结' : '主持人总结'}</b><p className="summary-text">{r.summary}</p></div>}
+      {r.summary && <div className="res res-blue"><b>{v ? '赛后总结' : live ? '这场聊下来' : '主持人总结'}</b><p className="summary-text">{r.summary}</p></div>}
       {sec.filter(([, v]) => v?.length).map(([k, v, c]) => (
         <div key={k} className={'res res-' + c}><b>{k}</b><ul>{v!.map((x) => <li key={x}>{x}</li>)}</ul></div>
       ))}
