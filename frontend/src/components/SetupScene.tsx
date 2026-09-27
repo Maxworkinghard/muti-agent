@@ -79,7 +79,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
               </div>
               <small>{s.description}</small>
               {s.custom && (
-                <span className="scene-edit" role="button" title="编辑或删除场景" onClick={(e) => { e.stopPropagation(); setEditing(s); }}>✎ 编辑 / 删除</span>
+                <span className="scene-edit" role="button" title="编辑场景" onClick={(e) => { e.stopPropagation(); setEditing(s); }}>✎ 编辑</span>
               )}
             </button>
           ))}
