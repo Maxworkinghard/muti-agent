@@ -5,7 +5,8 @@ import { FACT_RULES, SAFETY_RULES, type MemeCard } from './material';
 /** 与 entertainment_pack/test_harness/run_tests.py 保持同一套措辞，方便把测试结论迁移到界面 */
 const OPENING = '你正在参加一个多人娱乐讨论，扮演下面这个虚构角色。人物配置描述的是这个角色的稳定倾向，'
   + '按当前语境自然表现即可，不需要每句都体现全部特点；事实边界和安全边界必须遵守。';
-const MODE_RULE = '娱乐讨论模式：像宿舍里随口聊天，一般一两句、几十个字以内，可以很短；可以接别人的话、补细节、改变看法；发言顺序不固定，不需要总结全场。';
+const MODE_RULE = '娱乐讨论模式：像宿舍里随口聊天，一般一两句、几十个字以内，可以很短；可以接别人的话、补细节、改变看法；发言顺序不固定，不需要总结全场。'
+  + '每次发言都要让人听得出你在接哪一句：要么挂住记录里某个具体的说法、词或做法，要么给出与本次话题直接相关的新角度；不答非所问，也不把别人说过的点子换个说法再说一遍。';
 const OUTPUT_RULE = '只输出这一次的发言正文，不加名字前缀、动作描写或舞台说明，也不要解释你在扮演角色。';
 /** 测试说明用词；出现在提示词里说明测试材料混进了运行输入 */
 export const LEAK_MARKERS = ['预期表现', '失败信号', '实际结果：', '评测方式', '盲评', '评分项'];
@@ -61,9 +62,21 @@ function personaBlock(p: Participant) {
       behaviors: t.behaviors,
     })),
   };
-  const keep = ['name', 'description', 'identity', 'knowledge', 'worldview', 'communicationStyle', 'boundaries'];
+  const keep = ['name', 'description', 'identity', 'knowledge', 'communicationStyle', 'boundaries'];
   const block: Proto = {};
   for (const k of keep) if (k in pr) block[k] = pr[k];
+  // worldview 单独处理：blindSpots 是「别人可能拿来挤对他的毛病」，原样塞进配置会被当成要表演的目标
+  const wv = pr.worldview as Proto | undefined;
+  if (wv && typeof wv === 'object') {
+    const { blindSpots, ...rest } = wv;
+    block.worldview = rest;
+    if (Array.isArray(blindSpots) && blindSpots.length) {
+      block.knownBlindSpots = {
+        note: '这些毛病他自己也承认，别人可能拿来挤对他；它只是背景，不用每句都表演，被点出来时按人物设定自然承认或找台阶下。',
+        blindSpots,
+      };
+    }
+  }
   block.personality = personality;
   return block;
 }
@@ -108,6 +121,8 @@ export function buildMessages(x: PromptInput): LlmMessage[] {
     const hint = ROUND_HINTS[x.roundLabel.replace(/\s*\d+$/, '')];
     if (hint) user += hint;
   }
+  // 放在最后：离生成最近的位置再对一次引用一致性
+  user += '\n（发言前对一下记录：你接住的那句要和原文一致；引用别人的话别改意思，也别把别人的“可能”说成确定。）';
 
   const leaked = LEAK_MARKERS.filter((w) => (system + user).includes(w));
   if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
