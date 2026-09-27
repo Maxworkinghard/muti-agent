@@ -1,4 +1,4 @@
-// protocol.mjs 的类型声明，供 TypeScript 项目（如 roundtable-ui）直接导入
+// protocol.mjs 的类型声明，供 TypeScript 项目（如 frontend）直接导入
 import type { Persona, PersonaFile, Session, SessionFile } from './types';
 
 export interface Report { errors: string[]; warnings: string[]; readonly ok: boolean }
