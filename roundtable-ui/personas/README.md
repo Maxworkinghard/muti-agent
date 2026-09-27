@@ -6,13 +6,14 @@
 | --- | --- | --- |
 | `entertainment/` | 娱乐 | 娱乐组 |
 | `rational/` | 辩论 | 辩论组 |
+| `emotion/` | 情感分析 | 情感组 |
 | `product/` | 工作 · 创造项目 | 工作组（工作 Agent） |
 
 文件夹名就是人物的默认模式；文件里写了 `modes` 时以文件为准。
 
 格式优先用人格资料包协议 v1.0（`{ "schemaVersion": "1.0", "persona": {...} }`，校验工具在 `../persona-protocol`），样例见 `entertainment/ent-cold-observer-001.persona.json`。
 
-`demo-*.json` 是演示用的假人物，真实人物到位后直接删掉对应文件即可。
+各模式都已换成真实人物，演示用的 `demo-*.json` 已全部删除。工作组的 5 个人物（积木、算盘、放大镜、扳手、照妖镜）来自 PR6，说明见 `docs/handoff/03-工作组-人物与引擎.md`。
 
 ## 协议格式确认（按阿冷样例跑通）
 

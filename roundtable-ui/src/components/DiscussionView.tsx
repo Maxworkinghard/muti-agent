@@ -147,7 +147,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 
   const focused = focus ? byId[focus] : null;
   const visible = focused
-    ? messages.filter((m) => m.speakerId === focus || (m.speakerId === 'user' && m.targetId === focus))
+    ? messages.filter((m) => m.kind === 'notice' || m.speakerId === focus || (m.speakerId === 'user' && m.targetId === focus))
     : messages;
   // 按轮次分组
   const rounds = useMemo(() => {
@@ -359,6 +359,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 }
 
 function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }) {
+  if (m.kind === 'notice') return <div className="line notice"><p>⚠ {m.text}</p></div>;
   if (m.speakerId === 'user') {
     const to = m.targetId ? byId[m.targetId]?.persona.name : '全体';
     return <div className="line user"><div className="who">你 → {to}</div><p>{m.text}</p></div>;

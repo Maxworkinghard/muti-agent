@@ -317,6 +317,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .line .who i { font-style: normal; font-weight: normal; background: var(--c-yellow); color: var(--ink); padding: 0 4px; font-size: 10px; }
 .line p { margin: 2px 0 0; background: #fff; border: 2px solid var(--ink); padding: 5px 8px; line-height: 1.5; font-size: 13px; }
 .line.task p { background: var(--sand); border-style: dashed; font-size: 12px; }
+.line.notice p { flex: 1; background: #fbe3df; border-color: var(--c-red); font-size: 12px; }
 .line.user { flex-direction: column; align-items: flex-end; }
 .line.user .who { color: var(--ink); }
 .line.user p { background: var(--c-yellow); max-width: 85%; }

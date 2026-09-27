@@ -2,6 +2,8 @@ export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
 /** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
 export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
+/** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
+export type Facing = 'S' | 'SE' | 'E' | 'NE' | 'N' | 'NW' | 'W' | 'SW';
 
 export interface Personality {
   id: string;
@@ -19,7 +21,10 @@ export interface PersonaVisual {
   hair: string;
   shirt: string;
   accent: string;
-  hairStyle?: 'short' | 'long' | 'bun' | 'cap';
+  /** cap、hood 用衣服颜色画帽子，beanie 用 accent 颜色画毛线帽 */
+  hairStyle?: 'short' | 'long' | 'bun' | 'cap' | 'spiky' | 'curly' | 'side' | 'middle' | 'hood' | 'beanie';
+  /** 表情和配饰，可以叠加；围巾用 accent 颜色 */
+  extras?: Array<'brows' | 'glasses' | 'sleepy' | 'happy' | 'grin' | 'blush' | 'sweat' | 'ears' | 'scarf'>;
   /** 头像图片地址；为空时画像素小人 */
   image?: string;
 }
@@ -109,7 +114,8 @@ export interface ChatMessage {
   /** agentId，或 'user' / 'system' */
   speakerId: string;
   text: string;
-  kind: 'speech' | 'user' | 'reply' | 'system' | 'task';
+  /** notice：引擎提示（如模型调用失败），在工作区里显示 */
+  kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice';
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
   /** 发言者身份和环节，例如「正方一辩 · 质询」（辩论引擎用） */
@@ -150,6 +156,8 @@ export type EngineEvent =
   | { type: 'message_update'; id: string; text: string }
   | { type: 'task'; task: TaskEvent }
   | { type: 'result'; result: DiscussionResult }
+  /** 没填主题时，引擎按用户对全体说的第一句话生成的主题 */
+  | { type: 'theme'; title: string }
   /** 调用 AI 等出错；agentId 为空表示整场出错。retry 存在时界面显示“重试”按钮 */
   | { type: 'error'; id: string; agentId?: string; message: string; retry?: () => void };
 
