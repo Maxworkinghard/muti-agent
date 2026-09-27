@@ -1,18 +1,18 @@
 import type { DiscussionResult, Participant, SessionConfig } from '../../types';
 import type { LlmMessage } from '../../llm/client';
-import type { MoodDef, ReactionInput, Temperament } from '../live/types';
+import type { ActorInput, DirectorInput, MoodDef, Temperament } from '../live/types';
 import { extractJson } from '../live/json';
 import { FACT_RULES, SAFETY_RULES, type MemeCard } from './material';
 
-const OPENING = '你在一场多人闲聊里扮演下面这个虚构角色。这不是轮流发言的节目：没人安排谁说话，谁想说谁说，也可以一直不说。'
-  + '像真人一样，先有反应和情绪，再决定说不说、怎么说。人物配置描述的是这个角色的稳定倾向，按当前语境自然表现即可，'
+const OPENING = '你在一场多人闲聊里扮演下面这个虚构角色。每一句导演会私下给你提示（冲谁说、大意、情绪、说话状态），'
+  + '你按自己的人设、用自己的话说出来。人物配置描述的是这个角色的稳定倾向，按当前语境自然表现即可，'
   + '不需要每句都体现全部特点；事实边界和安全边界必须遵守。';
 
 const CHAT_RULES = [
   '像宿舍里、群聊里随口聊天：一条消息通常几个字到二十来字，最多三十来字；想说的多就拆成两三条短的连着发，别写长段。',
   '可以只发很短的反应，比如“？？？”“哈哈哈哈”“啊这”“不是……”。',
-  '情绪决定你怎么说：上头时句子短、语气冲，可能连发，甚至不等对方说完就插嘴；委屈、没面子时可能嘴硬、阴阳怪气，或者干脆不吭声；'
-    + '开心时话多、爱接梗；无聊时敷衍几句，或者把话题岔开。',
+  '情绪和说话状态决定你怎么说：上头时句子短、语气冲，可能连发；委屈、没面子时可能嘴硬、阴阳怪气；'
+    + '开心时话多、爱接梗；无聊时敷衍几句，或者把话题岔开。但口头禅和核心习惯不变。',
   '别为了客气附和。有分歧就接着杠，真被说服了再改口，改口也要给自己找台阶，怎么找按你的性格来。',
   '用户是群里的一个真人朋友，不是主持人也不是裁判，你可以同意也可以不同意他；他点名问你时要回应。',
   '每句话都要让人听得出你在接哪一句：挂住记录里某条具体的说法，或者回应用户；不答非所问，也不把别人说过的点子换个说法再说一遍。可以翻旧账，比如“你刚才不是说……”。',
@@ -103,36 +103,117 @@ function temperWords(t: Temperament) {
   return out.length ? out.join('；') + '。' : '普通人的脾气。';
 }
 
-function schemaBlock(moods: MoodDef[]) {
+const dump = (v: unknown) => JSON.stringify(v, null, 2);
+
+function checkLeak(parts: string[], skip: string) {
+  // 只查规则、人物配置、梗卡这些静态素材：测试说明混进运行输入只会从这里进来。
+  // 话题、用户的话和角色发言是运行时内容，说到“盲评”之类的词很正常，不查
+  const leaked = LEAK_MARKERS.filter((w) => parts.some((s) => s !== skip && s.includes(w)));
+  if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
+}
+
+const topicBlock = (cfg: SessionConfig) => '【本次话题】\n' + (cfg.theme.title || '随便聊聊') + '\n（没有附带话题卡和背景资料。）';
+
+// ---------- 导演 ----------
+
+const DIRECTOR_OPENING = '你是一场多人闲聊的导演。在场的人各自有身份，由各自的演员来演；你看着整场，决定下一句谁说、冲谁说、大概说什么、带什么情绪，'
+  + '以及每个人的情绪怎么一步步递进、说话状态怎么变、全场往哪走。你只定方向，不写台词——台词由演员按自己的人设说。';
+
+const DIRECTOR_RULES = [
+  '像真实的闲聊，不是轮流发言：谁被戳到谁接，有人会被冷落、有人抢着说；同一个人别连着说太多次，一直没吭声的人适时拉出来。',
+  '情绪要有来龙去脉、一步一步递进：每一步每人每种情绪最多变 2；有升温、爆发、冷却、跑题，不要一直吵，也不要一直和气，更不要很快全体同意。',
+  '说话状态跟着情绪变：上头了句子变短、开始翻旧账；没面子了嘴硬、阴阳怪气；开心了话多、爱接梗；无聊了敷衍、想岔开话题。只在有变化时写；写了就一直带着，直到你再改。',
+  '说话状态不能超出这个人的人设底线：口头禅和核心习惯不变（比如“确实”型的人再生气也还是会“确实”）。',
+  '用户是群里的一个真人朋友，不是主持人也不是裁判：用户说了话这一步就要有人接，点了名的人先接；可以有人不同意他。',
+  '用户私下跟某人说的话只有那个人知道：只能通过那个人接下来的言行体现，别让别人知道，也别让那个人说漏是用户让他这么做的。',
+  '插嘴：只有最新那句还没说完、有人实在忍不住时才用，写 interrupt=true，并照抄对方原话里让他忍不住的那几个字（cut_after）。少用。',
+  'react：旁人顺口的小反应（“哈哈哈”“？”），不占发言，最多两个，多数时候不用。',
+  '没人有话说时 speaker 留空（冷场）；话题聊干了、该散了，end=true。',
+  '演员实际说出口的可能和你给的大意有出入，以记录为准，据此调整后面的安排。',
+];
+
+function castBlock(cfg: SessionConfig, temper: (p: Participant) => Temperament) {
+  return cfg.participants.map((p) => {
+    const pr = protoOf(p);
+    const cs = (pr.communicationStyle ?? {}) as Proto;
+    const bits = [
+      pr.description ?? p.persona.identity,
+      cs.tone && '语气：' + cs.tone,
+      cs.sentenceStyle && '说话方式：' + cs.sentenceStyle,
+      Array.isArray(cs.catchphrases) && cs.catchphrases.length ? '口头禅：' + cs.catchphrases.join('、') : '',
+      '性情：' + temperWords(temper(p)),
+    ].filter(Boolean);
+    return '- ' + p.persona.name + '：' + bits.join('；');
+  }).join('\n');
+}
+
+function directorSchema(cfg: SessionConfig, moods: MoodDef[]) {
   const mood = '{' + moods.map((d) => '"' + d.key + '": 0').join(', ') + '}';
+  const a = cfg.participants[0]?.persona.name ?? '甲';
+  const b = cfg.participants[1]?.persona.name ?? '乙';
   return [
     '只输出一个 JSON 对象，不要任何别的文字：',
-    '{"inner": "", "mood": ' + mood + ', "toward": {}, "stance": "", "hooks": [], "plan": "", "urge": 0, '
-      + '"interrupt": false, "cut_after": "", "reply_to": "", "say": [], "react": "", "topic": "", "private_reply": ""}',
+    '{"arc": "升温", "arc_note": "", '
+      + '"next": {"speaker": "' + a + '", "to": "' + b + '", "gist": "", "emotion": "", "reply_to": "", "interrupt": false, "cut_after": ""}, '
+      + '"mood": {"' + a + '": ' + mood + '}, "style": {}, "stance": {}, "plan": {}, "toward": {}, "react": [], "topic": "", "end": false}',
     '字段说明：',
-    '- inner：你心里的真实反应，一句话，第一人称，25 字以内。',
-    '- mood：刚才这一下各种情绪变了多少，-3 到 3 的整数，没变就 0。被戳到、被笑、被否定、被冷落会不爽或委屈；被附和、被逗乐、占了上风会开心；车轱辘话、跟你没关系会无聊。',
-    '- toward：你对谁的好感变了多少（-3 到 3），键写名字，用户就写“用户”；没变就 {}。',
-    '- stance：你对话题的态度；只有刚开聊或者你真改了看法时才写，否则留空。',
-    '- hooks：刚开聊时写一两个你能拿出来说的具体私货（比如你这个角色身上的一件小事），之后留空。',
-    '- plan：接下来想干嘛（比如“逮着他前后矛盾不放”），没什么打算就留空。',
-    '- urge：你现在有多想开口，0~10。被点名、被戳到、憋着话、有好梗就高；插不上嘴、跟你没关系、懒得理就低。',
-    '- interrupt：对方话还没说完你就忍不住要插嘴时才写 true（上头、被冤枉、急着纠正的时候）。',
-    '- cut_after：interrupt 为 true 时，照抄对方原话里让你忍不住的那几个字（你听到这里就插进去了），say 只针对这之前听到的内容；否则留空。',
-    '- reply_to：你要接的那条消息的编号，比如 "m12"。',
-    '- say：要说出口的话，1~3 条短消息；不想说就 []。',
-    '- react：不抢话、只是顺口冒出来的小反应（比如“哈哈哈哈”“？”），多数时候留空；say 不为空时留空。',
-    '- topic：只有你这句是把话题岔到一个新方向时，写 4~8 个字的新话题名，否则留空。',
-    '- private_reply：只有用户私下找你时才写，是你私下回他的一句话；其他时候留空。',
+    '- arc：全场现在走到哪，几个字（开场、升温、爆发、冷却、跑题、收尾……）；arc_note：你接下来几步的打算，一句话（比如“再吵一个来回，让阿禾出来打圆场”）。',
+    '- next.speaker：下一句谁说（写名字；没人说就留空）；to：冲谁说（名字、“用户”或留空）；gist：这句的大意，不是台词；emotion：他说这句时的情绪，几个字；reply_to：接的是哪条消息的编号；interrupt / cut_after：见插嘴规则。',
+    '- mood：这一步谁的情绪变了多少，键写名字，值是 -2 到 2 的整数；只写有变化的人。',
+    '- style：谁的说话状态变成什么，一句话（比如“句子变短，开始翻旧账”）；只写有变化的人。',
+    '- stance：谁对话题的态度变了（刚开聊时给每个人定下初始态度）；plan：谁心里打算干嘛；toward：谁对谁的好感变化，形如 {"甲": {"乙": -1}}，-2 到 2。都只写有变化的。',
+    '- react：[{"who": "名字", "text": "哈哈哈"}]，没有就 []。',
+    '- topic：只有这一句把话题岔到新方向时，写 4~8 个字的新话题名。',
+    '- end：该散场了写 true。',
   ].join('\n');
 }
 
-const dump = (v: unknown) => JSON.stringify(v, null, 2);
+/** 导演：system 放不变的阵容和规则，user 按“记录 → 账 → 全场 → 现在”排 */
+export function buildDirectorMessages(x: DirectorInput & { moods: MoodDef[]; temper: (p: Participant) => Temperament }): LlmMessage[] {
+  const topic = topicBlock(x.cfg);
+  const parts = [
+    DIRECTOR_OPENING,
+    '【在场的人】\n' + castBlock(x.cfg, x.temper) + '\n- 用户：群里的一个真人朋友，也在聊。',
+    topic,
+    '【导演规则】\n' + DIRECTOR_RULES.map((r) => '- ' + r).join('\n'),
+    '【输出格式】\n' + directorSchema(x.cfg, x.moods),
+  ];
+  checkLeak(parts, topic);
+  const user = [
+    '【聊天记录】（方括号里是编号，最新的在最后）\n' + x.transcript,
+    '【每个人现在的账】\n' + x.state,
+    '【全场】\n' + x.arc,
+    '【现在】\n' + x.now,
+  ].join('\n\n');
+  return [{ role: 'system', content: parts.join('\n\n') }, { role: 'user', content: user }];
+}
 
-/** 一个人听完最新的话之后的内心反应：system 放不变的人设和规则，user 按“记录 → 私聊 → 状态 → 现在”排，前面的部分能命中缓存 */
-export function buildReactionMessages(x: ReactionInput & { memes: MemeCard[]; moods: MoodDef[] }): LlmMessage[] {
+// ---------- 演员 ----------
+
+function actorSchema(moods: MoodDef[], whisper: boolean) {
+  if (whisper) {
+    const mood = '{' + moods.map((d) => '"' + d.key + '": 0').join(', ') + '}';
+    return [
+      '只输出一个 JSON 对象，不要任何别的文字：',
+      '{"private_reply": "", "plan": "", "inner": "", "mood": ' + mood + '}',
+      '- private_reply：你私下回用户的一句话，口语、很短。',
+      '- plan：听完这句你接下来打算干嘛，一句话（没变就留空）。',
+      '- inner：你心里的真实反应，一句话。',
+      '- mood：听完这句你各种情绪变了多少，-2 到 2 的整数。',
+    ].join('\n');
+  }
+  return [
+    '只输出一个 JSON 对象，不要任何别的文字：',
+    '{"say": [], "inner": ""}',
+    '- say：你说出口的话，1~3 条短消息（想说的多就拆成几条）。',
+    '- inner：你说这句时心里的真实想法，一句话，别人看不到。',
+  ].join('\n');
+}
+
+/** 演员：拿着自己的人设和导演这一步的提示，用自己的话说出来；或者私下回用户 */
+export function buildActorMessages(x: ActorInput & { memes: MemeCard[]; moods: MoodDef[] }): LlmMessage[] {
   const others = x.cfg.participants.filter((p) => p.agentId !== x.self.agentId);
-  const topic = '【本次话题】\n' + (x.cfg.theme.title || '随便聊聊') + '\n（没有附带话题卡和背景资料。）';
+  const topic = topicBlock(x.cfg);
   const parts = [
     OPENING,
     rulesBlock(),
@@ -142,18 +223,21 @@ export function buildReactionMessages(x: ReactionInput & { memes: MemeCard[]; mo
     topic,
     x.memes.length ? '【可用梗卡】\n' + dump(x.memes) : '【可用梗卡】\n本次没有提供梗卡。',
     '【闲聊规则】\n' + CHAT_RULES.map((r) => '- ' + r).join('\n'),
-    '【输出格式】\n' + schemaBlock(x.moods),
+    '【输出格式】\n' + actorSchema(x.moods, x.whisper),
   ];
-  // 只查规则、人物配置、梗卡这些静态素材：测试说明混进运行输入只会从这里进来。
-  // 话题、用户的话和角色发言是运行时内容，说到“盲评”之类的词很正常，不查
-  const leaked = LEAK_MARKERS.filter((w) => parts.some((s) => s !== topic && s.includes(w)));
-  if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
-
+  checkLeak(parts, topic);
+  const now = x.whisper
+    ? [
+      `用户刚私下对你说：「${x.cue}」`,
+      '这是只有你知道的悄悄话，别人看不到，也不知道你们聊过。按你的性格接住它：它可以改变你的情绪、对某人的看法、你的态度或者接下来的打算。'
+        + '大多数时候你会顺着这个方向走，但用你自己会用的方式，不会一下子翻脸；也绝不说出“是用户让我这么说的”。',
+    ].join('\n')
+    : x.cue + '\n用你自己的话、按你的人设说出来；大意可以变通，但别跑题，也别照抄大意的字。';
   const user = [
     '【聊天记录】（方括号里是编号，最新的在最后）\n' + x.transcript,
-    x.privates ? '【只有你和用户知道的私下对话】（其他人看不到，也不知道你们聊过；要不要在公开场合用上，由你决定）\n' + x.privates : '',
+    x.privates ? '【只有你和用户知道的私下对话】（其他人看不到，也不知道你们聊过）\n' + x.privates : '',
     '【你现在的状态】\n' + x.state,
-    '【现在】\n' + x.now,
+    '【现在】\n' + now,
   ].filter(Boolean).join('\n\n');
   return [{ role: 'system', content: parts.join('\n\n') }, { role: 'user', content: user }];
 }

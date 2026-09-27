@@ -559,3 +559,5 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* 接的是前面某一条 */
 .line .quote { margin-top: 2px; padding-left: 6px; border-left: 3px solid var(--ac); font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 .line.cut p { border-right-style: dashed; }
+/* 导演接下来的打算 */
+.director-note { padding: 4px 10px; font-size: 11px; color: var(--ink-2); background: #fffbe9; border-bottom: 2px dashed var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

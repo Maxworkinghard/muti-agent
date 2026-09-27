@@ -1,5 +1,5 @@
 /**
- * 命令行跑一场娱乐模式的活人群聊，不开浏览器：调参数、看情绪起伏用。模型配置读 frontend/.env（和网页一样）。
+ * 命令行跑一场娱乐模式（导演 + 演员），不开浏览器：调参数、看导演怎么排、情绪怎么递进。模型配置读 frontend/.env（和网页一样）。
  *
  *   npm run sim -- --topic "假如一周没有手机，你会怎么办？" --cast 老方,小正,小林,阿冷,阿禾 --minds
  *
@@ -12,7 +12,7 @@
  *   --say     "8:@老方 你自己不也天天刷？"   第 8 句之后你对全体说一句（可以写多次）
  *   --whisper "5:小林:老方刚才在笑你"        第 5 句之后私下对小林说（可以写多次）
  *   --pause   "10:3"                        第 10 句之后暂停 3 秒
- *   --minds   每句之后打印每个人的心情
+ *   --minds   每句之后打印每个人的心情，说话状态变了也打印
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -95,6 +95,9 @@ const t0 = Date.now();
 const clock = () => dim(((Date.now() - t0) / 1000).toFixed(1).padStart(6) + 's');
 
 const minds = {};
+let lastRound = 1;
+let lastNote = '';
+const styles = {};
 const open = new Map();
 let said = 0;
 const counts = { speech: 0, cut: 0, interrupt: 0, react: 0, whisper: 0 };
@@ -171,8 +174,17 @@ engine.start({
       if (m) { m.text = e.text; if (e.cut) { m.cut = true; flush(); } }
       break;
     }
-    case 'mind': minds[e.agentId] = e.mind; break;
-    case 'round': if (e.round > 1) { flush(); console.log(dim('—— ' + e.label + ' ——')); } break;
+    case 'mind':
+      minds[e.agentId] = e.mind;
+      if (args.minds && e.mind.style && styles[e.agentId] !== e.mind.style) {
+        styles[e.agentId] = e.mind.style;
+        console.log('        ' + dim('✎ ' + nameOf(e.agentId) + ' 的说话状态：' + e.mind.style));
+      }
+      break;
+    case 'round':
+      if (e.round > lastRound) { flush(); lastRound = e.round; if (e.round > 1) console.log(dim('—— ' + e.label + ' ——')); }
+      if (e.note && e.note !== lastNote) { lastNote = e.note; console.log('        ' + dim('🎬 导演：' + e.note)); }
+      break;
     case 'session':
       if (e.state === 'paused') console.log(dim('（暂停）'));
       if (e.state === 'stopped') done(1);

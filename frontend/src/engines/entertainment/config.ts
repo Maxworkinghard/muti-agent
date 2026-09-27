@@ -4,8 +4,10 @@ export const ENTERTAINMENT_DEFAULTS: Record<string, unknown> = {
   memesEnabled: true,
   /** 每场讨论随机抽几张热梗卡；超过卡片总数时全部提供 */
   memeCount: 3,
-  /** 内心反应（连同要说的话）的采样温度 */
+  /** 演员说话的采样温度 */
   temperature: 1,
+  /** 导演排戏的温度，低一点更稳 */
+  directorTemperature: 0.8,
   /** 生成总结时的温度，低一些更稳定 */
   summaryTemperature: 0.3,
   /** 一场最多几次发言（一次连发几条算一次），到了就散场；散场后你再开口，大家能接着聊一阵 */

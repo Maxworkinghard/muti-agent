@@ -22,13 +22,12 @@ export interface Mind {
   stance: string;
   hooks: string[];
   plan: string;
-  urge: number;
+  /** 现在的说话状态（导演定，改了就一直带着，直到导演再改），比如“句子变短，开始翻旧账” */
+  style: string;
   /** 上一次开口是第几次发言；-1 表示还没开过口 */
   lastSpoke: number;
   /** 只有他和用户知道的私下对话 */
   privates: Array<{ who: 'user' | 'self'; text: string }>;
-  /** 想说还没说出口的话 */
-  unsaid?: string;
   /** 刚才被谁打断、没说完的是什么 */
   cutoff?: { by: string; rest: string };
 }
@@ -38,7 +37,7 @@ export function createMind(p: Participant, t: Temperament, moods: MoodDef[], see
   for (const d of moods) mood[d.key] = clamp(t.baseline[d.key] ?? 0, 0, 10);
   return {
     p, id: p.agentId, name: p.persona.name, t, mood, rel: { ...seed }, seed,
-    inner: '', stance: '', hooks: [], plan: '', urge: 0, lastSpoke: -1, privates: [],
+    inner: '', stance: '', hooks: [], plan: '', style: '', lastSpoke: -1, privates: [],
   };
 }
 
@@ -126,8 +125,8 @@ export function view(m: Mind, moods: MoodDef[], nameOf: (id: string) => string, 
     inner: m.inner || undefined,
     stance: m.stance || undefined,
     plan: m.plan || undefined,
+    style: m.style || undefined,
     toward,
-    urge: m.urge,
     whisper,
   };
 }

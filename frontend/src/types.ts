@@ -144,10 +144,10 @@ export interface MindView {
   stance?: string;
   /** 接下来想干嘛 */
   plan?: string;
+  /** 现在的说话状态，比如“句子变短，开始翻旧账” */
+  style?: string;
   /** 对在场的人（含用户）的好恶，只列明显的 */
   toward: Array<{ id: string; name: string; value: number }>;
-  /** 最近一次有多想开口，0~10 */
-  urge?: number;
   /** 你私下对他说过的最后一句 */
   whisper?: string;
 }
@@ -178,7 +178,7 @@ export interface DiscussionResult {
 /** 引擎回传给前端的事件 */
 export type EngineEvent =
   | { type: 'session'; state: 'running' | 'paused' | 'finished' | 'stopped' }
-  | { type: 'round'; round: number; label: string }
+  | { type: 'round'; round: number; label: string; note?: string }
   | { type: 'status'; agentId: string; state: AgentState; action: string }
   | { type: 'message'; message: ChatMessage }
   /** 流式发言：先发一条 message，再用同一个 id 不断更新全文；cut 表示这句被人打断了 */

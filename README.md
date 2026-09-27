@@ -54,7 +54,7 @@ git push -u origin rollback-v1                                           # 再�
 
 | 模式 | 引擎 | 人物 |
 | --- | --- | --- |
-| 娱乐 | 浏览器里的活人群聊引擎（`frontend/src/engines/entertainment/` + 底盘 `live/`）：没有轮次，谁想说谁说，情绪会攒、会上头、会冷下来，能插嘴、抢话、冷场散场；可以暂停、@点名、私聊撺掇 | `frontend/personas/entertainment/` 7 人 |
+| 娱乐 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/entertainment/` + 底盘 `live/`）：导演看全场排下一句谁说、情绪怎么递进、说话状态怎么变，每个角色按自己的人设说；能插嘴、冷场散场；可以暂停、@点名、私聊撺掇 | `frontend/personas/entertainment/` 7 人 |
 | 辩论 | Python 辩论后端（`backend/服务.py` + `backend/辩论流程.py`）：正方、反方，中立主持固定兼裁判 | `backend/人物/理性/` 5 人 |
 | 情感分析 | Node 会话后端（`frontend/server/`） | `frontend/personas/emotion/` 7 人 |
 | 工作 | Node 会话后端（`frontend/server/`） | `frontend/personas/product/` 5 人 |

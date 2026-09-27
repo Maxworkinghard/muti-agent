@@ -2,7 +2,7 @@ import type { Participant } from '../../types';
 import type { LiveKit, MoodDef, Temperament } from '../live/types';
 import { MEME_CARDS, type MemeCard } from './material';
 import { readOptions } from './config';
-import { buildReactionMessages, buildSummaryMessages, parseSummary } from './prompt';
+import { buildActorMessages, buildDirectorMessages, buildSummaryMessages, parseSummary } from './prompt';
 
 /**
  * 娱乐模式在乎的四种情绪。火气按脾气放大、委屈按玻璃心放大，记仇的人消得慢；
@@ -65,7 +65,7 @@ function sample<T>(arr: T[], n: number): T[] {
   return a.slice(0, n);
 }
 
-/** 娱乐模式的玩法：情绪、性情、提示词、总结；每场开一个（梗卡每场重新抽） */
+/** 娱乐模式的玩法：情绪、性情、导演和演员的提示词、总结；每场开一个（梗卡每场重新抽） */
 export function createEntertainmentKit(): LiveKit {
   let memes: MemeCard[] = [];
   return {
@@ -75,7 +75,8 @@ export function createEntertainmentKit(): LiveKit {
       memes = o.memesEnabled ? sample(MEME_CARDS, o.memeCount) : [];
     },
     temperament: readTemperament,
-    reactionMessages: (x) => buildReactionMessages({ ...x, memes, moods: MOODS }),
+    directorMessages: (x) => buildDirectorMessages({ ...x, moods: MOODS, temper: readTemperament }),
+    actorMessages: (x) => buildActorMessages({ ...x, memes, moods: MOODS }),
     summaryMessages: buildSummaryMessages,
     parseSummary,
   };
