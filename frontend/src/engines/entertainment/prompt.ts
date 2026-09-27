@@ -5,7 +5,7 @@ import { FACT_RULES, SAFETY_RULES, type MemeCard } from './material';
 /** 与 entertainment_pack/test_harness/run_tests.py 保持同一套措辞，方便把测试结论迁移到界面 */
 const OPENING = '你正在参加一个多人娱乐讨论，扮演下面这个虚构角色。人物配置描述的是这个角色的稳定倾向，'
   + '按当前语境自然表现即可，不需要每句都体现全部特点；事实边界和安全边界必须遵守。';
-const MODE_RULE = '娱乐讨论模式：像群聊里说话一样自然，一般一到三句；可以接别人的话、补细节、改变看法；不需要总结全场。';
+const MODE_RULE = '娱乐讨论模式：像宿舍里随口聊天，一般一两句、几十个字以内，可以很短；可以接别人的话、补细节、改变看法；发言顺序不固定，不需要总结全场。';
 const OUTPUT_RULE = '只输出这一次的发言正文，不加名字前缀、动作描写或舞台说明，也不要解释你在扮演角色。';
 /** 测试说明用词；出现在提示词里说明测试材料混进了运行输入 */
 export const LEAK_MARKERS = ['预期表现', '失败信号', '实际结果：', '评测方式', '盲评', '评分项'];
@@ -103,11 +103,7 @@ export function buildMessages(x: PromptInput): LlmMessage[] {
     : '【公开讨论记录】\n（暂无，你是第一个发言的。）\n\n';
   user += '现在轮到' + x.speaker.persona.name + '发言。';
   if (x.replyTo) user += '用户刚才对你说：“' + x.replyTo + '”，这次先回应用户。';
-  else {
-    // 中间轮次名带序号（如“脑洞接龙 3”），去掉序号再找提示
-    const hint = ROUND_HINTS[x.roundLabel.replace(/\s*\d+$/, '')];
-    if (hint) user += hint;
-  }
+  else if (ROUND_HINTS[x.roundLabel]) user += ROUND_HINTS[x.roundLabel];
 
   const leaked = LEAK_MARKERS.filter((w) => (system + user).includes(w));
   if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));

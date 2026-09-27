@@ -5,7 +5,7 @@ import type {
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
 import { engineFor } from '../engines/registry';
-import { playReady, playSeat, playVoice, SoundToggle, useMuted } from '../sound';
+import { createBgm, playReady, playSeat, SoundToggle } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
 import { createBgm, playThinking, type Bgm } from './stageFx';
 
@@ -14,6 +14,8 @@ interface Flight { id: string; from: { x: number; y: number }; to: { x: number; 
 interface ErrorItem { id: string; agentId?: string; message: string; retry?: () => void }
 
 const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
+/** 娱乐模式的背景音乐（CC0，来源见 public/audio/CREDITS.md） */
+const ENT_BGM = '/audio/bgm-happy-adventure.mp3';
 /** 入场时每个人落座的间隔 */
 const SEAT_GAP = 750;
 
@@ -146,6 +148,16 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     }
   };
   useEffect(() => () => engineRef.current?.stop(), []);
+  // 娱乐模式：进房间就放背景音乐，开聊后压低音量，离开时停掉
+  const bgmRef = useRef<ReturnType<typeof createBgm> | null>(null);
+  useEffect(() => {
+    if (config.mode !== 'entertainment') return;
+    const bgm = createBgm(ENT_BGM);
+    bgmRef.current = bgm;
+    bgm.start();
+    return () => { bgm.stop(); bgmRef.current = null; };
+  }, [config.mode]);
+  useEffect(() => { if (session !== 'waiting') bgmRef.current?.duck(); }, [session]);
 
   // 自动滚到底部
   useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, focus, result, errors]);

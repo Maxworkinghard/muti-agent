@@ -2,13 +2,13 @@
 
 每个模式一个独立引擎，由各自的负责方维护，互不影响：
 
-- `entertainment/` 娱乐引擎（娱乐组）
+- `entertainment/` 娱乐引擎（娱乐组）：已换成浏览器端流程 `createEntertainmentEngine`，说明见该目录的 `README.md`
 - `rational/` 辩论引擎（辩论组）
 - `product/` 工作引擎（工作部分导入后合并到这里）
 
 每个文件夹里：
 
-- `index.ts` 导出引擎包，把 `create` 换成真实实现即可；实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
+- `index.ts` 导出引擎包。除娱乐模式外，现在各模式的 `create` 都是 `backend.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
 - `config.ts` 放可调参数的默认值，开讨论时会复制到 `SessionConfig.engineOptions` 传给引擎。
 
 `mock.ts` 是目前三个模式共用的模拟引擎，只用于演示。前端只通过 `registry.ts` 按模式取引擎。
