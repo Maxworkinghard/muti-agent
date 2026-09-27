@@ -5,7 +5,7 @@ import type {
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
 import { engineFor } from '../engines/registry';
-import { playReady, playSeat, playVoice, SoundToggle, useMuted } from '../sound';
+import { playReady, playSeat, playVoice, SoundToggle, useMuted, warmAudio } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
 import { createBgm, playThinking, type Bgm } from './stageFx';
 
@@ -82,23 +82,25 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
   const seatOf = (id: string) => scene.seats[byId[id]?.seatIndex ?? 0];
 
-  // 说话音效：新发言出现时按字数叽咕几声；流式输出时每长出一段再叽咕一下，同一个人至少隔 350ms
+  // 说话音效：每条发言一出字就叽咕一声（包括每轮第一个人）；流式输出时每长出一段再叽咕一下，同一条至少隔 350ms
   const voiceAt = useRef<Record<string, number>>({});
   const voiceLen = useRef<Record<string, number>>({});
   const chatter = (agentId: string, id: string, text: string) => {
-    if (!byId[agentId]) return;
+    if (!byId[agentId] || !text) return; // 空气泡先不响，等第一段文字出来再响
     const now = Date.now();
+    const first = voiceLen.current[id] === undefined;
     const grown = text.length - (voiceLen.current[id] ?? 0);
-    if (grown < 12 && voiceLen.current[id] !== undefined) return;
-    if (now - (voiceAt.current[agentId] ?? 0) < 350) return;
-    voiceAt.current[agentId] = now;
+    if (!first && grown < 12) return;
+    if (!first && now - (voiceAt.current[id] ?? 0) < 350) return;
+    voiceAt.current[id] = now;
     voiceLen.current[id] = text.length;
-    playVoice(agentId, Math.max(3, Math.min(8, Math.ceil((grown || 12) / 8))));
+    playVoice(agentId, Math.max(3, Math.min(8, Math.ceil(Math.max(grown, 12) / 8))));
   };
   const speakerOf = useRef<Record<string, string>>({});
 
   // 用户发完第一句（对项目的理解）后才启动引擎
   const startWith = (brief: string) => {
+    warmAudio();
     const engine = engineFor(config.mode).create();
     engineRef.current = engine;
     skipIntro();
@@ -155,6 +157,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const hasError = (agentId: string) => errors.some((x) => x.agentId === agentId);
 
   const send = () => {
+    warmAudio();
     const text = draft.trim();
     if (session === 'waiting') {
       if (!text) return;

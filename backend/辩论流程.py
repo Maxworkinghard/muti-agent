@@ -124,7 +124,7 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
     for m in members:
         m["dsystem"] = m["system"] + debate_block(m, motion, pro, con)
     topic = f"{motion['motion']}（正方：{motion['pro']}；反方：{motion['con']}）" + (f"\n（用户补充：{brief}）" if brief else "")
-    log, summary = [], "辩论刚开始。"
+    log = []
     count = {m["name"]: 0 for m in members}
     cur = {"round": 1}
     emit({"type": "start", "question": question, "rounds": rounds, "maxChars": max_chars, "debate": True,
@@ -155,12 +155,12 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
                 "stance": phase, "newPoint": True, "position": want,
                 "challenge": "（试跑）请正面回答：你方的判断标准是什么？" if phase == "质询" else None,
                 "challengeTarget": target if phase == "质询" else None}
-        r, raw = call(m, E.user_message(topic, others, summary, log, task), fake)
+        r, raw = call(m, E.full_message(topic, others, log, task), fake)
         check = "ok"
         if wrong_side(m, position_of(raw)):
             fix = (f"你刚才的发言站到了对方立场上。你是{m['title']}，必须{want}。"
                    f"按你方主张重新发言，任务不变：{task}")
-            r, raw = call(m, E.user_message(topic, others, summary, log, fix), fake)
+            r, raw = call(m, E.full_message(topic, others, log, fix), fake)
             check = "mismatch" if wrong_side(m, position_of(raw)) else "corrected"
         entry = {"round": rnd, "name": m["name"], "side": m["side"], "title": m["title"], "phase": phase,
                  **{k: r.get(k) for k in ("speech", "respondsTo", "stance", "newPoint", "challenge", "challengeTarget")},
@@ -184,7 +184,7 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
             others = "、".join(o["name"] for o in members if o is not m)
             how = "作为主持人中立地回应，再把话题拉回辩题" if m["side"] == "host" else "站在你方立场上回应，再把它和你方论点联系起来"
             task = f"观众刚才{'对你' if u.get('target') else '对全场'}说：“{u['text']}”。先直接回应观众（respondsTo 填“用户”），{how}。"
-            r, _ = call(m, E.user_message(topic, others, summary, log, task),
+            r, _ = call(m, E.full_message(topic, others, log, task),
                         {"speech": f"（试跑）{m['name']} 回应你：“{u['text'][:20]}”。", "respondsTo": "用户",
                          "stance": "回应观众", "newPoint": True, "challenge": None, "challengeTarget": None},
                         for_user=True)
@@ -249,11 +249,6 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
                 handle_user(rnd)
                 speak(m, rnd, "总结", "总结陈词：梳理这场辩论里双方最关键的一两次交锋，指出对方没有回答好的质询，"
                                     "说明在你方的判断标准下为什么你方胜出。不再提出新论点，challenge 填 null。")
-        if not dry and rnd < rounds:
-            emit({"type": "summarizing", "text": "主持人正在整理场上交锋…"})
-            full = "\n".join(f"{x.get('title', '')}{x['name']}（{x.get('phase', '')}）：{x['speech']}" for x in log)
-            summary = E.chat(cfg, E.SUMMARY + "按正方、反方分开写，并写出哪些质询还没有被正面回答。",
-                             f"辩题：{topic}\n\n{full}").strip()
     handle_user(rounds)
 
     judge = host["name"] if host else "中立裁判"
@@ -276,7 +271,7 @@ def run_debate(question, brief, members, rounds, max_chars, emit, inbox, stop, d
     if keep is not None:
         keep.update(members=members, topic=topic, log=log, count=count, cfg=cfg, rounds=rounds, host=host,
                     system_key="dsystem", debate=True,
-                    summary=f"{summary}\n裁判判定：{verdict.get('winner', '')}。{verdict.get('reason', '')}")
+                    verdict=f"裁判判定：{verdict.get('winner', '')}。{verdict.get('reason', '')}")
     if dry:
         return None
     return save({"question": question, "brief": brief, "motion": motion, "model": cfg["model"],

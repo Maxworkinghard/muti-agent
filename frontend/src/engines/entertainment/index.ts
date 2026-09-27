@@ -22,12 +22,23 @@ function sample<T>(arr: T[], n: number): T[] {
 /** 队列里的一步：换轮、某人发言、收尾 */
 type Step =
   | { type: 'round'; round: number; label: string }
+  | { type: 'pick'; round: number; label: string }
   | { type: 'speak'; agent: Participant; round: number; label: string; replyTo?: string }
   | { type: 'finish' };
 
+/** 发言调度用到的人物 id：老方（反驳型）、小正（反反驳型）、阿实（确实型） */
+const CONTRARIAN_ID = 'ent-contrarian-001';
+const COUNTER_ID = 'ent-counter-contrarian-001';
+const AFFIRMER_ID = 'ent-affirmer-001';
+/** 每轮条数在 人数 到 人数+EXTRA_PER_ROUND 之间随机 */
+const EXTRA_PER_ROUND = 2;
+/** 老方刚说完、小正在场时，小正紧接着说的概率 */
+const COUNTER_FOLLOW_PROB = 0.75;
+
 /**
- * 娱乐引擎：每轮按座位顺序依次发言，所有人共享同一份公开讨论记录，
- * 所以后发言的人能接住前面的具体发言。用户插话会插到队首，由被点名的人（或随机一人）先回应。
+ * 娱乐引擎：不按座位一人一句。每轮放若干个“待挑人”的发言位，轮到时按上下文挑人：
+ * 同一人不连说；老方说完后小正大概率接；老方没新话时小正少插嘴；两人来回后阿实容易插一句；本轮说得少的优先。
+ * 所有人共享同一份公开讨论记录。用户插话会插到队首，由被点名的人（或随机一人）先回应。
  */
 export function createEntertainmentEngine(): DiscussionEngine {
   let cfg: SessionConfig;
@@ -47,6 +58,42 @@ export function createEntertainmentEngine(): DiscussionEngine {
   const queue: Step[] = [];
   const history: HistoryItem[] = [];
   let hid = 0;
+  /** 已发言者的人物 id（按时间顺序）和本轮已发言者 */
+  const spokenLog: string[] = [];
+  let spokenThisRound: string[] = [];
+
+  const pid = (p: Participant) => p.persona.id;
+  function pickNext(): Participant {
+    const ps = cfg.participants;
+    const ids = ps.map(pid);
+    const last = spokenLog[spokenLog.length - 1];
+    let cands = ps.filter((p) => pid(p) !== last);
+    if (!cands.length) cands = ps;
+    const counter = cands.find((p) => pid(p) === COUNTER_ID);
+    if (last === CONTRARIAN_ID && counter && Math.random() < COUNTER_FOLLOW_PROB) return counter;
+    const contrarianNew = (() => {
+      for (let i = spokenLog.length - 1; i >= 0; i--) {
+        if (spokenLog[i] === COUNTER_ID) return false;
+        if (spokenLog[i] === CONTRARIAN_ID) return true;
+      }
+      return false;
+    })();
+    const [a1, a2] = [spokenLog[spokenLog.length - 1], spokenLog[spokenLog.length - 2]];
+    const weights = cands.map((p) => {
+      const id = pid(p);
+      let w = 1 / (1 + spokenThisRound.filter((x) => x === id).length);
+      if (id === COUNTER_ID && ids.includes(CONTRARIAN_ID) && !contrarianNew) w *= 0.35;
+      if (id === AFFIRMER_ID && a2 && a1 !== a2 && a1 !== AFFIRMER_ID && a2 !== AFFIRMER_ID) w *= 1.6;
+      if (id === CONTRARIAN_ID && spokenLog.length && !spokenLog.includes(CONTRARIAN_ID)) w *= 1.5;
+      return w;
+    });
+    let r = Math.random() * weights.reduce((s, w) => s + w, 0);
+    for (let i = 0; i < cands.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return cands[i];
+    }
+    return cands[cands.length - 1];
+  }
 
   const topic = () => cfg.theme.title;
   const addHistory = (speaker: string, text: string) => history.push({ id: 'm' + (++hid), speaker, text });
@@ -80,6 +127,8 @@ export function createEntertainmentEngine(): DiscussionEngine {
       const clean = text.trim();
       if (id) emit({ type: 'message_update', id, text: clean });
       addHistory(p.persona.name, clean);
+      spokenLog.push(pid(p));
+      spokenThisRound.push(pid(p));
       status(p.agentId, 'idle', '倾听');
     } catch (e) {
       if (id && !isAbort(e)) emit({ type: 'message_update', id, text: full + '……（发言中断）' });
@@ -106,6 +155,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
     if (step.type === 'round') {
       currentRound = step.round;
       currentLabel = step.label;
+      spokenThisRound = [];
       emit({ type: 'round', round: step.round, label: step.label });
       message({ round: step.round, speakerId: 'system', text: '第 ' + step.round + ' 轮 · ' + step.label, kind: 'system' });
     } else if (step.type === 'speak') {
@@ -126,7 +176,9 @@ export function createEntertainmentEngine(): DiscussionEngine {
     try {
       // 暂停时只执行回应用户的步骤，其余步骤留在队列里等继续
       while (queue.length && !stopped && !paused && (!userPaused || isReply(queue[0]))) {
-        const step = queue.shift()!;
+        let step = queue.shift()!;
+        // 待挑人的发言位在轮到时才决定是谁；失败重试时保留已挑中的人
+        if (step.type === 'pick') step = { type: 'speak', agent: pickNext(), round: step.round, label: step.label };
         try {
           await run(step);
         } catch (e) {
@@ -152,7 +204,9 @@ export function createEntertainmentEngine(): DiscussionEngine {
     for (let r = 1; r <= cfg.maxRounds; r++) {
       const label = roundLabel(cfg.mode, r, cfg.maxRounds);
       queue.push({ type: 'round', round: r, label });
-      cfg.participants.forEach((agent) => queue.push({ type: 'speak', agent, round: r, label }));
+      // 每轮条数不固定：人数 到 人数+2 条，轮到时再挑是谁说
+      const turns = cfg.participants.length + Math.floor(Math.random() * (EXTRA_PER_ROUND + 1));
+      for (let i = 0; i < turns; i++) queue.push({ type: 'pick', round: r, label });
     }
     queue.push({ type: 'finish' });
   }
@@ -165,7 +219,7 @@ export function createEntertainmentEngine(): DiscussionEngine {
       memes = opts.memesEnabled ? sample(MEME_CARDS, opts.memeCount) : [];
       stopped = false; paused = false; finished = false;
       ctrl = new AbortController();
-      queue.length = 0; history.length = 0; hid = 0;
+      queue.length = 0; history.length = 0; hid = 0; spokenLog.length = 0; spokenThisRound = [];
       emit({ type: 'session', state: 'running' });
       cfg.participants.forEach((p) => status(p.agentId, 'idle', '就座'));
       const brief = cfg.theme.brief?.trim();
