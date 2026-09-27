@@ -41,5 +41,3 @@
 1. 在 `frontend/` 里把 `.env.example` 复制成 `.env`，填上 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`（辩论后端也读这一份）。
 2. 辩论后端：在 `backend/` 里运行 `python 服务.py`（端口 8000）。
 3. 网页：在 `frontend/` 里运行 `npm install`、`npm run dev`，打开 http://localhost:5173 。
-
-网址加 `?engine=mock` 时，所有模式都用模拟引擎，不调用模型。
