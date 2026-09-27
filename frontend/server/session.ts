@@ -35,8 +35,8 @@ export class RoundtableSession {
   private seen = new Map<string, number>();
   /** 每位成员已经收到过的私聊条数：和 seen 一样只发新增的，LlmAgent 的历史里已经有的不再重复 */
   private whisperSeen = new Map<string, number>();
-  /** 用户插话队列：target 是点名的人，有值即私聊 */
-  private userQueue: Array<{ target?: string }> = [];
+  /** 用户插话队列：私聊记下这条消息在对应记录里的结束位置，逐条回应 */
+  private userQueue: Array<{ target?: string; whisperEnd?: number }> = [];
   /** 用户对全体说的第一句话：这一场要处理的问题或任务，主题只作背景 */
   protected request = '';
   /** 用户填的主题；没填时按第一句话生成 */
@@ -120,7 +120,7 @@ export class RoundtableSession {
     } else {
       this.message({ round: opening ? 1 : this.round, speakerId: 'user', text, kind: 'user' });
     }
-    if (!opening) this.userQueue.push({ target });
+    if (!opening) this.userQueue.push({ target, whisperEnd: target ? this.whispers.get(target)?.length : undefined });
     this.wake?.();
     this.pauseWake?.();
     if (this.finished) void this.followUp();
@@ -335,8 +335,8 @@ export class RoundtableSession {
    * 这位成员还没收到过的私聊（点成员说话才有）；其他成员的提示词里拿不到。
    * 之前的私聊和他自己的私下回复都已经在他的对话历史里，这里只补用户新说的，不整段重发
    */
-  private whisperText(agentId: string, from: number) {
-    const news = (this.whispers.get(agentId) ?? []).slice(from).filter((m) => m.speakerId !== agentId);
+  private whisperText(agentId: string, from: number, to: number) {
+    const news = (this.whispers.get(agentId) ?? []).slice(from, to).filter((m) => m.speakerId !== agentId);
     if (!news.length) return '';
     return '【只有你和用户知道的私下对话】\n'
       + '（其他角色看不到这些内容，也不知道你们聊过；要不要在公开讨论里提起、用它跟别人周旋，由你自己决定。）\n'
@@ -344,7 +344,7 @@ export class RoundtableSession {
   }
 
   /** 把新发言和本轮指令发给这位成员，拿回他的回答（不发到前端） */
-  private async think(p: Participant, instruction: string, forUser = false, whisper = false): Promise<string | null> {
+  private async think(p: Participant, instruction: string, forUser = false, whisper = false, whisperEnd?: number): Promise<string | null> {
     if (!forUser) await this.gate();
     if (this.ended) return null;
     const agent = this.agents.get(p.agentId)!;
@@ -353,8 +353,8 @@ export class RoundtableSession {
       .filter((m) => m.speakerId !== p.agentId && m.kind !== 'system' && m.kind !== 'notice')
       .map((m) => this.format(m));
     const mark = this.transcript.length;
-    const whisperMark = this.whispers.get(p.agentId)?.length ?? 0;
-    const priv = this.whisperText(p.agentId, this.whisperSeen.get(p.agentId) ?? 0);
+    const whisperMark = whisperEnd ?? this.whispers.get(p.agentId)?.length ?? 0;
+    const priv = this.whisperText(p.agentId, this.whisperSeen.get(p.agentId) ?? 0, whisperMark);
     const prompt = (news.length ? `【新发言】\n${news.join('\n')}\n\n` : '') + (priv ? priv + '\n\n' : '') + instruction;
     this.status(p, 'thinking', whisper ? '想怎么私下回你…' : forUser ? '准备回应用户' : '思考中…');
     for (let attempt = 1; ; attempt++) {
@@ -381,8 +381,8 @@ export class RoundtableSession {
     }
   }
 
-  private async speak(p: Participant, instruction: string, forUser = false, whisper = false): Promise<string | null> {
-    const text = await this.think(p, instruction, forUser, whisper);
+  private async speak(p: Participant, instruction: string, forUser = false, whisper = false, whisperEnd?: number): Promise<string | null> {
+    const text = await this.think(p, instruction, forUser, whisper, whisperEnd);
     if (text !== null) this.say(p, text, forUser ? 'reply' : 'speech', forUser ? 'user' : undefined, whisper);
     return text;
   }
@@ -390,14 +390,15 @@ export class RoundtableSession {
   /** 用户插话排在下一位发言之前：点名的成员私下回应（私聊），否则由负责人 / 主持人 / 第一位回应 */
   private async drainUser() {
     while (this.userQueue.length && !this.ended) {
-      const target = this.userQueue.shift()?.target;
+      const item = this.userQueue.shift();
+      const target = item?.target;
       const whisper = !!target;
       const ps = this.cfg.participants;
       const p = (target && this.byId(target)) || ps.find((x) => x.isLead) || ps.find((x) => x.side === 'host') || ps[0];
       const instruction = whisper
         ? `用户刚在私下对你说了话（见上面的私下对话）。请私下回应用户，一句话说清就行，不超过 ${this.maxChars(300)} 字。`
         : `用户对全体说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 ${this.maxChars(300)} 字。`;
-      await this.speak(p, instruction, true, whisper);
+      await this.speak(p, instruction, true, whisper, item?.whisperEnd);
     }
   }
 
