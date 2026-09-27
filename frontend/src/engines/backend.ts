@@ -43,7 +43,7 @@ export function createBackendEngine(): DiscussionEngine {
         })
         .catch((err: Error) => {
           if (stopped) return;
-          notice(`无法启动引擎：${err.message}。确认用 npm run dev 启动、在 roundtable-ui/.env 配好 LLM_API_KEY`);
+          notice(`无法启动引擎：${err.message}。确认用 npm run dev 启动、在 frontend/.env 配好 LLM_API_KEY`);
           emit({ type: 'session', state: 'stopped' });
         });
     },

@@ -7,7 +7,7 @@ export interface LlmConfig {
   model: string;
 }
 
-/** 读 roundtable-ui/.env 里的 LLM_* 配置（和辩论后端共用一份）；也认 PR6 原来的 ROUNDTABLE_* 写法 */
+/** 读 frontend/.env 里的 LLM_* 配置（和辩论后端共用一份）；也认 PR6 原来的 ROUNDTABLE_* 写法 */
 export function readConfig(env: Record<string, string | undefined>): LlmConfig {
   return {
     baseUrl: (env.LLM_BASE_URL || env.ROUNDTABLE_API_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, ''),

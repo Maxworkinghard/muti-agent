@@ -30,7 +30,7 @@ const { text, usage } = await chat([
 await chatStream(messages, (chunk) => { /* 追加到当前发言 */ });
 ```
 
-请求走同源的 `/api/llm/chat`，由 `server/llm-proxy.ts` 补上 Key 后转给服务商。Key、服务商地址和默认模型都写在 `roundtable-ui/.env`（参考 `.env.example`）。
+请求走同源的 `/api/llm/chat`，由 `server/llm-proxy.ts` 补上 Key 后转给服务商。Key、服务商地址和默认模型都写在 `frontend/.env`（参考 `.env.example`）。
 
 ## 引擎要遵守的几条约定
 

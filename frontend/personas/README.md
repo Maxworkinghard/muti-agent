@@ -37,7 +37,7 @@
 
 `communicationStyle` 另有文本字段 `tone`、`sentenceStyle` 和数组 `catchphrases`、`avoidPhrases`；`boundaries` 另有数组 `forbiddenTopics`、`mustNot`。
 
-头像：`visual.avatar` 可以写 `null`、`""` 或不写，前端会用 `visual.color` 颜色的像素小人代替，只给一条提醒，不算错误。要放图片时写 `https://...`，或写 `assets/avatars/xxx.png` 并把文件放到 `roundtable-ui/public/assets/avatars/`。
+头像：`visual.avatar` 可以写 `null`、`""` 或不写，前端会用 `visual.color` 颜色的像素小人代替，只给一条提醒，不算错误。要放图片时写 `https://...`，或写 `assets/avatars/xxx.png` 并把文件放到 `frontend/public/assets/avatars/`。
 
 性格分两层：人物文件的 `personality.defaultTraits` 是默认值；用户在选人物页选的性格只存在本次 session（`participants[].traitSelection`），不改公共人物文件。首版开讨论后不能再切换。`selectedTraits`、`session`、`runtime`、`turnOrder`、`round` 这些字段写进人物文件会直接报错。
 

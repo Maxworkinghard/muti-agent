@@ -2,7 +2,7 @@
  * AI 接口转发：前端只请求同源的 /api/llm/chat，这里补上 API Key 再转给模型服务商。
  * Key 只在服务器端读取，浏览器里看不到。
  * 按 OpenAI 兼容格式（POST {baseUrl}/chat/completions）转发，和 /api/sessions 用同一套 LLM_* 配置，
- * 换服务商只改 roundtable-ui/.env。
+ * 换服务商只改 frontend/.env。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
@@ -27,7 +27,7 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
 export function createLlmHandler(cfg: LlmConfig) {
   return async (req: IncomingMessage, res: ServerResponse) => {
     if (req.method !== 'POST') return sendJson(res, 405, { error: '只支持 POST' });
-    if (!cfg.apiKey) return sendJson(res, 500, { error: '服务器没有配置 LLM_API_KEY，请在 roundtable-ui/.env 里填写' });
+    if (!cfg.apiKey) return sendJson(res, 500, { error: '服务器没有配置 LLM_API_KEY，请在 frontend/.env 里填写' });
 
     let body: Record<string, unknown>;
     try {

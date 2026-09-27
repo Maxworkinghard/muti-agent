@@ -44,9 +44,9 @@ SUMMARY = """用 150 字以内概括下面这段讨论到目前为止的进展�
 
 def load_config():
     f = ROOT / "模型配置.json"
-    # 没有 模型配置.json 时，沿用前端 roundtable-ui/.env 里的 LLM_BASE_URL、LLM_MODEL、LLM_API_KEY
+    # 没有 模型配置.json 时，沿用前端 frontend/.env 里的 LLM_BASE_URL、LLM_MODEL、LLM_API_KEY
     env = {}
-    env_file = ROOT.parent / "roundtable-ui" / ".env"
+    env_file = ROOT.parent / "frontend" / ".env"
     if env_file.exists():
         for line in env_file.read_text(encoding="utf-8-sig").splitlines():
             k, sep, v = line.partition("=")
@@ -57,7 +57,7 @@ def load_config():
     elif env.get("LLM_BASE_URL") and env.get("LLM_MODEL"):
         cfg = {"base_url": env["LLM_BASE_URL"], "model": env["LLM_MODEL"], "api_key": env.get("LLM_API_KEY", "")}
     else:
-        raise SystemExit("找不到 模型配置.json，roundtable-ui/.env 里也没有 LLM_BASE_URL 和 LLM_MODEL。")
+        raise SystemExit("找不到 模型配置.json，frontend/.env 里也没有 LLM_BASE_URL 和 LLM_MODEL。")
     cfg["api_key"] = os.environ.get("LLM_API_KEY") or cfg.get("api_key", "") or env.get("LLM_API_KEY", "")
     if not cfg["api_key"] or "在这里" in cfg["api_key"]:
         raise SystemExit("还没有填写 api_key（也可以设置环境变量 LLM_API_KEY）。")

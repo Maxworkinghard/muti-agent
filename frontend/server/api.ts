@@ -20,7 +20,7 @@ import { createLlmHandler } from './llm-proxy.ts';
  */
 export function createApi(env: Record<string, string | undefined>) {
   const cfg = readConfig(env);
-  const setupError = cfg.apiKey ? '' : '没有配置 LLM_API_KEY（在 roundtable-ui/.env 里设置）';
+  const setupError = cfg.apiKey ? '' : '没有配置 LLM_API_KEY（在 frontend/.env 里设置）';
   const sessions = new Map<string, RoundtableSession>();
   const llm = createLlmHandler(cfg);
 
