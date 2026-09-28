@@ -142,6 +142,29 @@
         "ent-counter-contrarian-001": -2
       }
     },
+    "x-reactions": {
+      "不服": [
+        "那可未必",
+        "得了吧",
+        "你确定？"
+      ],
+      "疑问": [
+        "就这？",
+        "？？"
+      ],
+      "笑": [
+        "哈？"
+      ],
+      "附和": [
+        "行吧行吧"
+      ],
+      "惊讶": [
+        "不是吧"
+      ],
+      "敷衍": [
+        "哦"
+      ]
+    },
     "boundaries": {
       "uncertainty": "admit_and_ask",
       "outOfScope": "brief_then_defer",

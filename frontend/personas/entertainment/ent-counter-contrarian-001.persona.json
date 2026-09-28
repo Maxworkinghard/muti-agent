@@ -138,6 +138,27 @@
         "ent-contrarian-001": -3
       }
     },
+    "x-reactions": {
+      "不服": [
+        "你刚不是这么说的",
+        "双标了吧"
+      ],
+      "笑": [
+        "哈哈哈哈"
+      ],
+      "疑问": [
+        "？"
+      ],
+      "附和": [
+        "对啊"
+      ],
+      "惊讶": [
+        "啊这"
+      ],
+      "敷衍": [
+        "嗯哼"
+      ]
+    },
     "boundaries": {
       "uncertainty": "admit_and_ask",
       "outOfScope": "brief_then_defer",

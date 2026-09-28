@@ -14,6 +14,8 @@ export const ENTERTAINMENT_DEFAULTS: Record<string, unknown> = {
   maxMessages: 50,
   /** 节奏倍数：1 正常，2 慢一倍，0.5 快一倍 */
   pace: 1,
+  /** 随性程度 0~1：谁开口有多少是按各人此刻的冲动抽的（0 总按导演首选，1 完全按冲动）；闲聊要热闹，随性一点 */
+  spontaneity: 0.6,
 };
 
 export interface EntertainmentOptions {

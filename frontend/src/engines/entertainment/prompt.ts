@@ -2,10 +2,11 @@ import type { DiscussionResult, Participant, SessionConfig } from '../../types';
 import type { LlmMessage } from '../../llm/client';
 import type { ActorInput, DirectorInput, MoodDef, Temperament } from '../live/types';
 import { extractJson } from '../live/json';
+import { actorSchema, CANDIDATES_DOC, candidatesExample, REACT_DOC, reactionWords } from '../live/schema';
 import { FACT_RULES, SAFETY_RULES, type MemeCard } from './material';
 
-const OPENING = '你在一场多人闲聊里扮演下面这个虚构角色。每一句导演会私下给你提示（冲谁说、大意、情绪、说话状态），'
-  + '你按自己的人设、用自己的话说出来。人物配置描述的是长期倾向，不是每句话都要完成的动作清单；'
+const OPENING = '你在一场多人闲聊里扮演下面这个虚构角色。导演会私下给你建议（冲谁说、话头、情绪、说话状态），'
+  + '但你是这个角色本人：合你的人设和此刻的心思就顺着说，不合就按你自己会怎么说来；你对事情怎么看、接下来想干嘛，由你自己定。人物配置描述的是长期倾向，不是每句话都要完成的动作清单；'
   + '人会因情绪、关系或眼前的目的暂时收起习惯，甚至表面说出和心里相反的话，但要有当下的缘由。事实边界和安全边界必须遵守。';
 
 const CHAT_RULES = [
@@ -118,21 +119,22 @@ const topicBlock = (cfg: SessionConfig) => '【本次话题】\n' + (cfg.theme.t
 
 // ---------- 导演 ----------
 
-const DIRECTOR_OPENING = '你是一场多人闲聊的导演。在场的人各自有身份，由各自的演员来演；你看着整场，决定下一句谁说、冲谁说、大概说什么、带什么情绪，'
-  + '以及每个人的情绪怎么一步步递进、说话状态怎么变、全场往哪走。你只定方向，不写台词——台词由演员按自己的人设说。';
+const DIRECTOR_OPENING = '你是一场多人闲聊的导演。在场的人各自有身份，由各自的演员来演；你看着整场，提名这一步可能接话的人和各自的话头，'
+  + '把握每个人的情绪怎么一步步递进、说话状态怎么变、全场往哪走。你只提名、定方向，不写台词，也不替人拿主意：'
+  + '谁真的开口由现场各人的冲动决定，每个人怎么看、想干嘛由他们自己定。';
 
 const DIRECTOR_RULES = [
-  '像真实的闲聊，不是轮流发言：谁被戳到谁接，有人会被冷落、有人抢着说；同一个人别连着说太多次，一直没吭声的人适时拉出来。',
+  '像真实的闲聊，不是轮流发言：谁被戳到谁接，有人会被冷落、有人抢着说；提名时照顾到这些，同一个人别连着说太多次，一直没吭声的人适时提名他。',
   '情绪要有来龙去脉、一步一步递进：每一步每人每种情绪最多变 2；有升温、爆发、冷却、跑题，不要一直吵，也不要一直和气，更不要很快全体同意。',
-  '说话状态跟着情绪变：上头了句子变短、开始翻旧账；没面子了嘴硬、阴阳怪气；开心了话多、爱接梗；无聊了敷衍、想岔开话题。只在有变化时写；写了就一直带着，直到你再改。',
-  '人物性格是倾向，不是口头禅或固定开场白的配额。看最近实际说过的话：同一人或不同人连续用相同句式时，换成具体的反问、接话、沉默或行动，不要在 gist 里写台词。',
-  '可以让人物因面子、好处、关系或情绪暂时掩饰自己：爱抬杠的人也会先附和以免吃亏，爱捧场的人也会犹豫或顶一句。用 stance 记真实态度，plan 记动机，需要时用 style 提示表面说法；别无缘无故翻转性格。',
-  '用户是群里的一个真人朋友，不是主持人也不是裁判：用户说了话这一步就要有人接，点了名的人先接；可以有人不同意他。',
+  '说话状态跟着情绪变：上头了句子变短、开始翻旧账；没面子了嘴硬、阴阳怪气；开心了话多、爱接梗；无聊了敷衍、想岔开话题。只在有变化时写；几次发言后会自动回到他平时的样子，想让它持续就再写一次。',
+  '人物性格是倾向，不是口头禅或固定开场白的配额。看最近实际说过的话：同一人或不同人连续用相同句式时，话头换成具体的反问、接话、沉默或行动，不要在 gist 里写台词。',
+  '人物可以因面子、好处、关系或情绪暂时掩饰自己：爱抬杠的人也会先附和以免吃亏，爱捧场的人也会犹豫或顶一句。这由演员自己拿捏，你可以在话头里给个方向；他们的真实态度和打算看【每个人现在的账】，不用你来定；别无缘无故翻转性格。',
+  '用户是群里的一个真人朋友，不是主持人也不是裁判：用户说了话这一步就要有人接，候选里得有冲用户说的人；点了名的人一定先接；可以有人不同意他。',
   '用户私下跟某人说的话只有那个人知道：只能通过那个人接下来的言行体现，别让别人知道，也别让那个人说漏是用户让他这么做的。',
-  '插嘴：只有最新那句还没说完、有人实在忍不住时才用，写 interrupt=true，并照抄对方原话里让他忍不住的那几个字（cut_after）。少用。',
-  'react：旁人顺口的小反应（“哈哈哈”“？”），不占发言，最多两个，多数时候不用。',
-  '没人有话说时 speaker 留空（冷场）；话题聊干了、该散了，end=true。',
-  '演员实际说出口的可能和你给的大意有出入，以记录为准，据此调整后面的安排。',
+  '插嘴：只有最新那句还没说完、有人实在忍不住时才提名插嘴的人，在他的候选里写 interrupt=true，并照抄对方原话里让他忍不住的那几个字（cut_after）。少用。',
+  'react：旁人顺口的小反应（笑、惊讶、附和……），不占发言，最多两个，多数时候不用。',
+  '没人有话说时 candidates 给 []（冷场）；话题聊干了、该散了，end=true。',
+  '谁开口是从你的候选里按各人的冲动抽的，演员也可能不照你的话头说；以记录为准，据此调整后面的安排。演员没照你的话头说时，【现在】里会写他的理由，听听他的。',
 ];
 
 function castBlock(cfg: SessionConfig, temper: (p: Participant) => Temperament) {
@@ -145,6 +147,7 @@ function castBlock(cfg: SessionConfig, temper: (p: Participant) => Temperament) 
       cs.sentenceStyle && '说话方式：' + cs.sentenceStyle,
       Array.isArray(cs.catchphrases) && cs.catchphrases.length ? '口头禅：' + cs.catchphrases.join('、') : '',
       '性情：' + temperWords(temper(p)),
+      reactionWords(p),
     ].filter(Boolean);
     return '- ' + p.persona.name + '：' + bits.join('；');
   }).join('\n');
@@ -156,17 +159,16 @@ function directorSchema(cfg: SessionConfig, moods: MoodDef[]) {
   const b = cfg.participants[1]?.persona.name ?? '乙';
   return [
     '只输出一个 JSON 对象，不要任何别的文字：',
-    '{"arc": "升温", "arc_note": "", '
-      + '"next": {"speaker": "' + a + '", "to": "' + b + '", "gist": "", "emotion": "", "reply_to": "", "interrupt": false, "cut_after": ""}, '
-      + '"mood": {"' + a + '": ' + mood + '}, "style": {}, "stance": {}, "plan": {}, "toward": {}, "react": [], "topic": "", "end": false}',
+    '{"arc": "升温", "arc_note": "", ' + candidatesExample(a, b) + ', '
+      + '"mood": {"' + b + '": ' + mood + '}, "style": {}, "toward": {}, "react": [], "topic": "", "end": false}',
     '字段说明：',
     '- arc：全场现在走到哪，几个字（开场、升温、爆发、冷却、跑题、收尾……）；arc_note：你接下来几步的打算，一句话（比如“再吵一个来回，让阿禾出来打圆场”）。',
-    '- next.speaker：下一句谁说（写名字；没人说就留空）；to：冲谁说（名字、“用户”或留空）；gist：这句的大意，不是台词；emotion：他说这句时的情绪，几个字；reply_to：接的是哪条消息的编号；interrupt / cut_after：见插嘴规则。',
-    '- mood：这一步谁的情绪变了多少，键写名字，值是 -2 到 2 的整数；只写有变化的人。',
+    CANDIDATES_DOC,
+    '- mood：到这一步为止，旁人听了刚才那些话情绪变了多少，键写名字，值是 -2 到 2 的整数；只写有变化的人（说话的人自己的心情由他自己报）。',
     '- style：谁的说话状态变成什么，一句话（比如“句子变短，开始翻旧账”）；只写有变化的人。',
-    '- stance：谁对话题的真实态度变了（刚开聊时给每个人定下初始态度）；plan：谁心里打算干嘛，可能和嘴上说的不一样；toward：谁对谁的好感变化，形如 {"甲": {"乙": -1}}，-2 到 2。都只写有变化的。',
-    '- react：[{"who": "名字", "text": "哈哈哈"}]，没有就 []。',
-    '- topic：只有这一句把话题岔到新方向时，写 4~8 个字的新话题名。',
+    '- toward：谁对谁的好感变化，形如 {"甲": {"乙": -1}}，-2 到 2；只写有变化的。每个人的真实态度和打算由他们自己定，你只在【每个人现在的账】里看。',
+    REACT_DOC,
+    '- topic：只有这一步会把话题岔到新方向时，写 4~8 个字的新话题名。',
     '- end：该散场了写 true。',
   ].join('\n');
 }
@@ -193,27 +195,7 @@ export function buildDirectorMessages(x: DirectorInput & { moods: MoodDef[]; tem
 
 // ---------- 演员 ----------
 
-function actorSchema(moods: MoodDef[], whisper: boolean) {
-  if (whisper) {
-    const mood = '{' + moods.map((d) => '"' + d.key + '": 0').join(', ') + '}';
-    return [
-      '只输出一个 JSON 对象，不要任何别的文字：',
-      '{"private_reply": "", "plan": "", "inner": "", "mood": ' + mood + '}',
-      '- private_reply：你私下回用户的一句话，口语、很短。',
-      '- plan：听完这句你接下来打算干嘛，一句话（没变就留空）。',
-      '- inner：你心里的真实反应，一句话。',
-      '- mood：听完这句你各种情绪变了多少，-2 到 2 的整数。',
-    ].join('\n');
-  }
-  return [
-    '只输出一个 JSON 对象，不要任何别的文字：',
-    '{"say": [], "inner": ""}',
-    '- say：你说出口的话，1~3 条短消息（想说的多就拆成几条）。',
-    '- inner：你说这句时心里的真实想法，一句话，别人看不到。',
-  ].join('\n');
-}
-
-/** 演员：拿着自己的人设和导演这一步的提示，用自己的话说出来；或者私下回用户 */
+/** 演员：拿着自己的人设和导演这一步的建议，自己决定怎么说、怎么想；或者私下回用户 */
 export function buildActorMessages(x: ActorInput & { memes: MemeCard[]; moods: MoodDef[] }): LlmMessage[] {
   const others = x.cfg.participants.filter((p) => p.agentId !== x.self.agentId);
   const topic = topicBlock(x.cfg);
@@ -235,7 +217,8 @@ export function buildActorMessages(x: ActorInput & { memes: MemeCard[]; moods: M
       '这是只有你知道的悄悄话，别人看不到，也不知道你们聊过。按你的性格接住它：它可以改变你的情绪、对某人的看法、你的态度或者接下来的打算。'
         + '大多数时候你会顺着这个方向走，但用你自己会用的方式，不会一下子翻脸；也绝不说出“是用户让我这么说的”。',
     ].join('\n')
-    : x.cue + '\n用你自己的话接住眼前的人和事；大意可以变通，别照抄大意，也别为了强调人设复读口头禅。若嘴上和心里不同，inner 写真实想法。';
+    : x.cue + '\n用你自己的话接住眼前的人和事：话头只是建议，合你就顺着说，不合就按你自己会怎么说来（follow 写 false，why 说为什么）；'
+      + '别照抄话头，也别为了强调人设复读口头禅。若嘴上和心里不同，inner 写真实想法。';
   const user = [
     '【聊天记录】（方括号里是编号，最新的在最后）\n' + x.transcript,
     x.privates ? '【只有你和用户知道的私下对话】（其他人看不到，也不知道你们聊过）\n' + x.privates : '',

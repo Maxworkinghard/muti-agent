@@ -22,8 +22,14 @@ export interface Mind {
   stance: string;
   hooks: string[];
   plan: string;
-  /** 现在的说话状态（导演定，改了就一直带着，直到导演再改），比如“句子变短，开始翻旧账” */
+  /** 现在的说话状态（导演定），比如“句子变短，开始翻旧账”；过几次发言自动回到平时的样子 */
   style: string;
+  /** 说话状态是第几次发言时定的 */
+  styleAt: number;
+  /** 他会的小反应，按种类分（人物文件的 x-reactions） */
+  reactions: Record<string, string[]>;
+  /** 最近用过的小反应，别老是同一句 */
+  recentReacts: string[];
   /** 上一次开口是第几次发言；-1 表示还没开过口 */
   lastSpoke: number;
   /** 只有他和用户知道的私下对话 */
@@ -32,12 +38,14 @@ export interface Mind {
   cutoff?: { by: string; rest: string };
 }
 
-export function createMind(p: Participant, t: Temperament, moods: MoodDef[], seed: Record<string, number>): Mind {
+export function createMind(
+  p: Participant, t: Temperament, moods: MoodDef[], seed: Record<string, number>, reactions: Record<string, string[]> = {},
+): Mind {
   const mood: Record<string, number> = {};
   for (const d of moods) mood[d.key] = clamp(t.baseline[d.key] ?? 0, 0, 10);
   return {
     p, id: p.agentId, name: p.persona.name, t, mood, rel: { ...seed }, seed,
-    inner: '', stance: '', hooks: [], plan: '', style: '', lastSpoke: -1, privates: [],
+    inner: '', stance: '', hooks: [], plan: '', style: '', styleAt: 0, reactions, recentReacts: [], lastSpoke: -1, privates: [],
   };
 }
 

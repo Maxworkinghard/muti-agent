@@ -141,6 +141,27 @@
       },
       "relations": {}
     },
+    "x-reactions": {
+      "笑": [
+        "哈哈"
+      ],
+      "附和": [
+        "也是哈",
+        "能理解"
+      ],
+      "心疼": [
+        "哎，不容易"
+      ],
+      "疑问": [
+        "那后来呢"
+      ],
+      "惊讶": [
+        "啊？"
+      ],
+      "敷衍": [
+        "嗯嗯"
+      ]
+    },
     "boundaries": {
       "uncertainty": "admit_and_ask",
       "outOfScope": "brief_then_defer",

@@ -135,6 +135,28 @@
       },
       "relations": {}
     },
+    "x-reactions": {
+      "敷衍": [
+        "都行",
+        "随便",
+        "嗯"
+      ],
+      "附和": [
+        "正常"
+      ],
+      "疑问": [
+        "啊？"
+      ],
+      "不服": [
+        "那不行"
+      ],
+      "笑": [
+        "哈"
+      ],
+      "惊讶": [
+        "？"
+      ]
+    },
     "boundaries": {
       "uncertainty": "admit_and_ask",
       "outOfScope": "brief_then_defer",

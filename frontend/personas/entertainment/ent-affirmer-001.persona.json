@@ -135,6 +135,27 @@
       },
       "relations": {}
     },
+    "x-reactions": {
+      "附和": [
+        "确实",
+        "对对对",
+        "有道理"
+      ],
+      "笑": [
+        "哈哈哈哈",
+        "笑死"
+      ],
+      "惊讶": [
+        "哇",
+        "真的假的"
+      ],
+      "疑问": [
+        "啊？"
+      ],
+      "敷衍": [
+        "嗯嗯"
+      ]
+    },
     "boundaries": {
       "uncertainty": "admit_and_ask",
       "outOfScope": "brief_then_defer",

@@ -3,7 +3,10 @@ import { chat, isAbort } from '../../llm/client';
 import { openingDirection } from '../../data/conversationVariation';
 import { extractJson } from './json';
 import { cool, createMind, feel, heat, like, moodLabel, moodWords, relationWord, view, type Mind } from './mind';
-import { readLiveOptions, type ChatFn, type Cue, type Line, type LiveKit, type LiveOptions, type Speech } from './types';
+import {
+  readLiveOptions, readReactions, REACT_KINDS,
+  type Candidate, type ChatFn, type Cue, type DebugEvent, type Line, type LiveKit, type LiveOptions, type Speech,
+} from './types';
 
 let seq = 0;
 const uid = (p: string) => p + '-' + Date.now().toString(36) + '-' + (seq++).toString(36);
@@ -34,6 +37,8 @@ const STEP_MOOD = 2;
 const STEP_MOOD_MAX = 3;
 /** 到了插嘴的地方、插嘴的人还没组织好话时，说话的人最多停多久 */
 const MAX_CUT_WAIT = 4000;
+/** 导演改的说话状态，过这么多次发言自动回到平时的样子（导演再写一次就续上），免得一次判断锁住一个人 */
+const STYLE_TTL = 6;
 
 /** 条件变量：状态一变就叫醒等着的循环，醒来后自己再看条件 */
 class Signal {
@@ -53,8 +58,8 @@ class Signal {
   }
 }
 
-/** 准备好的下一句：导演的安排 + 角色自己说出来的话（没人说就是冷场） */
-interface Plan { cue: Cue; m: Mind | null; say: string[]; inner: string }
+/** 准备好的下一句：导演的安排 + 角色自己说出来的话和自己报的心思（没人说就是冷场） */
+interface Plan { cue: Cue; m: Mind | null; say: string[]; inner: string; speech?: Speech }
 
 /** 正在准备的下一句；ver 对不上（期间有人说话、你插话、私聊改了谁的心思）就作废重来 */
 interface Pending { ver: number; ctrl: AbortController; promise: Promise<Plan>; cue?: Cue; plan?: Plan }
@@ -63,11 +68,13 @@ interface Pending { ver: number; ctrl: AbortController; promise: Promise<Plan>; 
 interface Speaking { m: Mind; lines: Line[]; at: number; cut: boolean }
 
 /**
- * 导演 + 演员：
- * - 导演（一次模型调用）看全局，定下一句谁说、冲谁、大意、说话时的情绪，谁的情绪怎么递进、说话状态怎么变，全场走到哪；
- * - 演员（这个角色自己的调用）拿着自己的人设和导演的提示，用自己的话说出来；
+ * 导演 + 演员，权力分开：
+ * - 导演（一次模型调用）看全局，只提名这一步可能接话的 1~3 个人和各自的话头，管节奏、旁人的情绪、全场走到哪；
+ * - 谁真的开口由引擎按各人此刻的冲动抽（话多不多、情绪多热、是不是冲他来的、刚说完没有），硬规则（点名、用户在等）优先；
+ * - 演员（这个角色自己的调用）拿着自己的人设决定怎么说，导演的话头只是建议，可以不照着来；
+ *   他对这件事的看法、打算、说完这句的心情都由他自己报，导演只能看；
  * - 引擎记账（情绪、说话状态、态度、好恶）、限速、执行，每次把账喂回给导演和演员。
- * 一个人在说的时候，下一句已经在准备（流水线）；导演也可以安排人插嘴，在对方原话的那几个字处截断。
+ * 一个人在说的时候，下一句已经在准备（流水线）；导演也可以提名人插嘴，在对方原话的那几个字处截断。
  */
 class LiveRoom {
   private opts: LiveOptions;
@@ -120,7 +127,7 @@ class LiveRoom {
     private chatFn: ChatFn,
     private cfg: SessionConfig,
     private emit: (e: EngineEvent) => void,
-    private debug?: (cue: Cue, speaker: string) => void,
+    private debug?: (e: DebugEvent) => void,
   ) {
     this.opts = readLiveOptions(cfg.engineOptions);
     this.budget = this.opts.maxMessages;
@@ -137,7 +144,7 @@ class LiveRoom {
         const id = byPersona.get(pid);
         if (id && id !== p.agentId) seed[id] = clamp(v, -10, 10);
       }
-      this.minds.set(p.agentId, createMind(p, t, this.kit.moods, seed));
+      this.minds.set(p.agentId, createMind(p, t, this.kit.moods, seed, readReactions(p)));
       this.nameToId.set(p.persona.name, p.agentId);
     }
     this.nameToId.set('用户', 'user');
@@ -251,15 +258,17 @@ class LiveRoom {
     this.pending = p;
   }
 
-  /** 导演排下一步，演员说出来 */
+  /** 导演提名，引擎按冲动抽谁开口，演员自己说出来 */
   private async plan(signal: AbortSignal, p?: Pending): Promise<Plan> {
     const cue = await this.ask('导演', this.opts.directorTemperature, signal, () => this.kit.directorMessages({
       cfg: this.cfg, transcript: this.transcriptText(), state: this.stateAll(), arc: this.arcText(), now: this.nowText(),
     }), (t) => this.parseCue(t));
+    this.cast(cue);
     const first = this.firstSpeaker();
     if (first && cue.speaker !== first.id) {
       // 随机抽中的开场人物必须落实到实际发言；导演偶尔忽略提示时也能避免紧邻两场同人开头。
       cue.speaker = first.id;
+      cue.picked = -1;
       cue.to = 'user';
       cue.replyTo = this.lastFloor()?.id;
       cue.gist = `接住用户的原话；${openingDirection(this.cfg.mode, this.cfg.conversationVariation)}`;
@@ -270,14 +279,89 @@ class LiveRoom {
     }
     const m = cue.speaker ? this.minds.get(cue.speaker) ?? null : null;
     if (p) p.cue = cue;
-    this.debug?.(cue, m?.name ?? '');
+    this.debug?.({ type: 'cue', cue, speaker: m?.name ?? '' });
     if (!m) return { cue, m: null, say: [], inner: '' };
     if (!signal.aborted && !this.paused && this.speaking?.m !== m) this.status(m, 'thinking', '想说话');
     const speech = await this.ask(m.name, this.opts.temperature, signal, () => this.kit.actorMessages({
       self: m.p, cfg: this.cfg, temper: m.t, transcript: this.transcriptText(), privates: this.privateText(m),
       state: this.stateOne(m, cue), cue: this.cueText(m, cue), whisper: false,
     }), (t) => this.parseSpeech(t, m, false));
-    return { cue, m, say: speech.say, inner: speech.inner };
+    this.debug?.({ type: 'speech', speaker: m.name, follow: speech.follow, why: speech.why, stance: speech.stance, plan: speech.plan });
+    return { cue, m, say: speech.say, inner: speech.inner, speech };
+  }
+
+  /**
+   * 谁开口：导演只提名候选，这里按各人此刻的冲动抽一个——随性程度（spontaneity）那么大的概率按冲动抽，否则用导演首选。
+   * 硬规则优先：用户点了名，被点的人先接（导演没提名他也一样）；用户说了话，只在冲用户说的候选里抽，抽中的人得接他
+   */
+  private cast(cue: Cue) {
+    const take = (c: Candidate, i: number) => {
+      cue.picked = i;
+      cue.speaker = c.speaker;
+      cue.to = c.to;
+      cue.gist = c.gist;
+      cue.emotion = c.emotion;
+      cue.replyTo = c.replyTo;
+      cue.interrupt = c.interrupt;
+      cue.cutAfter = c.cutAfter;
+    };
+    const cands = cue.candidates;
+    cue.weights = cands.map((c) => this.impulse(this.minds.get(c.speaker)));
+    const lastUser = this.lastUserLine();
+    const named = this.userWaiting ? [...this.mentioned] : [];
+    const answer = (id: string, gist: string) => ({ speaker: id, to: 'user', gist, emotion: '', replyTo: lastUser?.id, interrupt: false, cutAfter: '' });
+    if (named.length) {
+      const i = cands.findIndex((c) => this.mentioned.has(c.speaker));
+      if (i >= 0) take(cands[i], i);
+      else take(answer(named[Math.floor(Math.random() * named.length)], '接用户点名问你的话'), -1);
+      // 被点名的人是来接用户的话的
+      if (cue.to !== 'user') { cue.to = 'user'; cue.replyTo = lastUser?.id; }
+    } else if (!cands.length && this.userWaiting) {
+      // 用户说了话，导演却没提名任何人：不能冷场晾着他，按冲动挑一个人来接
+      const minds = [...this.minds.values()];
+      const i = this.draw(minds.map((_, k) => k), minds.map((m) => this.impulse(m)), 1);
+      take(answer(minds[i].id, '接用户刚才的话'), -1);
+    } else if (cands.length) {
+      let pool = cands.map((_, i) => i);
+      const toUser = (c: Candidate) => c.to === 'user' || (!!lastUser && c.replyTo === lastUser.id);
+      if (this.userWaiting && pool.some((i) => toUser(cands[i]))) pool = pool.filter((i) => toUser(cands[i]));
+      const i = this.draw(pool, cue.weights);
+      take(cands[i], i);
+      if (this.userWaiting && !toUser(cue)) { cue.to = 'user'; cue.replyTo = lastUser?.id; }
+    }
+    cue.react = cue.react.filter((r) => r.id !== cue.speaker);
+  }
+
+  /** 随性程度那么大的概率按冲动抽（冲动越大越容易抽中），否则用导演首选（pool 里排最前的） */
+  private draw(pool: number[], weights: number[], spontaneity = this.opts.spontaneity) {
+    if (pool.length === 1 || Math.random() >= spontaneity) return pool[0];
+    const total = pool.reduce((s, i) => s + weights[i], 0);
+    let r = Math.random() * total;
+    for (const i of pool) {
+      r -= weights[i];
+      if (r <= 0) return i;
+    }
+    return pool[pool.length - 1];
+  }
+
+  /**
+   * 一个人此刻有多想开口（代码算，不问模型）：话多的人门槛低，上头的人憋不住，
+   * 最新一句冲他来的、看不惯刚说话的人、刚被打断的更想接；刚说完的让一让，憋久了的想说两句
+   */
+  private impulse(m: Mind | undefined) {
+    if (!m) return 0;
+    const last = this.lastFloor();
+    let w = 0.4 + m.t.talk + 1.2 * heat(m, this.kit.moods);
+    if (last && last.speaker !== m.id) {
+      const target = last.to || this.lines.find((l) => l.id === last.replyTo)?.speaker;
+      if (target === m.id) w += 1.2;
+      if (last.speaker !== 'user' && (m.rel[last.speaker] ?? 0) <= -3) w += 0.6;
+    }
+    if (m.cutoff) w += 0.8;
+    const since = m.lastSpoke < 0 ? -1 : this.step - m.lastSpoke;
+    if (since === 0) w *= 0.3;
+    else if (since < 0 ? this.step >= 4 : since >= 6) w += 0.3;
+    return Math.round(w * 100) / 100;
   }
 
   /** 调一次模型拿 JSON，没按格式回答就再问一次 */
@@ -322,12 +406,13 @@ class LiveRoom {
     this.bump();
   }
 
-  /** 旁人顺口的小反应，在这句开口前冒出来 */
+  /** 旁人顺口的小反应，在这句开口前冒出来；说什么从这个人自己会的小反应里挑 */
   private murmur(cue: Cue) {
     const ver = this.ver;
-    cue.react.slice(0, 2).forEach(({ id, text }, i) => {
+    cue.react.slice(0, 2).forEach(({ id, kind, text: raw }, i) => {
       const m = this.minds.get(id);
-      if (!m) return;
+      const text = m ? this.reactText(m, kind, raw) : '';
+      if (!m || !text) return;
       const post = () => {
         if (this.ver !== ver || this.paused || this.stopped || this.finished) return;
         const line: Line = { id: 'm' + ++this.lineNo, msgId: uid('r'), speaker: m.id, name: m.name, text, kind: 'react' };
@@ -341,6 +426,24 @@ class LiveRoom {
     });
   }
 
+  /**
+   * 小反应说什么：从这个人会的那一种里挑一句，避开他最近用过的；他不会这种反应就不出声。
+   * 人物文件没写小反应（比如导入的人物）时，用导演写的原话
+   */
+  private reactText(m: Mind, kind: string, text: string) {
+    const all = Object.values(m.reactions).flat();
+    if (!all.length) return text;
+    const list = m.reactions[kind] ?? (all.includes(text) ? [text] : []);
+    const fresh = list.filter((s) => !m.recentReacts.includes(s));
+    const pool = fresh.length ? fresh : list;
+    const out = pool[Math.floor(Math.random() * pool.length)] ?? '';
+    if (out) {
+      m.recentReacts.push(out);
+      if (m.recentReacts.length > 3) m.recentReacts.shift();
+    }
+    return out;
+  }
+
   /** 组织语言要多久：话越长越久，上头的人快，嘴快的人快 */
   private typing(plan: Plan) {
     const chars = plan.say.join('').length;
@@ -350,11 +453,11 @@ class LiveRoom {
   /** 说出口：写进记录、记账，然后一个字一个字显示；这时候下一句已经在准备 */
   private async utter(plan: Plan, interrupting: boolean) {
     const { cue, m } = plan as Plan & { m: Mind };
-    this.apply(cue, m);
+    this.apply(cue, m, plan.speech?.mood);
     const prev = this.lastFloor();
     const lines: Line[] = plan.say.slice(0, 3).map((text, i) => ({
       id: 'm' + ++this.lineNo, msgId: uid('m'), speaker: m.id, name: m.name, text, kind: 'say',
-      replyTo: i === 0 ? cue.replyTo : undefined, interrupt: i === 0 && interrupting,
+      replyTo: i === 0 ? cue.replyTo : undefined, to: i === 0 && cue.to ? cue.to : undefined, interrupt: i === 0 && interrupting,
     }));
     const quoted = cue.replyTo && cue.replyTo !== prev?.id ? this.lines.find((l) => l.id === cue.replyTo) : undefined;
     this.lines.push(...lines);
@@ -362,11 +465,16 @@ class LiveRoom {
     m.lastSpoke = this.step;
     m.cutoff = undefined;
     if (plan.inner) m.inner = plan.inner;
+    this.own(m, plan.speech);
     const toUser = cue.to === 'user' || this.lines.find((l) => l.id === cue.replyTo)?.speaker === 'user';
     if (this.mentioned.has(m.id) || toUser) this.userWaiting = false;
     this.mentioned.delete(m.id);
     this.silence = 0;
-    for (const x of this.minds.values()) { cool(x, this.kit.moods); this.showMind(x); }
+    for (const x of this.minds.values()) {
+      cool(x, this.kit.moods);
+      if (x.style && this.step - x.styleAt >= STYLE_TTL) x.style = '';
+      this.showMind(x);
+    }
     const sp: Speaking = { m, lines, at: 0, cut: false };
     this.speaking = sp;
     this.userSpoke = false;
@@ -488,28 +596,25 @@ class LiveRoom {
 
   // ---------- 记账 ----------
 
-  /** 照导演的安排记账：情绪（限速）、说话状态、态度、打算、好恶、全场走到哪 */
-  private apply(cue: Cue, speaker: Mind | null) {
+  /**
+   * 照导演的安排记账：旁人的情绪（限速）、说话状态、好恶、全场走到哪。
+   * 说话的人自己报了心情（ownMood）就用他自己的，导演给他的那份不算；态度和打算导演不管
+   */
+  private apply(cue: Cue, speaker: Mind | null, ownMood?: Record<string, number>) {
     const touched = new Set<Mind>();
     for (const [id, delta] of Object.entries(cue.mood)) {
       const m = this.minds.get(id);
-      if (!m) continue;
-      const before = { ...m.mood };
-      const raw: Record<string, number> = {};
-      for (const [k, v] of Object.entries(delta)) raw[k] = clamp(v, -STEP_MOOD, STEP_MOOD);
-      feel(m, raw, this.kit.moods);
-      for (const d of this.kit.moods) m.mood[d.key] = clamp(m.mood[d.key], before[d.key] - STEP_MOOD_MAX, before[d.key] + STEP_MOOD_MAX);
+      if (!m || (ownMood && m === speaker)) continue;
+      this.moodStep(m, delta);
       touched.add(m);
     }
-    const set = (map: Record<string, string>, field: 'style' | 'stance' | 'plan') => {
-      for (const [id, v] of Object.entries(map)) {
-        const m = this.minds.get(id);
-        if (m && v !== undefined) { m[field] = v; touched.add(m); }
-      }
-    };
-    set(cue.style, 'style');
-    set(cue.stance, 'stance');
-    set(cue.plan, 'plan');
+    for (const [id, v] of Object.entries(cue.style)) {
+      const m = this.minds.get(id);
+      if (!m) continue;
+      m.style = v;
+      m.styleAt = this.step;
+      touched.add(m);
+    }
     for (const [id, map] of Object.entries(cue.toward)) {
       const m = this.minds.get(id);
       if (!m) continue;
@@ -522,6 +627,24 @@ class LiveRoom {
     // 新的一步从有人开口算起：冷场那一步不推进，免得还在等你回答就被当成走到了最后一步
     if (cue.arc) { this.arc = cue.arc; if (speaker) this.advanceStage(cue.arc); }
     if (cue.arcNote) this.arcNote = cue.arcNote;
+  }
+
+  /** 记一步情绪：每种最多 ±STEP_MOOD，按性情放大后这一步最多变 STEP_MOOD_MAX */
+  private moodStep(m: Mind, delta: Record<string, number>) {
+    const before = { ...m.mood };
+    const raw: Record<string, number> = {};
+    for (const [k, v] of Object.entries(delta)) raw[k] = clamp(v, -STEP_MOOD, STEP_MOOD);
+    feel(m, raw, this.kit.moods);
+    for (const d of this.kit.moods) m.mood[d.key] = clamp(m.mood[d.key], before[d.key] - STEP_MOOD_MAX, before[d.key] + STEP_MOOD_MAX);
+  }
+
+  /** 演员自己报的：对这件事的看法、打算、说完这句的心情；没照导演的建议说，就把他的理由告诉导演 */
+  private own(m: Mind, sp?: Speech) {
+    if (!sp) return;
+    if (sp.stance) m.stance = sp.stance;
+    if (sp.plan) m.plan = sp.plan;
+    this.moodStep(m, sp.mood);
+    if (!sp.follow) this.note(`${m.name}没照你的建议说${sp.why ? '：' + sp.why : ''}（以他实际说的为准）`);
   }
 
   /** 分步的模式：导演说走到了后面的步骤，就开一段新的；只往前走，不回头 */
@@ -569,9 +692,8 @@ class LiveRoom {
         state: this.stateOne(m), cue: text, whisper: true,
       }), (t) => this.parseSpeech(t, m, true));
       if (this.stopped) return;
-      const raw: Record<string, number> = {};
-      for (const [k, v] of Object.entries(sp.mood)) raw[k] = clamp(v, -STEP_MOOD, STEP_MOOD);
-      feel(m, raw, this.kit.moods);
+      this.moodStep(m, sp.mood);
+      if (sp.stance) m.stance = sp.stance;
       if (sp.plan) m.plan = sp.plan;
       if (sp.inner) m.inner = sp.inner;
       const reply = sp.privateReply || '嗯。';
@@ -617,35 +739,52 @@ class LiveRoom {
       }
       return out;
     };
-    const next = obj(j.next);
-    const speakerId = this.idOf(next.speaker);
-    const speaker = speakerId && speakerId !== 'user' ? speakerId : '';
-    const to = this.idOf(next.to) ?? '';
-    const replyTo = str(next.reply_to, 12);
+    /** 导演提名的一个候选；认不出是谁的不要 */
+    const candidate = (v: unknown): Candidate | null => {
+      const c = obj(v);
+      const speaker = this.idOf(c.speaker);
+      if (!speaker || speaker === 'user') return null;
+      const to = this.idOf(c.to) ?? '';
+      const replyTo = str(c.reply_to, 12);
+      return {
+        speaker,
+        to: to === speaker ? '' : to,
+        gist: str(c.gist, 80),
+        emotion: str(c.emotion, 20),
+        replyTo: this.lines.some((l) => l.id === replyTo) ? replyTo : undefined,
+        interrupt: c.interrupt === true || c.interrupt === 'true',
+        cutAfter: str(c.cut_after, 20),
+      };
+    };
+    // candidates 是现在的写法；next（只提一个人）是以前的写法，也认
+    const candidates: Candidate[] = [];
+    for (const v of Array.isArray(j.candidates) ? j.candidates : j.next ? [j.next] : []) {
+      const c = candidate(v);
+      if (c && !candidates.some((x) => x.speaker === c.speaker)) candidates.push(c);
+      if (candidates.length >= 3) break;
+    }
     return {
-      speaker,
-      to: to === speaker ? '' : to,
-      gist: str(next.gist, 80),
-      emotion: str(next.emotion, 20),
-      replyTo: this.lines.some((l) => l.id === replyTo) ? replyTo : undefined,
-      interrupt: next.interrupt === true || next.interrupt === 'true',
-      cutAfter: str(next.cut_after, 20),
+      speaker: '', to: '', gist: '', emotion: '', interrupt: false, cutAfter: '',
+      candidates,
+      picked: -1,
+      weights: [],
       mood: byName(j.mood, (x) => {
         const d: Record<string, number> = {};
         for (const k of this.kit.moods) d[k.key] = int(obj(x)[k.key], -STEP_MOOD, STEP_MOOD);
         return d;
       }),
       style: byName(j.style, (x) => (typeof x === 'string' ? x.trim().slice(0, 40) : undefined)),
-      stance: byName(j.stance, (x) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, 60) : undefined)),
-      plan: byName(j.plan, (x) => (typeof x === 'string' ? x.trim().slice(0, 40) : undefined)),
       toward: byName(j.toward, (x) => {
         const d: Record<string, number> = {};
         for (const [name, v] of Object.entries(obj(x))) { const id = this.idOf(name); if (id) d[id] = int(v, -2, 2); }
         return d;
       }),
       react: (Array.isArray(j.react) ? j.react : [])
-        .map((r) => ({ id: this.idOf(obj(r).who) ?? '', text: this.clean(str(obj(r).text, 12)) }))
-        .filter((r) => r.id && r.id !== 'user' && r.id !== speaker && r.text)
+        .map((r) => {
+          const kind = str(obj(r).kind, 4);
+          return { id: this.idOf(obj(r).who) ?? '', kind: REACT_KINDS.includes(kind) ? kind : '', text: this.clean(str(obj(r).text, 12)) };
+        })
+        .filter((r) => r.id && r.id !== 'user' && (r.kind || r.text))
         .slice(0, 2),
       arc: str(j.arc, 8),
       arcNote: str(j.arc_note, 60),
@@ -663,7 +802,11 @@ class LiveRoom {
     const mood: Record<string, number> = {};
     const rawMood = j.mood && typeof j.mood === 'object' ? (j.mood as Record<string, unknown>) : {};
     for (const d of this.kit.moods) { const n = Math.round(Number(rawMood[d.key])); mood[d.key] = Number.isFinite(n) ? n : 0; }
-    const sp: Speech = { say, inner: str(j.inner, 60), privateReply: this.clean(str(j.private_reply, 120), m), plan: str(j.plan, 40), mood };
+    const sp: Speech = {
+      say, inner: str(j.inner, 60), privateReply: this.clean(str(j.private_reply, 120), m),
+      stance: str(j.stance, 60), plan: str(j.plan, 40), mood,
+      follow: !(j.follow === false || j.follow === 'false'), why: str(j.why, 40),
+    };
     return whisper ? (sp.privateReply ? sp : null) : (say.length ? sp : null);
   }
 
@@ -682,11 +825,12 @@ class LiveRoom {
     let prev = '';
     return recent.map((l) => {
       if (l.kind === 'react') return `（${l.name} 小声：${l.text}）`;
-      const to = l.replyTo && l.replyTo !== prev ? `（回 ${l.replyTo}）` : '';
+      const reply = l.replyTo && l.replyTo !== prev ? `（回 ${l.replyTo}）` : '';
+      const target = l.to ? `（冲${this.nameOf(l.to)}）` : '';
       const how = l.interrupt ? '（插嘴）' : '';
       const cut = l.cutBy ? `（话没说完，被${l.cutBy}打断）` : '';
       prev = l.id;
-      return `[${l.id}] ${l.name}${to}${how}：${l.text}${cut}`;
+      return `[${l.id}] ${l.name}${reply}${target}${how}：${l.text}${cut}`;
     }).join('\n');
   }
 
@@ -749,7 +893,7 @@ class LiveRoom {
 
   private nowText() {
     const out: string[] = [];
-    if (this.step <= 1) out.push('刚开聊，用户开了个头。排第一句；可以顺手给每个人定下对话题的初始态度（stance）和说话状态。');
+    if (this.step <= 1) out.push('刚开聊，用户开了个头。提名第一句的候选；需要的话可以给人定下说话状态。');
     if (this.step <= 1) {
       const direction = openingDirection(this.cfg.mode, this.cfg.conversationVariation);
       if (direction) out.push('这场先从这里切入：' + direction + '后续仍要顺着现场自然发展，不要反复强调这个切入点。');
@@ -760,13 +904,13 @@ class LiveRoom {
     if (last) {
       const who = last.speaker === 'user' ? '用户' : last.name;
       const talking = this.speaking && this.speaking.lines.includes(last);
-      out.push(`最新一句是 [${last.id}] ${who}说的${talking ? '（他话还没说完；要安排人插嘴就写 interrupt 和 cut_after）' : ''}。`);
+      out.push(`最新一句是 [${last.id}] ${who}说的${talking ? '（他话还没说完；要提名人插嘴，就在那个候选里写 interrupt 和 cut_after）' : ''}。`);
     }
     const recent = this.events.filter((e) => e.step >= this.step - 3).map((e) => '- ' + e.text);
     if (recent.length) out.push('刚发生的事：\n' + recent.join('\n'));
     if (this.userWaiting) {
       const named = [...this.mentioned].map((id) => this.nameOf(id));
-      out.push('用户的话还没人接，这一步得有人接他' + (named.length ? `，他点名了${named.join('、')}，让被点名的人先接。` : '。'));
+      out.push('用户的话还没人接，候选里得有冲用户说的人' + (named.length ? `；他点名了${named.join('、')}，被点名的人一定先接，把他排进候选。` : '。'));
     }
     const quiet = [...this.minds.values()]
       .filter((x) => (x.lastSpoke < 0 ? this.step >= 6 : this.step - x.lastSpoke >= 6))
@@ -778,7 +922,7 @@ class LiveRoom {
         ? '聊了挺久了，快到尾声，可以往收尾走；差不多了就 end=true。'
         : `聊了挺久了，快到尾声，还没走到「${stages![stages!.length - 1]}」，该往那走了；走到了再 end=true。`);
     }
-    out.push('角色实际说出口的可能和你给的大意不一样，以记录为准，据此调整。');
+    out.push('谁开口是从你的候选里按各人此刻的冲动抽的，演员也可能不照你的话头说；以记录为准，据此调整。');
     return out.join('\n');
   }
 
@@ -789,14 +933,14 @@ class LiveRoom {
     return p ? this.minds.get(p.agentId) ?? null : null;
   }
 
-  /** 导演给演员的这一步提示 */
+  /** 导演给演员的这一步建议：合他的人设和此刻的心思就顺着说，不合他可以不照着来 */
   private cueText(m: Mind, cue: Cue) {
-    const out = ['导演给你这一句的提示（只有你看得到）：'];
-    if (cue.to) out.push('- 冲' + this.nameOf(cue.to) + '说');
-    if (cue.gist) out.push('- 大意：' + cue.gist);
-    if (cue.emotion) out.push('- 你此刻的情绪：' + cue.emotion);
+    const out = ['导演给你的建议（只有你看得到；合你的人设和此刻的心思就顺着说，不合就按你自己会怎么说来）：'];
+    if (cue.to) out.push('- 冲' + this.nameOf(cue.to) + '说' + (cue.to === 'user' && this.userWaiting ? '（用户在等人接他的话）' : ''));
+    if (cue.gist) out.push('- 话头：' + cue.gist);
+    if (cue.emotion) out.push('- 情绪：' + cue.emotion);
     const style = cue.style[m.id] ?? m.style;
-    if (style) out.push('- 你的说话状态：' + style);
+    if (style) out.push('- 说话状态：' + style);
     if (cue.interrupt && this.speaking && this.speaking.m !== m) {
       out.push(`- 你是插嘴：${this.speaking.m.name}正说着${cue.cutAfter ? '，说到「' + cue.cutAfter + '」你就忍不住打断了，只接这之前听到的内容' : '，你忍不住打断了'}`);
     }
@@ -836,6 +980,11 @@ class LiveRoom {
 
   private lastFloor() {
     for (let i = this.lines.length - 1; i >= 0; i--) if (this.lines[i].kind !== 'react') return this.lines[i];
+    return undefined;
+  }
+
+  private lastUserLine() {
+    for (let i = this.lines.length - 1; i >= 0; i--) if (this.lines[i].speaker === 'user') return this.lines[i];
     return undefined;
   }
 
@@ -898,9 +1047,9 @@ const browserChat: ChatFn = async (messages, opt) => (await chat(messages, opt))
 
 /**
  * 用某个模式的玩法（kit）造一个引擎；chatFn 默认走浏览器的 /api/llm/chat，命令行模拟时换成直连。
- * debug 只给命令行调参用（看导演每一步怎么排），界面上不显示导演。
+ * debug 只给命令行调参用（看导演提名了谁、抽中了谁、演员有没有照导演说），界面上不显示导演。
  */
-export function createLiveEngine(kit: LiveKit, chatFn: ChatFn = browserChat, debug?: (cue: Cue, speaker: string) => void): DiscussionEngine {
+export function createLiveEngine(kit: LiveKit, chatFn: ChatFn = browserChat, debug?: (e: DebugEvent) => void): DiscussionEngine {
   let room: LiveRoom | null = null;
   return {
     start(config, emit) {

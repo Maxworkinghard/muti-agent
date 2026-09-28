@@ -34,7 +34,7 @@ export interface Temperament {
   grudge: number;
   /** 要面子 0~1：很难当场认输 */
   face: number;
-  /** 话痨 0~1：开口的门槛低 */
+  /** 话痨 0~1：开口的门槛低，抽谁开口时冲动大 */
   talk: number;
   /** 嘴快：反应和说话速度的倍数 */
   speed: number;
@@ -56,37 +56,49 @@ export interface Line {
   text: string;
   kind: 'say' | 'user' | 'react';
   replyTo?: string;
+  /** 冲谁说的：agentId、'user' 或空 */
+  to?: string;
   /** 被谁打断了（名字） */
   cutBy?: string;
   /** 这句是插嘴 */
   interrupt?: boolean;
 }
 
-/** 导演这一步的安排（已清洗，名字都换成了 agentId） */
-export interface Cue {
-  /** 下一句谁说；空表示这一步没人说（冷场） */
+/** 导演提名的一个候选：谁可能接、冲谁、话头 */
+export interface Candidate {
   speaker: string;
   /** 冲谁说：agentId、'user' 或空 */
   to: string;
-  /** 这句的大意（不是台词） */
+  /** 话头：这句大概往哪说（不是台词，演员可以不照着来） */
   gist: string;
-  /** 他说这句时的情绪，几个字 */
+  /** 建议的情绪，几个字 */
   emotion: string;
   replyTo?: string;
   /** 插嘴：打断正在说的人 */
   interrupt: boolean;
   /** 听到对方哪几个字就忍不住了 */
   cutAfter: string;
-  /** 这一步各人的情绪变化，-2~2 */
+}
+
+/**
+ * 导演这一步的安排（已清洗，名字都换成了 agentId）。导演只提名候选，谁开口由引擎按各人的冲动抽；
+ * 顶层的 speaker / to / gist…是抽中的那一个。每个人的态度和打算不归导演管，由演员自己报
+ */
+export interface Cue extends Candidate {
+  /** 导演提名的候选，第一个是导演首选；空表示这一步没人说（冷场） */
+  candidates: Candidate[];
+  /** 抽中的是第几个候选；-1 表示按硬规则另派的（比如用户点了名） */
+  picked: number;
+  /** 抽签时各候选此刻的冲动（命令行调参看） */
+  weights: number[];
+  /** 旁人这一步的情绪变化，-2~2（说话的人自己的由他自己报） */
   mood: Record<string, Record<string, number>>;
-  /** 说话状态变成什么（改了就一直带着） */
+  /** 说话状态变成什么（过几次发言自动回到平时的样子，导演再写一次就续上） */
   style: Record<string, string>;
-  stance: Record<string, string>;
-  plan: Record<string, string>;
   /** 谁对谁的好感变化 */
   toward: Record<string, Record<string, number>>;
-  /** 旁人顺口的小反应 */
-  react: Array<{ id: string; text: string }>;
+  /** 旁人顺口的小反应：导演定谁、哪种反应，说什么由引擎从这个人自己的小反应里挑 */
+  react: Array<{ id: string; kind: string; text: string }>;
   /** 全场走到哪（升温、爆发、冷却……） */
   arc: string;
   /** 导演接下来几步的打算 */
@@ -95,14 +107,25 @@ export interface Cue {
   end: boolean;
 }
 
-/** 角色这一句（或者私下回你的话） */
+/** 角色这一句（或者私下回你的话）：说什么、心里怎么想，都是他自己定的 */
 export interface Speech {
   say: string[];
   inner: string;
   privateReply: string;
+  /** 他对这件事的真实看法（没变为空） */
+  stance: string;
   plan: string;
+  /** 说完这句他自己的情绪变化 */
   mood: Record<string, number>;
+  /** 是不是顺着导演的建议说的；不是的话 why 写一句为什么 */
+  follow: boolean;
+  why: string;
 }
+
+/** 给命令行调参看的：导演怎么提名、抽中了谁，演员有没有照导演说 */
+export type DebugEvent =
+  | { type: 'cue'; cue: Cue; speaker: string }
+  | { type: 'speech'; speaker: string; follow: boolean; why: string; stance: string; plan: string };
 
 /** 拼导演提示词的材料：记录在前、状态在后，前面不变的部分能被模型服务缓存 */
 export interface DirectorInput {
@@ -125,7 +148,7 @@ export interface ActorInput {
   privates: string;
   /** 他自己的账 */
   state: string;
-  /** 导演给他的这一步提示，或者用户的私聊 */
+  /** 导演给他的这一步建议，或者用户的私聊 */
   cue: string;
   /** 这次是私下回用户 */
   whisper: boolean;
@@ -159,9 +182,11 @@ export interface LiveOptions {
   maxMessages: number;
   /** 节奏倍数：1 正常，越大越慢；0 不等待 */
   pace: number;
+  /** 随性程度 0~1：谁开口有多少是按各人此刻的冲动抽的；0 总按导演首选，1 完全按冲动抽 */
+  spontaneity: number;
 }
 
-export const LIVE_DEFAULTS: LiveOptions = { temperature: 1, directorTemperature: 0.8, summaryTemperature: 0.3, maxMessages: 50, pace: 1 };
+export const LIVE_DEFAULTS: LiveOptions = { temperature: 1, directorTemperature: 0.8, summaryTemperature: 0.3, maxMessages: 50, pace: 1, spontaneity: 0.5 };
 
 export function readLiveOptions(raw: Record<string, unknown> | undefined): LiveOptions {
   const o = { ...LIVE_DEFAULTS, ...(raw ?? {}) } as Record<string, unknown>;
@@ -173,5 +198,28 @@ export function readLiveOptions(raw: Record<string, unknown> | undefined): LiveO
     summaryTemperature: num(o.summaryTemperature, LIVE_DEFAULTS.summaryTemperature, 0, 2),
     maxMessages: Math.round(num(o.maxMessages, LIVE_DEFAULTS.maxMessages, 4, 500)),
     pace: num(o.pace, LIVE_DEFAULTS.pace, 0, 10),
+    spontaneity: num(o.spontaneity, LIVE_DEFAULTS.spontaneity, 0, 1),
   };
+}
+
+/** 小反应的种类：导演只定谁、哪一种，具体说什么从这个人自己的小反应里挑 */
+export const REACT_KINDS = ['笑', '惊讶', '附和', '不服', '疑问', '心疼', '敷衍'];
+
+/** 人物文件里的扩展字段：前端简化格式在 persona.extensions，协议格式在 persona.protocol */
+export function personaExt(p: Participant, key: string): unknown {
+  return p.persona.extensions?.[key] ?? (p.persona.protocol as Record<string, unknown> | undefined)?.[key];
+}
+
+/** 这个人会的小反应（x-reactions）：{ 笑: ["哈哈哈"], 附和: ["确实"] }；没写就是空，导演写的原话照用 */
+export function readReactions(p: Participant): Record<string, string[]> {
+  const raw = personaExt(p, 'x-reactions');
+  const out: Record<string, string[]> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const kind of REACT_KINDS) {
+    const list = (raw as Record<string, unknown>)[kind];
+    if (!Array.isArray(list)) continue;
+    const clean = list.map((s) => String(s).trim().slice(0, 12)).filter(Boolean);
+    if (clean.length) out[kind] = clean;
+  }
+  return out;
 }
