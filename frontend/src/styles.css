@@ -377,6 +377,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .codex-pers, .codex-bounds { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
 .codex-pers b { margin-right: 6px; }
 .codex-pers i { display: block; color: var(--ink-2); }
+.codex-detail-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
 @keyframes fadein { from { opacity: 0; } }
 
 /* 成员栏 */
@@ -532,3 +533,30 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .scene-warn { margin: 0; padding: 6px 24px; background: #fdf6dc; border-bottom: 2px solid var(--c-yellow); font-size: 13px; cursor: pointer; }
 @media (max-width: 700px) { .se-form { grid-template-columns: 1fr; } }
 
+
+/* ---------- 娱乐模式：心情和内心 ---------- */
+.mood-badge {
+  position: absolute; top: -10px; right: -8px; z-index: 6; font-size: 15px; line-height: 1; pointer-events: none;
+  filter: drop-shadow(1px 1px 0 var(--ink)); animation: moodpop .35s steps(3);
+}
+@keyframes moodpop { from { transform: scale(.2); opacity: 0; } }
+.mind-panel { padding: 6px 10px 8px; border-bottom: 2px dashed var(--ink-2); background: #fffbe9; font-size: 12px; animation: slidein .25s steps(3); }
+.mood-bars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 12px; margin-bottom: 5px; }
+.mood-bar { display: flex; align-items: center; gap: 6px; font-size: 11px; white-space: nowrap; }
+.mood-bar i { flex: 1; height: 8px; border: 2px solid var(--ink); background: #fff; position: relative; }
+.mood-bar i b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--mc); transition: width .4s steps(4); }
+.mind-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
+.mind-panel dt { color: var(--ink-2); }
+.mind-panel dd { margin: 0; }
+.mind-panel dd small { color: var(--ink-2); }
+.mind-panel .whisper { color: var(--ink-2); }
+.rel { display: inline-block; margin-right: 6px; padding: 0 4px; border: 1px solid var(--ink); background: #fff; }
+.rel.bad { background: #fbe3df; }
+.rel.good { background: #e5f0dd; }
+/* 顺口的小反应（“哈哈哈”）：不占一整条 */
+.line.react { padding: 0 0 0 36px; font-size: 12px; color: var(--ink-2); gap: 6px; align-items: baseline; }
+.line.react b { color: var(--ac); font-weight: normal; }
+.line.react b::after { content: ' 小声'; font-size: 10px; opacity: .7; }
+/* 接的是前面某一条 */
+.line .quote { margin-top: 2px; padding-left: 6px; border-left: 3px solid var(--ac); font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.line.cut p { border-right-style: dashed; }

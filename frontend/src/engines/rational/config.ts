@@ -1,5 +1,7 @@
-/** 辩论引擎的可调参数。具体参数由负责方确定，这里先放占位值 */
+/** 独立辩论引擎的模型采样与界面呈现节奏。 */
 export const RATIONAL_DEFAULTS: Record<string, unknown> = {
-  /** 发言速度倍率（占位，当前引擎未读取） */
-  speed: 1,
+  temperature: 0.9,
+  directorTemperature: 0.7,
+  judgeTemperature: 0.3,
+  pace: 0.45,
 };

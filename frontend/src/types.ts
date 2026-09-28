@@ -45,6 +45,8 @@ export interface Persona {
   visual: PersonaVisual;
   /** 从人格资料包协议 v1.0 导入时保留的原始 persona，引擎可直接读取 */
   protocol?: Record<string, unknown>;
+  /** 前端简化格式里 x- 开头的扩展字段（比如 x-temperament），原样保留给引擎读；协议格式的扩展在 protocol 里 */
+  extensions?: Record<string, unknown>;
 }
 
 export interface Seat {
@@ -93,6 +95,8 @@ export interface Participant {
 
 export interface SessionConfig {
   sessionId: string;
+  /** 同一套选项重新开聊时随机抽取、避开上一场的开局 */
+  conversationVariation?: { openingIndex: number; speakerIndex: number };
   mode: ModeId;
   sceneId: SceneId;
   /** brief：用户在讨论开始前发的第一句话，即对项目的详细理解 */
@@ -114,15 +118,42 @@ export interface ChatMessage {
   /** agentId，或 'user' / 'system' */
   speakerId: string;
   text: string;
-  /** notice：引擎提示（如模型调用失败），在工作区里显示 */
-  kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice';
+  /** notice：引擎提示（如模型调用失败），在工作区里显示；react：不抢话的小反应（“哈哈哈”“？”） */
+  kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice' | 'react';
   /** 用户消息指向的成员；成员回复用户时为 'user' */
   targetId?: string;
   /** 私聊消息：点成员说的话及其回应，只有这一对看得到，别人拿不到 */
   private?: boolean;
   /** 发言者身份和环节，例如「正方一辩 · 质询」（辩论引擎用） */
   tag?: string;
+  /** 接的是前面哪一条（不是紧挨着的上一条时才给），界面上显示成引用 */
+  quote?: { name: string; text: string };
+  /** 话说到一半被人打断了 */
+  cut?: boolean;
   at: number;
+}
+
+/** 人物此刻的内心（娱乐、辩论引擎用）：情绪 0~10、心里话和打算 */
+export interface MindView {
+  /** 各种情绪的强度，按模式定的顺序 */
+  mood: Array<{ key: string; value: number; color: string }>;
+  /** 一句话的心情，比如「上头了」 */
+  label: string;
+  emoji: string;
+  /** 画像素小人时换上的表情 */
+  face: NonNullable<PersonaVisual['extras']>;
+  /** 最近一次的心里话 */
+  inner?: string;
+  /** 对话题的态度 */
+  stance?: string;
+  /** 接下来想干嘛 */
+  plan?: string;
+  /** 现在的说话状态，比如“句子变短，开始翻旧账” */
+  style?: string;
+  /** 对在场的人（含用户）的好恶，只列明显的 */
+  toward: Array<{ id: string; name: string; value: number }>;
+  /** 你私下对他说过的最后一句 */
+  whisper?: string;
 }
 
 export interface TaskEvent {
@@ -154,8 +185,10 @@ export type EngineEvent =
   | { type: 'round'; round: number; label: string }
   | { type: 'status'; agentId: string; state: AgentState; action: string }
   | { type: 'message'; message: ChatMessage }
-  /** 流式发言：先发一条 message，再用同一个 id 不断更新全文 */
-  | { type: 'message_update'; id: string; text: string }
+  /** 流式发言：先发一条 message，再用同一个 id 不断更新全文；cut 表示这句被人打断了 */
+  | { type: 'message_update'; id: string; text: string; cut?: boolean }
+  /** 人物的内心状态变了（娱乐引擎用） */
+  | { type: 'mind'; agentId: string; mind: MindView }
   | { type: 'task'; task: TaskEvent }
   | { type: 'result'; result: DiscussionResult }
   /** 没填主题时，引擎按用户对全体说的第一句话生成的主题 */

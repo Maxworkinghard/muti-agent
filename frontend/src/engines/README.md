@@ -2,20 +2,22 @@
 
 每个模式一个独立引擎，由各自的负责方维护，互不影响：
 
-- `entertainment/` 娱乐引擎（娱乐组）：已换成浏览器端流程 `createEntertainmentEngine`，说明见该目录的 `README.md`
-- `rational/` 辩论引擎（辩论组）
+- `entertainment/` 娱乐引擎（娱乐组）：导演 + 演员——导演看全场排戏，角色按自己的人设说；跑在浏览器里，说明见该目录的 `README.md`
+- `emotion/` 情感分析引擎（情感组）：同一套导演 + 演员底盘，换成情感的导演规则、情绪和三步（回应情绪 → 分清事实与感受 → 下一步行动）；跑在浏览器里，说明见该目录的 `README.md`
+- `live/` 娱乐和情感分析共用的活人聊天底盘（导演 + 演员），说明见该目录的 `README.md`
+- `rational/` 独立辩论引擎：自己的导演、辩手、裁判与固定轮次，只共用模型接口和页面
 - `product/` 工作引擎（工作部分导入后合并到这里）
 
 每个文件夹里：
 
-- `index.ts` 导出引擎包。除娱乐模式外，现在各模式的 `create` 都是 `backend.ts`；要换成自己的流程，把 `create` 换成自己的实现即可，实现要遵守 `src/types.ts` 里的 `DiscussionEngine` 接口（start / sendUserMessage / stop，通过事件回传发言、轮次、状态和总结）。
+- `index.ts` 导出引擎包。娱乐、情感分析和辩论各自在浏览器中运行独立引擎；工作由 `backend.ts` 接 Node 会话服务。引擎实现要遵守 `src/types.ts` 的 `DiscussionEngine` 接口。
 - `config.ts` 放可调参数的默认值，开讨论时会复制到 `SessionConfig.engineOptions` 传给引擎。
 
 前端只通过 `registry.ts` 按模式取引擎，不要在别处直接引用某个引擎文件。
 
 ## 调用 AI
 
-三个引擎共用同一个 AI 接口，不要各自直连模型服务商，也不要把 API Key 写进前端代码。
+四个模式共用同一个 AI 接口，不要各自直连模型服务商，也不要把 API Key 写进前端代码。
 
 ```ts
 import { chat, chatStream } from '../../llm/client';

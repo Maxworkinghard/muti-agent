@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "build:server": "vite build --config vite.server.config.ts",
-    "preview": "vite preview"
+    "test:variation": "node scripts/check-variation.mjs",
+    "test:rational": "node scripts/check-rational.mjs",
+    "test:emotion": "node scripts/check-emotion.mjs",
+    "preview": "vite preview",
+    "sim": "node scripts/sim.mjs"
   },
   "dependencies": {
     "react": "^19.3.0",

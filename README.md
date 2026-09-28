@@ -54,28 +54,27 @@ git push -u origin rollback-v1                                           # 再�
 
 | 模式 | 引擎 | 人物 |
 | --- | --- | --- |
-| 娱乐 | 浏览器里的娱乐引擎（`frontend/src/engines/entertainment/`），每场随机 7～8 轮 | `frontend/personas/entertainment/` 7 人 |
-| 辩论 | Python 辩论后端（`backend/服务.py` + `backend/辩论流程.py`）：正方、反方，中立主持固定兼裁判 | `backend/人物/理性/` 5 人 |
-| 情感分析 | Node 会话后端（`frontend/server/`） | `frontend/personas/emotion/` 7 人 |
+| 娱乐 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/entertainment/` + 底盘 `live/`）：导演看全场排下一句谁说、情绪怎么递进、说话状态怎么变，每个角色按自己的人设说；能插嘴、冷场散场；可以暂停、@点名、私聊撺掇 | `frontend/personas/entertainment/` 7 人 |
+| 辩论 | 浏览器里的独立导演 + 辩手 + 裁判引擎（`frontend/src/engines/rational/`）：按正反方轮次交锋，主持或中立裁判判定；人物说法随现场变化 | `backend/人物/理性/` 5 人，构建时直接加载 |
+| 情感分析 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/emotion/` + 底盘 `live/`）：七种回应风格一起接住你的事，导演按「回应情绪 → 分清事实与感受 → 下一步行动」往前排，情绪（心疼、火气、担心、欣慰）一步步递进；有人问你时会停下来等你开口；可以暂停、@点名、私聊 | `frontend/personas/emotion/` 7 人 |
 | 工作 | Node 会话后端（`frontend/server/`） | `frontend/personas/product/` 5 人 |
 
 ## 目录
 
 - `frontend/`：网页和 Node 后端（`server/`），人物在 `personas/`，给各组的交接说明在 `docs/handoff/`。
-- `backend/`：辩论用的人格数据库（人物、性格库、提示词）和 Python 辩论服务。
+- `backend/`：辩论人物与性格资料的原始文件；旧版 Python 服务保留作独立工具，网页运行不依赖它。
 - `persona-protocol/`：人物文件格式的校验器，前端加载人物和图鉴导入都用它；命令行用法 `node persona-protocol/src/cli.mjs 文件.json`。
 - `docs/screens/`：README 里用到的三张界面截图。
 
 ## 运行
 
-本地由两个进程组成：前端开发服务器（必需），以及只在辩论模式用到的辩论后端。
+本地只需启动前端开发服务器；四个模式共用它提供的模型代理。
 
 | 进程 | 职责 | 默认地址 |
 | --- | --- | --- |
-| 前端开发服务器（Vite） | 页面与热更新、Node 会话后端与模型转发、API 反向代理 | http://localhost:5173 |
-| 辩论后端（Python） | 辩论模式的人物库与讨论流程（`/api/options`、`/api/discuss`） | http://127.0.0.1:8000 |
+| 前端开发服务器（Vite） | 页面与热更新、Node 会话后端、四个模式的模型转发 | http://localhost:5173 |
 
-**环境要求**：Node.js `^20.19.0 || >=22.12.0`（Vite 8 的要求）、Python 3.10 及以上；首次运行先在 `frontend/` 执行一次 `npm install`。
+**环境要求**：Node.js `^20.19.0 || >=22.12.0`（Vite 8 的要求）；首次运行先在 `frontend/` 执行一次 `npm install`。
 
 ### 1. 配置模型凭据
 
@@ -88,35 +87,24 @@ git push -u origin rollback-v1                                           # 再�
 | `LLM_MODEL` | 模型名 | `deepseek-chat` |
 
 - Node 侧依次加载 `.env`、`.env.local`，同名变量以 `.env.local` 为准；旧变量名 `ROUNDTABLE_*` 仍然兼容；
-- Python 辩论后端的优先级：`backend/模型配置.json` → `frontend/.env`（有前者就用前者）；进程环境变量里的 `LLM_*` 覆盖 `.env` 里的同名项，`LLM_API_KEY` 连 `模型配置.json` 里的也覆盖，因此同一份 `.env` 同时供两个后端使用；
 - `.env` 只在服务器端读取，不会打包进前端，也不纳入版本控制；
-- 未配置的后果：四种模式发言时都会提示缺少 `LLM_API_KEY`，辩论后端在启动阶段直接报错退出。
+- 未配置的后果：四种模式发言时都会提示缺少 `LLM_API_KEY`。
 
-### 2. 启动辩论后端（仅辩论模式需要）
-
-```bash
-cd backend
-python 服务.py                # 调用真实模型
-python 服务.py --试跑         # 不调用模型，用示例发言检查界面
-python 服务.py --端口 9000     # 换端口，前端需同步设置 DEBATE_BACKEND
-```
-
-### 3. 启动网页
+### 2. 启动网页
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-一个 Vite 进程同时提供三样东西：页面与热更新、Node 会话后端（`/api/health`、`/api/sessions`、`/api/llm/*`，Key 只留在服务器端）、到辩论后端的反向代理（`/api/discuss`、`/api/options`）。
+一个 Vite 进程提供页面与热更新、Node 会话后端（`/api/health`、`/api/sessions`）及 `/api/llm/chat` 模型代理，Key 只留在服务器端。娱乐、情感分析和辩论分别在浏览器运行自己的引擎。
 
 - 端口默认为 5173，被占用时 Vite 会自动顺延，**以终端输出的地址为准**；
 - 请用终端输出的 `localhost` 地址打开（只监听 IPv6 回环时，`127.0.0.1` 连不上）；
-- 辩论后端不在默认地址时：`DEBATE_BACKEND=http://127.0.0.1:9000 npm run dev`。
 
-### 4. 单端口发布（可选）
+### 3. 单端口发布（可选）
 
-`node serve.mjs` 把静态页、Node 会话后端和 Python 辩论后端合并到一根端口，并把辩论后端作为子进程启动。
+`node serve.mjs` 把静态页和 Node 模型代理合并到一根端口；不再启动 Python 子进程。
 
 发布前设置至少 16 个字符的 `APP_ACCESS_PASSWORD`（可放在 `frontend/.env.production` 或进程环境变量）。服务启动后，浏览器访问页面会要求登录：用户名固定为 `roundtable`，密码是该变量的值。页面和全部 API 共用此校验；对外访问请使用 HTTPS，避免 Basic 凭据在传输中泄露。未配置密码时单端口服务会拒绝启动。
 
@@ -124,7 +112,7 @@ npm run dev
 
 ```bash
 npm run build              # 构建页面和 Node 后端（即 frontend/ 里的 build 和 build:server）
-APP_ACCESS_PASSWORD='replace-with-a-long-random-password' PORT=8080 npm start  # 默认端口 5173；辩论后端端口用 DEBATE_PORT 指定，默认 8000
+APP_ACCESS_PASSWORD='replace-with-a-long-random-password' PORT=8080 npm start  # 默认端口 5173
 ```
 
-若存在 `frontend/.env.production`，它会覆盖 `.env`，两个后端都生效（本地 `npm run dev` 不读它）。
+若存在 `frontend/.env.production`，它会覆盖 `.env` 中的模型配置（本地 `npm run dev` 不读它）。
