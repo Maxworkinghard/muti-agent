@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
 import { sceneById } from '../data/scenes';
-import { DEBATE_CHARS, DEBATE_ROUNDS, EMOTION_SEATS, modeById, roundLabel } from '../data/modes';
+import { DEBATE_CHAR_LIMIT, DEBATE_DEFAULT_FORMAT, DEBATE_FORMATS, EMOTION_SEATS, modeById, roundLabel, type DebateFormatId } from '../data/modes';
 import { AGENT_COLORS } from '../data/personas';
 import { engineFor } from '../engines/registry';
 import { playLeave, playSeat } from '../sound';
@@ -34,8 +34,9 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   const [order, setOrder] = useState<string[]>([]);
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
-  const [rounds, setRounds] = useState(DEBATE_ROUNDS.default);
-  const [maxChars, setMaxChars] = useState(DEBATE_CHARS.default);
+  // 辩论流程固定，只选快辩还是标准
+  const [formatId, setFormatId] = useState<DebateFormatId>(DEBATE_DEFAULT_FORMAT);
+  const format = DEBATE_FORMATS.find((f) => f.id === formatId) ?? DEBATE_FORMATS[1];
   // 刚入座的卡片播一次落座动画
   const [landed, setLanded] = useState<string | null>(null);
 
@@ -85,6 +86,8 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   const minCount = isDebate ? 2 : 2;
   const debateOk = !isDebate || (sideCount('pro') >= 1 && sideCount('con') >= 1);
   const canStart = order.length >= minCount && debateOk;
+  /** 这档赛制一共几次发言：主持开场一次，每一轮正反方每人一次（最后还有裁判判定） */
+  const speeches = (rounds: number) => sideCount('host') + rounds * (sideCount('pro') + sideCount('con'));
 
   const start = () => {
     // 辩论室：正方占 0-2 号座，反方 3-5 号，主持 6 号
@@ -110,8 +113,8 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
       mode: draft.mode, sceneId: draft.sceneId,
       theme: { title: draft.theme.trim() },
       // 娱乐模式不固定轮数：每场随机 7～8 轮，太短不好看
-      maxRounds: isRational ? rounds : draft.mode === 'entertainment' ? 7 + Math.floor(Math.random() * 2) : modeById(draft.mode).roundLabels.length,
-      maxChars: isRational ? maxChars : undefined,
+      maxRounds: isRational ? format.rounds : draft.mode === 'entertainment' ? 7 + Math.floor(Math.random() * 2) : modeById(draft.mode).roundLabels.length,
+      maxChars: isRational ? DEBATE_CHAR_LIMIT : undefined,
       participants,
       engineOptions: { ...engineFor(draft.mode).defaults },
       createdAt: new Date().toISOString(),
@@ -172,22 +175,26 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
 
       {isRational && (
         <section className="panel rt-settings">
-          <h2><b>05</b> 辩论设置 <small>选好人物后，定下几轮、每人每次说多少</small></h2>
-          <div className="rt-rows">
-            <label>
-              <span>辩论轮数</span>
-              <input type="range" min={DEBATE_ROUNDS.min} max={DEBATE_ROUNDS.max} value={rounds} onChange={(e) => setRounds(+e.target.value)} />
-              <b>{rounds} 轮</b>
-            </label>
-            <label>
-              <span>每次发言上限</span>
-              <input type="range" min={DEBATE_CHARS.min} max={DEBATE_CHARS.max} step={DEBATE_CHARS.step} value={maxChars} onChange={(e) => setMaxChars(+e.target.value)} />
-              <b>{maxChars} 字</b>
-            </label>
+          <h2><b>05</b> 辩论赛制 <small>流程固定，只选长短；每人每次发言不超过 {DEBATE_CHAR_LIMIT} 字</small></h2>
+          <div className="rt-formats" role="radiogroup" aria-label="辩论赛制">
+            {DEBATE_FORMATS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="radio"
+                aria-checked={f.id === formatId}
+                className={'rt-format' + (f.id === formatId ? ' on' : '')}
+                onClick={() => setFormatId(f.id)}
+              >
+                <b>{f.label}</b>
+                <span>{f.note}</span>
+                <small>{debateOk ? `按现在的阵容共 ${speeches(f.rounds)} 次发言` : '正反方入座后估算发言次数'}</small>
+              </button>
+            ))}
           </div>
           <ol className="rt-flow">
-            {Array.from({ length: rounds }, (_, i) => (
-              <li key={i}><i>{i + 1}</i>{roundLabel('rational', i + 1, rounds)}</li>
+            {Array.from({ length: format.rounds }, (_, i) => (
+              <li key={i}><i>{i + 1}</i>{roundLabel('rational', i + 1, format.rounds)}</li>
             ))}
           </ol>
           <p className="hint">主持开场宣布辩题和双方持方 → 两方交替立论 → 交锋轮里双方互相质询、被问的一方必须正面作答 → 反方先、正方最后总结陈词 → 主持人（没有主持时由中立裁判）判定胜负并打分。</p>
@@ -195,7 +202,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
       )}
 
       <footer className="setup-foot">
-        <span>「{draft.theme}」{isRational && ` · ${rounds} 轮 · 每次 ≤${maxChars} 字`}{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
+        <span>「{draft.theme}」{isRational && ` · ${format.label}（${format.note}）· 每次 ≤${DEBATE_CHAR_LIMIT} 字`}{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
         <button className="px-btn primary" disabled={!canStart} onClick={start}>进入对话 ▶</button>
       </footer>
     </main>

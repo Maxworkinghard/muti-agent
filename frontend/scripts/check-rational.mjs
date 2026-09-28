@@ -34,6 +34,15 @@ try {
   assert.equal(debateSchedule(a)[1].speaker.side, 'pro');
   assert.equal(debateSchedule(b)[1].speaker.side, 'con');
   assert.equal(debateSchedule(a).at(-1).speaker.side, 'pro');
+  // 两档赛制：快辩交锋 1 轮、标准交锋 2 轮；发言次数 = 主持开场 1 次 + 每轮正反方每人 1 次（选人页按这个估算）
+  const { DEBATE_FORMATS, DEBATE_DEFAULT_FORMAT } = await server.ssrLoadModule('/src/data/modes.ts');
+  assert.deepEqual(DEBATE_FORMATS.map((f) => f.rounds), [3, 4]);
+  assert.equal(DEBATE_DEFAULT_FORMAT, 'standard');
+  for (const f of DEBATE_FORMATS) {
+    const turns = debateSchedule({ ...a, maxRounds: f.rounds });
+    assert.equal(new Set(turns.filter((t) => t.stage.startsWith('交锋')).map((t) => t.round)).size, f.rounds - 2, f.label + '的交锋轮数不对');
+    assert.equal(turns.length, 1 + f.rounds * 2, f.label + '的发言次数和估算对不上');
+  }
 
   async function play(config) {
     const seen = { judgePrompt: '', actorPrompts: [] };

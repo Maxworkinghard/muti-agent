@@ -311,6 +311,18 @@ export function roundLabel(mode: ModeId, round: number, total: number): string {
   return total > 3 ? name + ' ' + (round - 1) : name;
 }
 
-/** 辩论设置的范围和默认值 */
-export const DEBATE_ROUNDS = { min: 2, max: 6, default: 3 };
-export const DEBATE_CHARS = { min: 50, max: 400, step: 10, default: 150 };
+/**
+ * 辩论赛制：流程固定（主持开场 → 立论 → 交锋 → 总结 → 判定），选人页只选长短，默认标准。
+ * rounds 是总轮数：第 1 轮立论、最后一轮总结，中间都是交锋
+ */
+export const DEBATE_FORMATS = [
+  { id: 'quick', label: '快辩', rounds: 3, note: '交锋 1 轮' },
+  { id: 'standard', label: '标准', rounds: 4, note: '交锋 2 轮' },
+] as const;
+export type DebateFormatId = (typeof DEBATE_FORMATS)[number]['id'];
+export const DEBATE_DEFAULT_FORMAT: DebateFormatId = 'standard';
+/** 辩论每次发言的字数上限，固定 */
+export const DEBATE_CHAR_LIMIT = 150;
+/** 直接调会话接口时能接受的范围（界面只给上面两档） */
+export const DEBATE_ROUNDS = { min: 2, max: 6 };
+export const DEBATE_CHARS = { min: 50, max: 400 };
