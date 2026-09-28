@@ -5,7 +5,6 @@ import { SetupCast } from './components/SetupCast';
 import { DiscussionView } from './components/DiscussionView';
 import { PersonaCodex } from './components/PersonaCodex';
 import { LIBRARY_PERSONAS } from './data/personas';
-import { RATIONAL_PERSONAS } from './data/rationalPersonas';
 import { loadCustomScenes, saveCustomScenes } from './data/scenes';
 import { SoundToggle } from './sound';
 
@@ -19,10 +18,10 @@ export default function App() {
   // 1 模式·主题·场景 → 2 选人物 → 3 讨论室；四个模式共用这三步
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [draft, setDraft] = useState<Draft>({ mode: 'entertainment', theme: '', sceneId: 'roundtable' });
-  const basePersonas = [...LIBRARY_PERSONAS, ...RATIONAL_PERSONAS];
   const [importedPersonas, setImportedPersonas] = useState<Persona[]>([]);
   const importedIds = new Set(importedPersonas.map((p) => p.id));
-  const personas = [...basePersonas.filter((p) => !importedIds.has(p.id)), ...importedPersonas];
+  // 内置人物已经按 id 去过重（含辩论组的）；导入的和内置的同 id 时以导入的为准
+  const personas = [...LIBRARY_PERSONAS.filter((p) => !importedIds.has(p.id)), ...importedPersonas];
   const [session, setSession] = useState<SessionConfig | null>(null);
   const [codex, setCodex] = useState(false);
   const [customScenes, setCustomScenes] = useState<SceneDef[]>(loadCustomScenes);

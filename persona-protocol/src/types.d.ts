@@ -1,5 +1,5 @@
 // 人格资料包协议 v1.0 的 TypeScript 类型，前端和引擎共用。校验以 protocol.mjs 为准。
-export type Mode = 'entertainment' | 'rational';
+export type Mode = 'entertainment' | 'rational' | 'emotion' | 'product';
 export type BuiltinTrait = 'cautious' | 'direct' | 'skeptical' | 'empathetic' | 'critical' | 'optimistic' | 'pragmatic' | 'humorous';
 export type TraitId = BuiltinTrait | `custom-${string}`;
 

@@ -66,9 +66,9 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
       </section>
 
       <section className="panel">
-        <h2><b>03</b> 场景图 <small>也可以上传自己的场景图</small></h2>
+        <h2><b>03</b> 选择场景 <small>像素场景和新增 3D 场景可分别选择</small></h2>
         <div className="scene-grid">
-          {scenes.map((s) => (
+          {scenes.filter((s) => !s.model3d).map((s) => (
             <button key={s.id} className={'scene-card' + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id })}>
               <img src={s.image} alt={s.name} />
               <div className="scene-meta">
@@ -88,6 +88,20 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
             <strong>添加场景</strong>
             <small>上传一张图，点出座位就能用</small>
           </button>
+        </div>
+        <h3 className="scene-section-title">新增 3D 场景</h3>
+        <div className="scene-grid" aria-label="新增 3D 场景">
+          {scenes.filter((s) => s.model3d).map((s) => (
+            <button key={s.id} className={'scene-card scene-card-3d' + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id })}>
+              <img src={s.previewImage ?? s.image} alt={s.name} loading="lazy" />
+              <div className="scene-meta">
+                <strong>{s.name}</strong>
+                <span>{s.maxSeats} 席</span>
+                <i className="scene-3d-badge">3D</i>
+              </div>
+              <small>{s.description}</small>
+            </button>
+          ))}
         </div>
       </section>
 

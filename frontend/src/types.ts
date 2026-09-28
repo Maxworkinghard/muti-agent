@@ -1,5 +1,5 @@
 export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
-/** 内置场景：roundtable / debate / office / classroom / meadow；用户添加的场景以 custom- 开头 */
+/** 原场景 ID 保持不变；新增三维场景以 -3d 结尾，用户场景以 custom- 开头。 */
 export type SceneId = string;
 export type Side = 'pro' | 'con' | 'host';
 /** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
@@ -59,6 +59,14 @@ export interface SceneDef {
   id: SceneId;
   name: string;
   image: string;
+  /** Optional local GLB for the interactive discussion stage. */
+  model3d?: string;
+  /** 新增三维场景的原图场景，用于 2D 回退和场景语义。 */
+  sourceSceneId?: SceneId;
+  /** 场景卡片预览，未设置时使用 image。 */
+  previewImage?: string;
+  /** 三维模型包围盒内的 X/Z 百分比座位点，顺序对应 seats。 */
+  modelSeats?: Seat[];
   description: string;
   recommendedMode: ModeId;
   maxSeats: number;

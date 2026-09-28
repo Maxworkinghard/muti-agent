@@ -1,9 +1,9 @@
-import type { SceneDef, SceneId } from '../types';
+import type { SceneDef, SceneId, Seat } from '../types';
 
 // 坐标是座位中心在 1536x1024 底图上的百分比位置
 const p = (x: number, y: number) => ({ x: +(x / 15.36).toFixed(2), y: +(y / 10.24).toFixed(2) });
 
-export const SCENES: Record<string, SceneDef> = {
+const ORIGINAL_SCENES: Record<string, SceneDef> = {
   roundtable: {
     id: 'roundtable',
     name: '圆桌会议室',
@@ -62,6 +62,44 @@ export const SCENES: Record<string, SceneDef> = {
     // 先坐上下左右，人少时也能围成一圈
     seats: [p(766, 210), p(1045, 450), p(766, 680), p(485, 450), p(955, 295), p(970, 600), p(565, 600), p(570, 295)],
   },
+};
+
+// 3D 场景使用独立 ID；原场景与各模式默认选择保持原样。
+const MODEL_SEATS: Record<string, Seat[]> = {
+  roundtable: [
+    { x: 50.02, y: 13.8 }, { x: 64.06, y: 22.73 }, { x: 69.78, y: 42.01 },
+    { x: 65.24, y: 66.05 }, { x: 50.47, y: 73.51 }, { x: 34.92, y: 61.83 },
+    { x: 30.16, y: 42.27 }, { x: 35.86, y: 22.02 },
+  ],
+  debate: [
+    { x: 29.68, y: 24.46 }, { x: 26.1, y: 31.79 }, { x: 22.65, y: 38.98 },
+    { x: 69.42, y: 23 }, { x: 73.39, y: 30.78 }, { x: 77.84, y: 39.04 },
+    { x: 50.04, y: 13.5 },
+  ],
+  office: [
+    { x: 37.01, y: 19.35 }, { x: 71.96, y: 19.44 }, { x: 19.91, y: 58.27 },
+    { x: 79.79, y: 58.16 }, { x: 36.97, y: 83.3 }, { x: 63.33, y: 83.19 },
+    { x: 8.47, y: 58.18 }, { x: 89.46, y: 58.13 }, { x: 28.2, y: 19.11 },
+    { x: 85.38, y: 29.13 },
+  ],
+};
+
+export const SCENES: Record<string, SceneDef> = {
+  ...ORIGINAL_SCENES,
+  ...Object.fromEntries(['roundtable', 'debate', 'office'].map((sourceId) => {
+    const source = ORIGINAL_SCENES[sourceId];
+    const id = `${sourceId}-3d`;
+    return [id, {
+      ...source,
+      id,
+      name: `${source.name} · 3D`,
+      sourceSceneId: sourceId,
+      model3d: `/models/scene-${sourceId}.glb`,
+      previewImage: `/models/scene-${sourceId}-preview.png`,
+      modelSeats: MODEL_SEATS[sourceId],
+      description: `可旋转、缩放的三维${source.name}，沿用现有人物和讨论功能`,
+    } satisfies SceneDef];
+  })),
 };
 
 export const SCENE_LIST = Object.values(SCENES);

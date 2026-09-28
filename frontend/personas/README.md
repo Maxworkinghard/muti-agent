@@ -4,13 +4,14 @@
 
 | 文件夹 | 模式 | 负责方 |
 | --- | --- | --- |
-| `common/` | 讨论类模式共用的通用人物；阿冷（`01-a-leng.json`）已退出娱乐模式，娱乐模式用 `entertainment/` 里的阿冷 | 公共 |
-| `emotion/` | 情感交流的七种回应风格，一种风格一个人物，也出现在娱乐和辩论里 | 情感组 |
+| `emotion/` | 情感分析的七种回应风格，一种风格一个人物，只用在情感分析 | 情感组 |
 | `product/` | 「工作 · 创造项目」的五个人物，每个合并了几种相近的产品分析和 vibe coding 人格（来源写在文件的 `_说明` 里） | 工作组 |
 | `entertainment/` | 娱乐组的 7 个宿舍室友：老方（反驳型）、小正（反反驳型）、阿实（确实型）、小林（正常人）、阿冷、小戏、阿禾，都用人格资料包协议 v1.0 | 娱乐组 |
-| `rational/` | 还没有；辩论组的人物放这里 | 辩论组 |
+| `rational/` | 目前没有这个文件夹。辩论组的 5 个人物（老苏、阿澜、K、灰先生、南姐）放在 `backend/人物/理性/`，用的是 Python 后端那边的格式（模板 `backend/人物模板.json`），构建时由 `src/data/rationalPersonas.ts` 直接读进来。想用本库的两种格式加辩论人物，就新建 `rational/` 放进来 | 辩论组 |
 
 文件夹名就是人物的默认模式；文件里写了 `modes` 时以文件为准。
+
+`backend/人物/理性/` 和这里合成一个人物库，一起按 `id` 查重：先读这里，`id` 已经有了的文件会被跳过，并列在图鉴的问题列表里。把某个辩论人物改写成本库的格式放进 `rational/` 时，沿用原来的 `id` 就行：新版本生效，`backend/` 里的旧文件被跳过（图鉴里会留一条提示）；旧文件 Python 后端还在读，不必删。只有另一个人物碰巧撞了 `id` 时，才需要换一个。
 
 格式优先用人格资料包协议 v1.0（`{ "schemaVersion": "1.0", "persona": {...} }`，校验工具在 `../persona-protocol`），样例见 `entertainment/ent-cold-observer-001.persona.json`。
 
@@ -26,7 +27,7 @@
 
 | 字段 | 可选值 |
 | --- | --- |
-| `modes` | `entertainment`、`rational` |
+| `modes` | `entertainment`、`rational`、`emotion`、`product`；含 `rational` 时 `worldview.assumptions`、`judgmentFocus`、`blindSpots` 必填，`boundaries.factVsOpinion` 必须是 `always_label` |
 | `communicationStyle.verbosity` | `short`、`medium`、`long` |
 | `communicationStyle.register` | `casual`、`neutral`、`formal` |
 | `communicationStyle.humor` | `none`、`light`、`frequent` |
@@ -42,7 +43,7 @@
 
 性格分两层：人物文件的 `personality.defaultTraits` 是默认值；用户在选人物页选的性格只存在本次 session（`participants[].traitSelection`），不改公共人物文件。首版开讨论后不能再切换。`selectedTraits`、`session`、`runtime`、`turnOrder`、`round` 这些字段写进人物文件会直接报错。
 
-注意：协议的 `modes` 目前没有工作模式，`product/` 里的人物暂时还用前端的简化格式。
+协议的 `modes` 四个模式都能写。`emotion/`、`product/` 里现有的人物用的是前端简化格式，两种格式都能用，不必改写。
 
 ## 性情（娱乐、情感分析用，`x-temperament`）
 

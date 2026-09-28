@@ -2,7 +2,8 @@
 export const SCHEMA_VERSION = '1.0';
 
 export const ENUMS = Object.freeze({
-  modes: ['entertainment', 'rational'],
+  // 和前端的四个模式一致；只有 rational 另有必填项（见 checkPersona）
+  modes: ['entertainment', 'rational', 'emotion', 'product'],
   originType: ['original', 'inspired', 'historical', 'composite'],
   builtinTraits: ['cautious', 'direct', 'skeptical', 'empathetic', 'critical', 'optimistic', 'pragmatic', 'humorous'],
   verbosity: ['short', 'medium', 'long'],

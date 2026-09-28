@@ -2,35 +2,7 @@
 
 多人格讨论工作台：选模式和主题，选几个人物入座，看他们围绕你的问题讨论或分工协作。讨论中可以暂停、插话、继续，讨论结束后还能接着追问。
 
-> **项目准备换方向。** 下面介绍的是换方向之前的版本（圆桌版：娱乐 / 辩论 / 情感分析 / 工作四个模式），它已经完整冻结在分支 [`legacy/v1-roundtable`](https://github.com/Maxworkinghard/muti-agent/tree/legacy/v1-roundtable) 上，之后 main 上的改动不会影响它。
-
-## 换方向之前的版本
-
-### 体验旧版
-
-在仓库根目录执行（第一次会自动检出旧版、安装依赖）：
-
-```bash
-npm run legacy
-```
-
-脚本把旧版检出到 `.legacy/v1-roundtable`（git worktree，不影响当前工作区，已加入 `.gitignore`），同时启动旧版的页面和辩论后端，打开 http://localhost:5174 即可。端口和新版默认的 5173 / 8000 错开，两个版本可以同时开着对比；要换端口用 `LEGACY_PORT`、`LEGACY_DEBATE_PORT`。模型配置沿用当前的 `frontend/.env`；没有 key 时辩论模式以试跑方式运行（示例发言），其余三个模式会提示缺少 `LLM_API_KEY`。
-
-不用 git 的话，也可以在 GitHub 上切到 `legacy/v1-roundtable` 分支下载 ZIP，按那份 README 的「运行」一节启动。
-
-### 回退
-
-旧版的代码只在 `legacy/v1-roundtable` 上保留一份，**不要删除或改动这个分支**。新方向走不通、需要整体回到旧版时：
-
-```bash
-git fetch origin legacy/v1-roundtable
-git checkout -b rollback-v1 origin/main
-git restore --source=origin/legacy/v1-roundtable --worktree --staged .   # 工作区整体换成旧版内容
-git commit -m "回退到换方向之前的版本（legacy/v1-roundtable）"
-git push -u origin rollback-v1                                           # 再开 PR 合进 main
-```
-
-这样回退是一次普通提交，换方向期间的历史都还在，随时可以再改回来；不需要改写 main 的历史。只想取回旧版的个别文件时，把最后的 `.` 换成对应路径即可。
+项目按当前方向持续开发：围绕娱乐、辩论、情感分析和工作四种模式，完善人物库、讨论交互与场景表现。原有像素场景继续保留，3D 场景作为独立选项新增；人物模型与动作动画逐步适配，已接入能力和当前限制以本文及对应资源说明为准。
 
 ## 界面
 
@@ -49,6 +21,8 @@ git push -u origin rollback-v1                                           # 再�
 场景图在 `frontend/public/scenes/`，五张分别是圆桌会议室、辩论室、办公室、中南大学教室、草地野餐，也可以上传自己的图。例如中南大学教室：
 
 ![中南大学教室](frontend/public/scenes/scene-classroom.png)
+
+原有五个像素场景和各模式的默认选择保持不变。在场景列表下方的「新增 3D 场景」中，还可单独选择「圆桌会议室 · 3D」「辩论室 · 3D」「办公室 · 3D」。仅主动选择这些新增场景时才加载三维模型，可拖动旋转、滚轮缩放，也能切回场景原图。人物继续使用现有的独立角色形象和状态动画，位置跟随视角；之前试生成的通用人物模型已撤下。模型来源、处理脚本和当前限制见 [`frontend/public/models/README.md`](frontend/public/models/README.md)。
 
 ## 四个模式
 

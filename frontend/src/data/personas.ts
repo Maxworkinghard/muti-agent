@@ -1,5 +1,6 @@
 import type { ModeId, Persona } from '../types';
 import { isModeId } from './modes';
+import { RATIONAL_PERSONAS, RATIONAL_SOURCES } from './rationalPersonas';
 // 协议格式的校验规则只维护一份，前端直接复用 persona-protocol 里的实现
 import { loadPersona } from '../../../persona-protocol/src/protocol.mjs';
 
@@ -14,16 +15,28 @@ export interface PersonaCheck {
 }
 
 /**
- * 人物库：自动读取项目根目录 personas/ 下的所有 JSON。
- * personas/entertainment、personas/rational、personas/product、personas/emotion 分别放四个模式的人物，
+ * 人物库：frontend/personas/ 下的所有 JSON，加上 backend/人物/理性/ 里辩论组的人物（格式不同，rationalPersonas.ts 转好了）。
+ * personas/ 下按模式分文件夹（entertainment、emotion、product；辩论要加人物就建 rational），
  * 文件夹名就是默认模式；文件里写了 modes 时以文件为准。
  * 同时支持协议 v1.0（{ schemaVersion, persona }）和前端简化格式。
+ * 两处一起按 id 查重：先读 personas/，id 已经有了的跳过并报给图鉴，免得选人物页出现两张同 id 的卡。
  */
 const files = import.meta.glob('../../personas/**/*.json', { eager: true, import: 'default' });
 
 function loadLibrary(): { personas: Persona[]; issues: PersonaCheck[] } {
   const out: Persona[] = [];
   const issues: PersonaCheck[] = [];
+  /** 已收下的 id → 文件，撞了告诉用户和哪个文件撞的 */
+  const seen = new Map<string, string>();
+  const add = (p: Persona, source: string) => {
+    const first = seen.get(p.id);
+    if (first) {
+      issues.push({ source, errors: ['人物 id "' + p.id + '" 和 ' + first + ' 重复，已跳过'], warnings: [] });
+      return;
+    }
+    seen.set(p.id, source);
+    out.push(p);
+  };
   Object.entries(files).sort(([a], [b]) => a.localeCompare(b)).forEach(([path, raw]) => {
     const folder = path.split('/').slice(-2, -1)[0] as ModeId;
     const c = checkPersona(raw, out.length, 'personas/' + path.split('/personas/')[1]);
@@ -32,13 +45,10 @@ function loadLibrary(): { personas: Persona[]; issues: PersonaCheck[] } {
       console.warn('[personas] ' + c.source + '\n' + [...c.errors, ...c.warnings].join('\n'));
     }
     if (!c.persona) return;
-    if (out.some((p) => p.id === c.persona!.id)) {
-      issues.push({ source: c.source, errors: ['人物 id "' + c.persona.id + '" 和别的文件重复，已跳过'], warnings: [] });
-      return;
-    }
     if (!c.persona.modes?.length && MODE_IDS.includes(folder)) c.persona.modes = [folder];
-    out.push(c.persona);
+    add(c.persona, c.source);
   });
+  RATIONAL_PERSONAS.forEach((p, i) => add(p, RATIONAL_SOURCES[i]));
   return { personas: out, issues };
 }
 
@@ -142,6 +152,7 @@ export function checkPersona(raw: unknown, index: number, source: string): Perso
 }
 
 const library = loadLibrary();
+/** 内置人物：personas/ 和 backend/人物/理性/ 合在一起，id 不重复 */
 export const LIBRARY_PERSONAS: Persona[] = library.personas;
 /** 人物库里有问题的文件，选人物页会列出来 */
 export const LIBRARY_ISSUES: PersonaCheck[] = library.issues;

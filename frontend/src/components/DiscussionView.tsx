@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, MindView, Participant, PersonaVisual, SessionConfig, TaskEvent,
+  AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Facing, MindView, Participant, PersonaVisual, SessionConfig, TaskEvent,
 } from '../types';
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
@@ -8,10 +8,11 @@ import { nextConversationVariation } from '../data/conversationVariation';
 import { engineFor } from '../engines/registry';
 import { playReady, playSeat, playVoice, SoundToggle, useMuted, warmAudio } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
+import { centroid, facingToward, type StagePoint, type StageView } from './stageFacing';
 import { createBgm, playThinking, type Bgm } from './stageFx';
 
 interface Status { state: AgentState; action: string }
-interface Flight { id: string; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
+interface Flight { id: string; fromSeat: number; toSeat: number; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
 interface ErrorItem { id: string; agentId?: string; message: string; retry?: () => void }
 
 const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
@@ -21,6 +22,7 @@ const SEAT_GAP = 750;
 const FACE_EXTRAS = new Set(['brows', 'sleepy', 'happy', 'grin', 'blush', 'sweat']);
 const withFace = (v: PersonaVisual, mind?: MindView): PersonaVisual =>
   mind?.face.length ? { ...v, extras: [...(v.extras ?? []).filter((e) => !FACE_EXTRAS.has(e)), ...mind.face] } : v;
+const SceneStage3D = lazy(() => import('./SceneStage3D').then((module) => ({ default: module.SceneStage3D })));
 
 export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
   const scene = sceneById(config.sceneId);
@@ -37,6 +39,28 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
   const [errors, setErrors] = useState<ErrorItem[]>([]);
+  const [view3D, setView3D] = useState(Boolean(scene.model3d));
+  const [threeReady, setThreeReady] = useState(false);
+  const [threeError, setThreeError] = useState('');
+  const [projectedSeats, setProjectedSeats] = useState<typeof scene.seats>([]);
+  // 相机朝向和座位的世界坐标：三维里人物据此转身，二维用不到（保持原来的正面）
+  const [stageView, setStageView] = useState<StageView | null>(null);
+  const threeActive = Boolean(scene.model3d) && view3D && threeReady;
+  const stageSeat = (index: number) => (threeActive ? projectedSeats[index] : undefined) ?? scene.seats[index];
+  // 三维里大家围坐的那一点：每个人转身看向它，而不是一直正对镜头。
+  // 二维场景没有世界坐标，facingOf 一律返回 S，保持原来的正面朝向。
+  const conversationCenter = useMemo<StagePoint | null>(() => {
+    if (!stageView) return null;
+    const points = config.participants
+      .map((p) => stageView.seats[p.seatIndex])
+      .filter((seat): seat is StagePoint => Boolean(seat));
+    return centroid(points);
+  }, [stageView, config.participants]);
+  const facingOf = (seatIndex: number): Facing => {
+    if (!threeActive || !stageView || !conversationCenter) return 'S';
+    const from = stageView.seats[seatIndex];
+    return from ? facingToward(from, conversationCenter, stageView) : 'S';
+  };
   // 娱乐、情感分析（导演 + 演员底盘）：每个人的内心、引擎给的段名（换话题 / 走到哪一步）
   const live = config.mode === 'entertainment' || config.mode === 'emotion';
   const [minds, setMinds] = useState<Record<string, MindView>>({});
@@ -147,7 +171,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           const p = byId[e.task.from];
           const a = scene.seats[p?.seatIndex ?? 0];
           const b = scene.seats[byId[e.task.to]?.seatIndex ?? 0];
-          const f: Flight = { id: e.task.id, from: a, to: b, via: scene.center, color: p?.color ?? '#d4b04c', title: e.task.title };
+          const f: Flight = { id: e.task.id, fromSeat: p?.seatIndex ?? 0, toSeat: byId[e.task.to]?.seatIndex ?? 0, from: a, to: b, via: scene.center, color: p?.color ?? '#d4b04c', title: e.task.title };
           setFlights((fs) => [...fs, f]);
           window.setTimeout(() => setFlights((fs) => fs.filter((x) => x.id !== f.id)), 1500);
           break;
@@ -216,13 +240,30 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 
       {/* 中左：场景动态演示 */}
       <section className="stage">
-        <div className="stage-inner">
+        <div className={'stage-inner' + (threeActive ? ' stage-3d-ready' : '')}>
           <img className="stage-bg" src={scene.image} alt={scene.name} draggable={false} />
-          {config.sceneId === 'debate' && <div className="debate-board">{config.theme.title}</div>}
+          {view3D && scene.model3d && <Suspense fallback={null}><SceneStage3D
+            scene={scene}
+            onLoaded={(error) => {
+              if (error) { setThreeError(error); setView3D(false); setThreeReady(false); }
+              else { setThreeError(''); setThreeReady(true); }
+            }}
+            onSeatPositions={setProjectedSeats}
+            onStageView={setStageView}
+          /></Suspense>}
+          {scene.model3d && <button
+            className="stage-view-toggle"
+            onClick={() => { setView3D(!view3D); setThreeReady(false); setThreeError(''); }}
+            aria-label={view3D ? '切换到 2D 场景' : '切换到 3D 场景'}
+            title={view3D ? '切换到 2D 场景' : '切换到 3D 场景'}
+          >{view3D ? '◧ 2D' : '◈ 3D'}</button>}
+          {threeActive && <span className="stage-view-hint">拖动旋转 · 滚轮缩放</span>}
+          {threeError && <span className="stage-model-error" role="status">{threeError}</span>}
+          {(scene.sourceSceneId ?? scene.id) === 'debate' && !threeActive && <div className="debate-board">{config.theme.title}</div>}
           {config.participants.map((p, i) => {
             if (i >= seated) return null;
             const st = status[p.agentId]?.state ?? 'idle';
-            const seat = scene.seats[p.seatIndex];
+            const seat = stageSeat(p.seatIndex);
             const msg = st === 'speaking' ? lastSpeech(p.agentId) : undefined;
             const mind = minds[p.agentId];
             return (
@@ -244,25 +285,26 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
                 )}
                 {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
                 {st === 'working' && <span className="work-icon">⌨</span>}
-                <span className="body"><PixelAvatar v={withFace(p.persona.visual, mind)} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} /></span>
+                <span className="body"><PixelAvatar v={withFace(p.persona.visual, mind)} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} facing={facingOf(p.seatIndex)} /></span>
                 <span className="nameplate">{p.isLead ? '★' : ''}{p.persona.name}</span>
               </button>
             );
           })}
-          {flights.map((f) => (
-            <span
+          {flights.map((f) => {
+            const from = threeActive ? stageSeat(f.fromSeat) : f.from;
+            const to = threeActive ? stageSeat(f.toSeat) : f.to;
+            const via = threeActive ? { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 10 } : f.via ?? f.to;
+            return <span
               key={f.id}
               className="flight"
               style={{
-                ['--fx' as string]: f.from.x + '%', ['--fy' as string]: f.from.y + '%',
-                ['--mx' as string]: (f.via ?? f.to).x + '%', ['--my' as string]: (f.via ?? f.to).y + '%',
-                ['--tx' as string]: f.to.x + '%', ['--ty' as string]: f.to.y + '%',
+                ['--fx' as string]: from.x + '%', ['--fy' as string]: from.y + '%',
+                ['--mx' as string]: via.x + '%', ['--my' as string]: via.y + '%',
+                ['--tx' as string]: to.x + '%', ['--ty' as string]: to.y + '%',
                 ['--fc' as string]: f.color,
               }}
-            >
-              <i />
-            </span>
-          ))}
+            ><i /></span>;
+          })}
           {session === 'finished' && <div className="stage-banner">讨论结束 · 结果已写入工作区</div>}
           {entering && (
             <div key={entering.agentId} className="intro-card" style={{ ['--ac' as string]: entering.color }}>

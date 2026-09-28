@@ -35,6 +35,16 @@ export function PersonaCodex({ personas, importedIds, initialMode, onImport, onD
     }
     const arr = Array.isArray(data) ? data : [data];
     const results = arr.map((raw, i) => checkPersona(raw, personas.length + i, arr.length > 1 ? f.name + ' 第 ' + (i + 1) + ' 项' : f.name));
+    // 同一个文件里 id 重复的只收第一个，后面的报错跳过（同 id 的两张卡会一起选中、入座的总是前一个）
+    const seen = new Map<string, string>();
+    for (const r of results) {
+      if (!r.persona) continue;
+      const first = seen.get(r.persona.id);
+      if (first) {
+        r.errors.push('人物 id "' + r.persona.id + '" 和 ' + first + ' 重复，已跳过');
+        r.persona = undefined;
+      } else seen.set(r.persona.id, r.source);
+    }
     const ok = results.flatMap((r) => (r.persona ? [r.persona] : []));
     // 导入的人物如果没写 modes，默认放进当前标签的模式
     ok.forEach((p) => { if (!p.modes?.length) p.modes = [mode]; });
