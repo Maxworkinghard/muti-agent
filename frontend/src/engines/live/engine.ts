@@ -12,6 +12,19 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + '…' : s);
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const QUOTE_PAIRS: Record<string, string> = { '“': '”', '「': '」', '『': '』', '"': '"', "'": "'" };
+/**
+ * 整句被一对引号包着（“……”「……」）时去掉这对引号；句子里本来就有的引号（引用别人的原话）不动，
+ * 比如「故意」是你补的、那我给你一句能直接发的：“……”
+ */
+function unwrapQuotes(t: string) {
+  const close = QUOTE_PAIRS[t[0]];
+  if (!close || t.length < 2 || t[t.length - 1] !== close) return t;
+  const inner = t.slice(1, -1);
+  // 里面还有同样的引号，首尾就不是一对（「故意」是你补的「理由」），不动
+  return inner.includes(t[0]) || inner.includes(close) ? t : inner.trim();
+}
+
 /** 说话时每秒刷新几次 */
 const FPS = 12;
 /** 说话速度：每秒几个字（再乘嘴快和上头程度） */
@@ -74,6 +87,11 @@ class LiveRoom {
   private arcNote = '';
   private round = 1;
   private roundLabel = '开聊';
+  /** 分步的模式（kit.stages）：现在在第几步、这一步从第几次发言开始 */
+  private stage = 0;
+  private stageStep = 0;
+  /** 分步的模式没走完就冷场了：大家在等你开口，你说话（或点继续）之前谁也不说 */
+  private idle = false;
   private silence = 0;
   private mentioned = new Set<string>();
   /** 你说的话还没人接 */
@@ -123,12 +141,14 @@ class LiveRoom {
       this.nameToId.set(p.persona.name, p.agentId);
     }
     this.nameToId.set('用户', 'user');
+    if (this.kit.stages?.length) this.roundLabel = this.arc = this.kit.stages[0];
     this.emit({ type: 'session', state: 'running' });
     this.emit({ type: 'round', round: this.round, label: this.roundLabel });
     for (const m of this.minds.values()) { this.showMind(m); this.rest(m); }
     // 前端已经把你的第一句话显示出来了，这里只记进记录
     const opening = this.cfg.theme.brief?.trim() || this.cfg.theme.title.trim() || '随便聊聊';
     this.addUserLine(opening, false, this.mentionsIn(opening));
+    this.stageStep = this.step;
     void this.loop();
   }
 
@@ -156,6 +176,8 @@ class LiveRoom {
   resume() {
     if (this.stopped || !this.paused) return;
     this.paused = false;
+    // 冷场等你开口时点了暂停又点继续：当作让大家接着聊
+    this.idle = false;
     if (!this.finished) this.emit({ type: 'session', state: 'running' });
     this.signal.notify();
   }
@@ -174,7 +196,7 @@ class LiveRoom {
 
   private async loop() {
     while (!this.stopped) {
-      if (this.paused || this.finished || this.hold) { await this.signal.wait(); continue; }
+      if (this.paused || this.finished || this.hold || this.idle) { await this.signal.wait(); continue; }
       let plan: Plan | null;
       try {
         plan = await this.next();
@@ -198,7 +220,7 @@ class LiveRoom {
       }
       await this.utter(plan, cut);
       if (this.stopped) break;
-      if (this.step >= this.budget || (plan.cue.end && this.step >= 8)) this.end();
+      if (this.step >= this.budget || (plan.cue.end && this.step >= 8 && this.lastStage())) this.end();
     }
   }
 
@@ -284,10 +306,15 @@ class LiveRoom {
     });
   }
 
-  /** 导演安排冷场：等一会儿再排；连着两次没人说就散 */
+  /** 导演安排冷场：等一会儿再排；连着两次没人说就散。分步的模式还没走到最后一步时不散，停下来等你开口 */
   private async quiet(cue: Cue) {
     this.apply(cue, null);
     this.silence++;
+    if (!this.lastStage()) {
+      this.idle = true;
+      for (const m of this.minds.values()) this.status(m, 'idle', '等你开口');
+      return;
+    }
     for (const m of this.minds.values()) this.rest(m);
     if (this.silence >= 2) return this.end();
     if (!(await this.nap(2200))) return;
@@ -490,10 +517,28 @@ class LiveRoom {
       touched.add(m);
     }
     for (const m of touched) { this.showMind(m); if (m !== speaker && this.speaking?.m !== m) this.rest(m); }
-    // 导演的安排只在幕后：界面上只看得到话题换了
+    // 导演的安排只在幕后：界面上只看得到话题换了（分步的模式还看得到走到了哪一步）
     if (cue.topic && this.step - this.roundStep >= 6) this.newRound('换话题 · ' + cue.topic);
-    if (cue.arc) this.arc = cue.arc;
+    // 新的一步从有人开口算起：冷场那一步不推进，免得还在等你回答就被当成走到了最后一步
+    if (cue.arc) { this.arc = cue.arc; if (speaker) this.advanceStage(cue.arc); }
     if (cue.arcNote) this.arcNote = cue.arcNote;
+  }
+
+  /** 分步的模式：导演说走到了后面的步骤，就开一段新的；只往前走，不回头 */
+  private advanceStage(arc: string) {
+    const stages = this.kit.stages;
+    if (!stages?.length) return;
+    const i = stages.findIndex((s) => arc.includes(s) || (arc.length >= 2 && s.includes(arc)));
+    if (i <= this.stage) return;
+    this.stage = i;
+    this.stageStep = this.step;
+    this.newRound(stages[i]);
+  }
+
+  /** 没有分步，或者已经走到最后一步：可以散场了 */
+  private lastStage() {
+    const n = this.kit.stages?.length ?? 0;
+    return n === 0 || this.stage >= n - 1;
   }
 
   private roundStep = 0;
@@ -622,10 +667,10 @@ class LiveRoom {
     return whisper ? (sp.privateReply ? sp : null) : (say.length ? sp : null);
   }
 
-  /** 去掉引号和“名字：”前缀 */
+  /** 去掉包着整句的引号和“名字：”前缀 */
   private clean(s: string, m?: Mind) {
-    let t = s.trim().replace(/^["“”'「」]+|["“”'「」]+$/g, '');
-    if (m) t = t.replace(new RegExp('^' + escapeRe(m.name) + '\\s*[:：]\\s*'), '');
+    let t = unwrapQuotes(s.trim());
+    if (m) t = unwrapQuotes(t.replace(new RegExp('^' + escapeRe(m.name) + '\\s*[:：]\\s*'), ''));
     return t.slice(0, 80).trim();
   }
 
@@ -695,7 +740,11 @@ class LiveRoom {
   }
 
   private arcText() {
-    return `全场现在：${this.arc}。你上一步的打算：${this.arcNote || '（还没有）'}`;
+    const stages = this.kit.stages;
+    const where = stages?.length
+      ? `现在在第 ${this.stage + 1}/${stages.length} 步「${stages[this.stage]}」，这一步已经 ${this.step - this.stageStep} 次发言（顺序：${stages.join(' → ')}）`
+      : `全场现在：${this.arc}`;
+    return `${where}。你上一步的打算：${this.arcNote || '（还没有）'}`;
   }
 
   private nowText() {
@@ -723,7 +772,12 @@ class LiveRoom {
       .filter((x) => (x.lastSpoke < 0 ? this.step >= 6 : this.step - x.lastSpoke >= 6))
       .map((x) => x.name);
     if (quiet.length) out.push('一直没怎么吭声的：' + quiet.join('、') + '。');
-    if (this.budget - this.step <= 5) out.push('聊了挺久了，快到尾声，可以往收尾走；差不多了就 end=true。');
+    if (this.budget - this.step <= 5) {
+      const stages = this.kit.stages;
+      out.push(this.lastStage()
+        ? '聊了挺久了，快到尾声，可以往收尾走；差不多了就 end=true。'
+        : `聊了挺久了，快到尾声，还没走到「${stages![stages!.length - 1]}」，该往那走了；走到了再 end=true。`);
+    }
     out.push('角色实际说出口的可能和你给的大意不一样，以记录为准，据此调整。');
     return out.join('\n');
   }
@@ -763,6 +817,7 @@ class LiveRoom {
     this.mentioned = targets;
     this.userWaiting = true;
     this.silence = 0;
+    this.idle = false;
     if (this.speaking) this.userSpoke = true;
     for (const m of this.minds.values()) { cool(m, this.kit.moods); this.showMind(m); }
     this.bump();

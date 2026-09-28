@@ -56,7 +56,7 @@ git push -u origin rollback-v1                                           # 再�
 | --- | --- | --- |
 | 娱乐 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/entertainment/` + 底盘 `live/`）：导演看全场排下一句谁说、情绪怎么递进、说话状态怎么变，每个角色按自己的人设说；能插嘴、冷场散场；可以暂停、@点名、私聊撺掇 | `frontend/personas/entertainment/` 7 人 |
 | 辩论 | 浏览器里的独立导演 + 辩手 + 裁判引擎（`frontend/src/engines/rational/`）：按正反方轮次交锋，主持或中立裁判判定；人物说法随现场变化 | `backend/人物/理性/` 5 人，构建时直接加载 |
-| 情感分析 | Node 会话后端（`frontend/server/`） | `frontend/personas/emotion/` 7 人 |
+| 情感分析 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/emotion/` + 底盘 `live/`）：七种回应风格一起接住你的事，导演按「回应情绪 → 分清事实与感受 → 下一步行动」往前排，情绪（心疼、火气、担心、欣慰）一步步递进；有人问你时会停下来等你开口；可以暂停、@点名、私聊 | `frontend/personas/emotion/` 7 人 |
 | 工作 | Node 会话后端（`frontend/server/`） | `frontend/personas/product/` 5 人 |
 
 ## 目录
@@ -97,7 +97,7 @@ cd frontend
 npm run dev
 ```
 
-一个 Vite 进程提供页面与热更新、Node 会话后端（`/api/health`、`/api/sessions`）及 `/api/llm/chat` 模型代理，Key 只留在服务器端。娱乐和辩论分别在浏览器运行自己的引擎。
+一个 Vite 进程提供页面与热更新、Node 会话后端（`/api/health`、`/api/sessions`）及 `/api/llm/chat` 模型代理，Key 只留在服务器端。娱乐、情感分析和辩论分别在浏览器运行自己的引擎。
 
 - 端口默认为 5173，被占用时 Vite 会自动顺延，**以终端输出的地址为准**；
 - 请用终端输出的 `localhost` 地址打开（只监听 IPv6 回环时，`127.0.0.1` 连不上）；

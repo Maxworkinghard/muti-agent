@@ -134,6 +134,12 @@ export interface ActorInput {
 /** 一个模式的玩法：情绪、性情、导演和角色的提示词、总结 */
 export interface LiveKit {
   moods: MoodDef[];
+  /**
+   * 分步走的模式（比如情感分析：回应情绪 → 分清事实与感受 → 下一步行动）。给了就按步骤分段：
+   * 导演的 arc 写现在在哪一步，走到后面的步骤时界面开一段新的（只往前走）；
+   * 没走到最后一步不散场：导演提前说 end 不算数，冷场时停下来等用户开口。发言条数用完照样散场
+   */
+  stages?: string[];
   /** 开场时调一次，比如抽梗卡 */
   setup?(cfg: SessionConfig): void;
   temperament(p: Participant): Temperament;

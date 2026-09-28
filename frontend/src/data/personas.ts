@@ -117,6 +117,7 @@ export function checkPersona(raw: unknown, index: number, source: string): Perso
   if (!r.id || !r.name) return fail('缺少 id 或 name。如果是协议格式，顶层应为 { "schemaVersion": "1.0", "persona": { ... } }');
   if (!Array.isArray(r.personalities) || r.personalities.length === 0) return fail(r.name + ' 缺少 personalities');
   const color = AGENT_COLORS[index % AGENT_COLORS.length];
+  const extensions = Object.fromEntries(Object.entries(r).filter(([k]) => k.startsWith('x-')));
   const persona: Persona = {
     id: String(r.id),
     name: String(r.name),
@@ -135,6 +136,7 @@ export function checkPersona(raw: unknown, index: number, source: string): Perso
     defaultPersonalityId: String(r.defaultPersonalityId ?? r.personalities[0].id ?? 'p0'),
     boundaries: Array.isArray(r.boundaries) ? r.boundaries.map(String) : [],
     visual: { skin: '#f1c9a5', hair: '#2b2136', shirt: color, accent: '#fbf5e4', hairStyle: 'short', ...(r.visual ?? {}) },
+    ...(Object.keys(extensions).length ? { extensions } : {}),
   };
   return { source, persona, errors: [], warnings: [] };
 }

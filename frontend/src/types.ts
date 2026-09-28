@@ -45,6 +45,8 @@ export interface Persona {
   visual: PersonaVisual;
   /** 从人格资料包协议 v1.0 导入时保留的原始 persona，引擎可直接读取 */
   protocol?: Record<string, unknown>;
+  /** 前端简化格式里 x- 开头的扩展字段（比如 x-temperament），原样保留给引擎读；协议格式的扩展在 protocol 里 */
+  extensions?: Record<string, unknown>;
 }
 
 export interface Seat {

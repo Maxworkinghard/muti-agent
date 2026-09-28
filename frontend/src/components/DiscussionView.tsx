@@ -17,10 +17,10 @@ interface ErrorItem { id: string; agentId?: string; message: string; retry?: () 
 const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
 /** 入场时每个人落座的间隔 */
 const SEAT_GAP = 750;
-/** 心情会换掉的表情；人物自己的配饰（眼镜、围巾……）保留 */
+/** 心情会换掉的表情；人物自己的配饰（眼镜、围巾……）保留，心情平静时保留他自己原本的表情 */
 const FACE_EXTRAS = new Set(['brows', 'sleepy', 'happy', 'grin', 'blush', 'sweat']);
 const withFace = (v: PersonaVisual, mind?: MindView): PersonaVisual =>
-  mind ? { ...v, extras: [...(v.extras ?? []).filter((e) => !FACE_EXTRAS.has(e)), ...mind.face] } : v;
+  mind?.face.length ? { ...v, extras: [...(v.extras ?? []).filter((e) => !FACE_EXTRAS.has(e)), ...mind.face] } : v;
 
 export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
   const scene = sceneById(config.sceneId);
@@ -37,8 +37,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
   const [errors, setErrors] = useState<ErrorItem[]>([]);
-  // 娱乐模式（活人群聊）：每个人的内心、引擎给的话题段名
-  const live = config.mode === 'entertainment';
+  // 娱乐、情感分析（导演 + 演员底盘）：每个人的内心、引擎给的段名（换话题 / 走到哪一步）
+  const live = config.mode === 'entertainment' || config.mode === 'emotion';
   const [minds, setMinds] = useState<Record<string, MindView>>({});
   const [labels, setLabels] = useState<Record<number, string>>({});
   // 已经落座的人数；进入讨论页时大家依次入座

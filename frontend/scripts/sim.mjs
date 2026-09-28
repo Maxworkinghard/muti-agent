@@ -1,17 +1,20 @@
 /**
- * 命令行跑一场娱乐模式（导演 + 演员），不开浏览器：调参数、看导演怎么排、情绪怎么递进。模型配置读 frontend/.env（和网页一样）。
+ * 命令行跑一场娱乐或情感分析模式（导演 + 演员），不开浏览器：调参数、看导演怎么排、情绪怎么递进。模型配置读 frontend/.env（和网页一样）。
  *
  *   npm run sim -- --topic "假如一周没有手机，你会怎么办？" --cast 老方,小正,小林,阿冷,阿禾 --minds
+ *   npm run sim -- --mode emotion --topic "朋友答应周五回复，到现在还没消息" --minds
  *
  * 选项：
- *   --topic   话题（默认：手机消失一周，你会怎么过？）
+ *   --mode    entertainment（默认）或 emotion（情感分析）
+ *   --topic   话题（默认：娱乐是“手机消失一周，你会怎么过？”，情感是“朋友答应周五回复，到现在还没消息”）
  *   --open    你的开场白（默认和话题一样）
- *   --cast    入座的人，逗号分隔（默认前 5 个娱乐人物）
+ *   --cast    入座的人，逗号分隔（默认：娱乐前 5 个人物；情感是冷萃、树洞、暖宝宝、炮仗、芥末）
  *   --max     最多几次发言（默认 30）
  *   --pace    节奏倍数（默认 0.3，0 表示不等待）
  *   --say     "8:@老方 你自己不也天天刷？"   第 8 句之后你对全体说一句（可以写多次）
  *   --whisper "5:小林:老方刚才在笑你"        第 5 句之后私下对小林说（可以写多次）
  *   --pause   "10:3"                        第 10 句之后暂停 3 秒
+ *   --reply   "我想先倒倒苦水"               情感模式里大家停下来等你开口时，替你说这句（默认“嗯，你们接着说吧”）
  *   --minds   每句之后打印每个人的心情，说话状态变了也打印
  */
 import path from 'node:path';
@@ -28,7 +31,23 @@ for (let i = 0; i < argv.length; i++) {
   const v = argv[++i];
   if (Array.isArray(args[k])) args[k].push(v); else args[k] = v;
 }
-const topic = args.topic || '手机消失一周，你会怎么过？';
+const MODES = {
+  entertainment: {
+    label: '娱乐', kit: 'entertainment/kit.ts', make: 'createEntertainmentKit', config: 'entertainment/config.ts', defaults: 'ENTERTAINMENT_DEFAULTS',
+    topic: '手机消失一周，你会怎么过？',
+  },
+  emotion: {
+    label: '情感', kit: 'emotion/kit.ts', make: 'createEmotionKit', config: 'emotion/config.ts', defaults: 'EMOTION_DEFAULTS',
+    topic: '朋友答应周五回复，到现在还没消息', cast: '冷萃,树洞,暖宝宝,炮仗,芥末',
+  },
+};
+const mode = args.mode || 'entertainment';
+const M = MODES[mode];
+if (!M) {
+  console.error('没有这个模式：' + mode + '（可选：' + Object.keys(MODES).join('、') + '）');
+  process.exit(1);
+}
+const topic = args.topic || M.topic;
 const opening = args.open || topic;
 const max = Number(args.max ?? 30);
 const pace = Number(args.pace ?? 0.3);
@@ -48,8 +67,8 @@ const server = await createServer({
 });
 const load = (p) => server.ssrLoadModule(p);
 const { createLiveEngine } = await load('/src/engines/live/engine.ts');
-const { createEntertainmentKit } = await load('/src/engines/entertainment/kit.ts');
-const { ENTERTAINMENT_DEFAULTS } = await load('/src/engines/entertainment/config.ts');
+const createKit = (await load('/src/engines/' + M.kit))[M.make];
+const DEFAULTS = (await load('/src/engines/' + M.config))[M.defaults];
 const { LIBRARY_PERSONAS } = await load('/src/data/personas.ts');
 const { LlmError } = await load('/src/llm/client.ts');
 
@@ -81,9 +100,10 @@ async function chatFn(messages, { temperature, signal }) {
   return text;
 }
 
-const pool = LIBRARY_PERSONAS.filter((p) => !p.modes || p.modes.includes('entertainment'));
-const names = args.cast ? args.cast.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : pool.slice(0, 5).map((p) => p.name);
-const cast = names.map((n) => pool.find((p) => p.name === n) ?? (console.error('没有这个娱乐人物：' + n + '（可选：' + pool.map((p) => p.name).join('、') + '）'), process.exit(1)));
+const pool = LIBRARY_PERSONAS.filter((p) => !p.modes || p.modes.includes(mode));
+const castArg = args.cast || M.cast;
+const names = castArg ? castArg.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : pool.slice(0, 5).map((p) => p.name);
+const cast = names.map((n) => pool.find((p) => p.name === n) ?? (console.error('没有这个' + M.label + '人物：' + n + '（可选：' + pool.map((p) => p.name).join('、') + '）'), process.exit(1)));
 const participants = cast.map((persona, i) => ({
   agentId: persona.id, seatIndex: i, color: persona.visual.shirt, personalityId: persona.defaultPersonalityId, persona,
 }));
@@ -151,7 +171,7 @@ function done(code = 0) {
 }
 
 // 导演只在命令行里看得到（调参用），网页上不显示
-const engine = createLiveEngine(createEntertainmentKit(), chatFn, (cue, speaker) => {
+const engine = createLiveEngine(createKit(), chatFn, (cue, speaker) => {
   const bits = [];
   if (cue.arc && cue.arc !== lastArc) { lastArc = cue.arc; bits.push('全场：' + cue.arc); }
   if (cue.arcNote && cue.arcNote !== lastNote) { lastNote = cue.arcNote; bits.push('打算：' + cue.arcNote); }
@@ -160,13 +180,23 @@ const engine = createLiveEngine(createEntertainmentKit(), chatFn, (cue, speaker)
 });
 console.log(bold('话题：') + topic + '  ' + dim('（' + model + ' · ' + names.join('、') + '）'));
 console.log(clock(), bold('你') + '：' + opening);
+let waiting = false;
 engine.start({
-  sessionId: 'sim-' + Date.now().toString(36), mode: 'entertainment', sceneId: 'roundtable',
+  sessionId: 'sim-' + Date.now().toString(36), mode, sceneId: 'roundtable',
   theme: { title: topic, brief: opening }, maxRounds: 1, participants,
-  engineOptions: { ...ENTERTAINMENT_DEFAULTS, maxMessages: max, pace },
+  engineOptions: { ...DEFAULTS, maxMessages: max, pace },
   createdAt: new Date().toISOString(),
 }, (e) => {
   switch (e.type) {
+    case 'status':
+      // 分步的模式没走完就冷场：大家停下来等你开口，这里替你说一句，不然会一直等着
+      if (e.action === '等你开口' && !waiting) {
+        waiting = true;
+        flush();
+        console.log(clock(), dim('（大家在等你开口）'));
+        setTimeout(() => { waiting = false; engine.sendUserMessage({ text: args.reply || '嗯，你们接着说吧' }); }, 0);
+      }
+      break;
     case 'message': {
       const m = e.message;
       // 正在说的那句不打断打印：只有下一句开口时才把上一句整条印出来
@@ -197,7 +227,8 @@ engine.start({
       flush();
       const r = e.result;
       console.log('\n' + bold('这场聊下来：') + (r.summary ?? ''));
-      for (const [k, v] of [['共识', r.consensus], ['分歧', r.disagreements], ['没聊完', r.openQuestions], ['可以接着聊', r.suggestions]]) {
+      const [open, next] = mode === 'emotion' ? ['还要确认', '一小步'] : ['没聊完', '可以接着聊'];
+      for (const [k, v] of [['共识', r.consensus], ['分歧', r.disagreements], [open, r.openQuestions], [next, r.suggestions]]) {
         if (v?.length) console.log('  ' + k + '：' + v.join('；'));
       }
       done();

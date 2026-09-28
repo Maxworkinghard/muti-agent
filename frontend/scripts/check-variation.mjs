@@ -12,10 +12,10 @@ const server = await createServer({
 try {
   const load = (file) => server.ssrLoadModule(file);
   const [{ nextConversationVariation, openingDirection }, { createLiveEngine },
-    { createEntertainmentKit }, { LIBRARY_PERSONAS }, { agentSystemPrompt }, { modeById },
+    { createEntertainmentKit }, { createEmotionKit }, { LIBRARY_PERSONAS }, { agentSystemPrompt }, { modeById },
     { RoundtableSession }] = await Promise.all([
     load('/src/data/conversationVariation.ts'), load('/src/engines/live/engine.ts'),
-    load('/src/engines/entertainment/kit.ts'), load('/src/data/personas.ts'),
+    load('/src/engines/entertainment/kit.ts'), load('/src/engines/emotion/kit.ts'), load('/src/data/personas.ts'),
     load('/server/prompts.ts'), load('/src/data/modes.ts'), load('/server/session.ts'),
   ]);
 
@@ -62,35 +62,52 @@ try {
       .includes(openingDirection(mode, a)));
   }
 
-  async function firstSpeech(variation) {
+  async function firstSpeech(variation, { config = cfg, kit = createEntertainmentKit(), director = '你是一场多人闲聊的导演' } = {}) {
     let directorPrompt = '';
     const chatFn = async (messages) => {
-      if (messages[0].content.includes('你是一场多人闲聊的导演')) {
+      if (messages[0].content.includes(director)) {
         if (!directorPrompt) directorPrompt = messages[1].content;
         // 故意让导演总选第一个人，验证随机抽中的开场人物仍会生效。
         return JSON.stringify({ next: {
-          speaker: cast[0].name, to: '用户', gist: '先说自己的想法',
+          speaker: config.participants[0].persona.name, to: '用户', gist: '先说自己的想法',
         } });
       }
       return JSON.stringify({ say: ['我带点有用的东西。'], inner: '认真想想' });
     };
-    const engine = createLiveEngine(createEntertainmentKit(), chatFn);
+    const engine = createLiveEngine(kit, chatFn);
     const speaker = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => { engine.stop(); reject(new Error('没有等到首句')); }, 2000);
-      engine.start({ ...cfg, conversationVariation: variation }, (event) => {
+      engine.start({ ...config, conversationVariation: variation }, (event) => {
         if (event.type !== 'message' || event.message.kind !== 'speech') return;
         clearTimeout(timer);
         engine.stop();
         resolve(event.message.speakerId);
       });
     });
-    assert.ok(directorPrompt.includes(openingDirection(cfg.mode, variation)));
+    assert.ok(directorPrompt.includes(openingDirection(config.mode, variation)));
     return speaker;
   }
 
   assert.equal(await firstSpeech(first), cfg.participants[first.speakerIndex].agentId);
   assert.equal(await firstSpeech(second), cfg.participants[second.speakerIndex].agentId);
   assert.notEqual(cfg.participants[first.speakerIndex].agentId, cfg.participants[second.speakerIndex].agentId);
+
+  // 情感分析也跑在导演 + 演员底盘上：随机抽中的开场人物和切入点同样落实到第一句
+  const emotionCast = LIBRARY_PERSONAS.filter((p) => p.modes?.includes('emotion')).slice(0, 3);
+  assert.equal(emotionCast.length, 3);
+  const emotionCfg = {
+    ...cfg, mode: 'emotion',
+    theme: { title: '朋友答应周五回复，到现在还没消息', brief: '朋友答应周五回复，到现在还没消息' },
+    participants: emotionCast.map((persona, i) => ({
+      agentId: persona.id, seatIndex: i, color: '#000', personalityId: persona.defaultPersonalityId, persona,
+    })),
+  };
+  const emotionRun = { config: emotionCfg, kit: createEmotionKit(), director: '「情感分析」这场对话的导演' };
+  const e1 = nextConversationVariation(emotionCfg);
+  const e2 = nextConversationVariation(emotionCfg);
+  assert.equal(await firstSpeech(e1, emotionRun), emotionCfg.participants[e1.speakerIndex].agentId);
+  assert.equal(await firstSpeech(e2, emotionRun), emotionCfg.participants[e2.speakerIndex].agentId);
+  assert.notEqual(emotionCfg.participants[e1.speakerIndex].agentId, emotionCfg.participants[e2.speakerIndex].agentId);
   assert.notEqual(
     agentSystemPrompt(cfg.participants[0], { ...cfg, conversationVariation: first }, modeById('entertainment')),
     agentSystemPrompt(cfg.participants[0], { ...cfg, conversationVariation: second }, modeById('entertainment')),
