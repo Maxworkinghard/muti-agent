@@ -359,13 +359,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .codex-tab i { font-style: normal; margin-left: 8px; background: var(--ink); color: var(--cream); padding: 0 6px; font-size: 12px; }
 .codex-tab.on { background: var(--mc); color: var(--cream); transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
 .codex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
-.codex-card { --ac: var(--c-green); border: 3px solid var(--ink); border-top: 8px solid var(--ac); background: var(--cream); padding: 12px 10px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; cursor: pointer; font: inherit; animation: slidein .3s steps(3) both; transition: transform .12s; }
+.codex-card { --ac: var(--c-green); border: 3px solid var(--ink); border-top: 8px solid var(--ac); background: var(--cream); padding: 12px 10px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; cursor: pointer; font: inherit; animation: cardrise .32s cubic-bezier(.2, .8, .2, 1) both; transition: transform .12s; }
 .codex-card:hover { transform: translate(-2px, -4px); box-shadow: 6px 8px 0 var(--ink); }
 .codex-card strong { font-size: 16px; }
 .codex-card small { color: var(--ink-2); font-size: 12px; }
 .codex-card em { font-style: normal; font-size: 11px; color: var(--ink-2); border-top: 2px dashed var(--ink-2); padding-top: 4px; width: 100%; }
 .codex-overlay { position: fixed; inset: 0; background: rgba(20, 14, 30, .6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; animation: fadein .15s; }
-.codex-detail { --ac: var(--c-green); width: min(560px, 100%); max-height: 88vh; overflow: auto; background: var(--cream); border: 3px solid var(--ink); border-top: 10px solid var(--ac); box-shadow: 8px 8px 0 var(--ink); padding: 14px 18px 18px; animation: slidein .25s steps(3); }
+.codex-detail { --ac: var(--c-green); width: min(560px, 100%); max-height: 88vh; overflow: auto; background: var(--cream); border: 3px solid var(--ink); border-top: 10px solid var(--ac); box-shadow: 8px 8px 0 var(--ink); padding: 14px 18px 18px; animation: cardopen .24s cubic-bezier(.2, .8, .2, 1); }
 .codex-detail header { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 .codex-detail header div { flex: 1; }
 .codex-detail header strong { display: block; font-size: 22px; }
@@ -378,6 +378,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .codex-pers b { margin-right: 6px; }
 .codex-pers i { display: block; color: var(--ink-2); }
 .codex-detail-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+/* 图鉴的卡片展开要顺滑：不用像素风的逐格（steps），只动位移、缩放和透明度，跟着屏幕刷新率走 */
+@keyframes cardrise { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes cardopen { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .codex-card, .codex-detail, .codex-overlay { animation: none; } }
 @keyframes fadein { from { opacity: 0; } }
 
 /* 成员栏 */
