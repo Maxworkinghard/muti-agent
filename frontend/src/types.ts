@@ -75,6 +75,12 @@ export interface SceneDef {
   center?: { x: number; y: number };
   /** 用户自己添加的场景 */
   custom?: boolean;
+  /** 二维正面坐姿：人物全身坐在底图的椅子上、面朝屏幕，说话也不站起来；座位点是椅面中间。不设就是俯视半身 */
+  posture?: 'sit';
+  /** 正面坐姿时人物宽度占舞台宽度的比例，不设按 0.15 */
+  actorWidth?: number;
+  /** 交给导演和每个角色的场景说明，比如座位分工（“1号座主持人”）；用户自己添加的场景用描述 */
+  brief?: string;
 }
 
 export interface ModeDef {
@@ -107,6 +113,8 @@ export interface SessionConfig {
   conversationVariation?: { openingIndex: number; speakerIndex: number };
   mode: ModeId;
   sceneId: SceneId;
+  /** 场景说明（见 SceneDef.brief）：名称和说明交给导演和每个角色，里面可以写座位分工；没有说明的场景不传 */
+  scene?: { name: string; description: string };
   /** brief：用户在讨论开始前发的第一句话，即对项目的详细理解 */
   theme: { title: string; brief?: string };
   maxRounds: number;

@@ -18,7 +18,7 @@
 
 ![讨论](docs/screens/03-discussion.png)
 
-场景图在 `frontend/public/scenes/`，五张分别是圆桌会议室、辩论室、办公室、中南大学教室、草地野餐，也可以上传自己的图。例如中南大学教室：
+场景图在 `frontend/public/scenes/`，六张分别是圆桌会议室、辩论室、办公室、中南大学教室、草地野餐、播客访谈间（正面视角，两人全身坐在扶手椅上访谈），也可以上传自己的图。例如中南大学教室：
 
 ![中南大学教室](frontend/public/scenes/scene-classroom.png)
 

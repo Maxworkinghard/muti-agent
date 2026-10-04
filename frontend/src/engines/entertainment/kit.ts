@@ -35,12 +35,14 @@ const nums = (v: unknown, lo: number, hi: number): Record<string, number> =>
     .map(([k, n]) => [k, clamp(n as number, lo, hi)]));
 
 /**
- * 性情：优先读人物文件里的 x-temperament（说明见 frontend/personas/README.md）；
- * 没写的项按 communicationStyle 估一个（情绪外放的脾气急一点，篇幅长、爱开玩笑的话多一点）。
+ * 性情：优先读人物文件里的 x-temperament（简化格式在 persona.extensions，协议格式在 persona.protocol；
+ * 说明见 frontend/personas/README.md）；没写的项按 communicationStyle 估一个
+ * （情绪外放的脾气急一点，篇幅长、爱开玩笑的话多一点）。
  */
 export function readTemperament(p: Participant): Temperament {
   const pr = (p.persona.protocol ?? {}) as Record<string, any>;
-  const x = (pr['x-temperament'] ?? {}) as Record<string, unknown>;
+  const raw = p.persona.extensions?.['x-temperament'] ?? pr['x-temperament'];
+  const x = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const cs = (pr.communicationStyle ?? {}) as Record<string, unknown>;
   const expr = cs.emotionalExpression === 'expressive' ? 1.15 : cs.emotionalExpression === 'restrained' ? 0.65 : 0.9;
   const talk = (cs.verbosity === 'long' ? 0.65 : cs.verbosity === 'medium' ? 0.55 : 0.5) + (cs.humor === 'frequent' ? 0.1 : 0);

@@ -22,6 +22,10 @@ const CHAT_RULES = [
   '只写说出口的话：不加自己的名字前缀、不写动作描写和舞台说明，也不解释你在扮演角色。',
 ];
 
+/** 有【场景】时追加：场景写的形式和座位分工优先于上面的闲聊口吻 */
+const ACTOR_SCENE_RULE = '【场景】写明了你的座位分工时，按分工说话（比如主持人提问、串场、小结，嘉宾回答）；'
+  + '这时说话的语气、长短和用词以你的人物配置为准，专业的人说专业的话，不受上面“像宿舍群聊”的短句和“哈哈哈哈”这类反应的限制。';
+
 /** 测试说明用词；出现在提示词里说明测试材料混进了运行输入 */
 export const LEAK_MARKERS = ['预期表现', '失败信号', '实际结果：', '评测方式', '盲评', '评分项'];
 
@@ -108,14 +112,23 @@ function temperWords(t: Temperament) {
 
 const dump = (v: unknown) => JSON.stringify(v, null, 2);
 
-function checkLeak(parts: string[], skip: string) {
+function checkLeak(parts: string[], skip: string[]) {
   // 只查规则、人物配置、梗卡这些静态素材：测试说明混进运行输入只会从这里进来。
-  // 话题、用户的话和角色发言是运行时内容，说到“盲评”之类的词很正常，不查
-  const leaked = LEAK_MARKERS.filter((w) => parts.some((s) => s !== skip && s.includes(w)));
+  // 话题、场景描述、用户的话和角色发言是运行时内容，说到“盲评”之类的词很正常，不查
+  const leaked = LEAK_MARKERS.filter((w) => parts.some((s) => !skip.includes(s) && s.includes(w)));
   if (leaked.length) throw new Error('提示词中出现测试说明用词：' + leaked.join('、'));
 }
 
 const topicBlock = (cfg: SessionConfig) => '【本次话题】\n' + (cfg.theme.title || '随便聊聊') + '\n（没有附带话题卡和背景资料。）';
+
+/** 场景说明：名称、说明和谁坐几号座。说明里写了座位分工（比如“1号座主持人”）时，导演和每个人都照着来；没有说明的场景没有这一段 */
+function sceneBlock(cfg: SessionConfig) {
+  if (!cfg.scene) return '';
+  const seats = [...cfg.participants].sort((a, b) => a.seatIndex - b.seatIndex)
+    .map((p) => (p.seatIndex + 1) + '号座：' + p.persona.name).join('；');
+  return '【场景】\n' + cfg.scene.name + (cfg.scene.description ? '：' + cfg.scene.description : '') + '\n座位：' + seats
+    + '\n（座位号只用来对上描述里的分工；说话和写话头时直接叫名字，不提“几号座”。）';
+}
 
 // ---------- 导演 ----------
 
@@ -136,6 +149,12 @@ const DIRECTOR_RULES = [
   '没人有话说时 candidates 给 []（冷场）；话题聊干了、该散了，end=true。',
   '谁开口是从你的候选里按各人的冲动抽的，演员也可能不照你的话头说；以记录为准，据此调整后面的安排。演员没照你的话头说时，【现在】里会写他的理由，听听他的。',
 ];
+
+/** 有【场景】时追加：按场景写的形式和座位分工排戏，闲聊的“递进、别一直和气”让位 */
+const DIRECTOR_SCENE_RULE = '【场景】写明了形式或座位分工时（比如访谈、讲课），先按它安排：谁提问、谁回答、谁主持，提名和话头都要合各自的分工，'
+  + '节奏跟着这个形式走（比如访谈：开场介绍 → 一问一答、追问 → 小结 → 换下一个问题）；有人刚被提问时，这一步候选只写被问的人，等他答完；'
+  + '这时“像真实的闲聊”和“情绪要递进、不要一直和气”两条让位于场景的形式，不为了热闹硬造冲突；'
+  + '【现在】提示快到尾声后，先再问一个问题、等嘉宾答完，再让主持人一次说完小结和致谢，同一步写 end；道别只说一次，不要来回客套。';
 
 function castBlock(cfg: SessionConfig, temper: (p: Participant) => Temperament) {
   return cfg.participants.map((p) => {
@@ -176,14 +195,16 @@ function directorSchema(cfg: SessionConfig, moods: MoodDef[]) {
 /** 导演：system 放不变的阵容和规则，user 按“记录 → 账 → 全场 → 现在”排 */
 export function buildDirectorMessages(x: DirectorInput & { moods: MoodDef[]; temper: (p: Participant) => Temperament }): LlmMessage[] {
   const topic = topicBlock(x.cfg);
+  const scene = sceneBlock(x.cfg);
   const parts = [
     DIRECTOR_OPENING,
     '【在场的人】\n' + castBlock(x.cfg, x.temper) + '\n- 用户：群里的一个真人朋友，也在聊。',
+    scene,
     topic,
-    '【导演规则】\n' + DIRECTOR_RULES.map((r) => '- ' + r).join('\n'),
+    '【导演规则】\n' + [...DIRECTOR_RULES, ...(scene ? [DIRECTOR_SCENE_RULE] : [])].map((r) => '- ' + r).join('\n'),
     '【输出格式】\n' + directorSchema(x.cfg, x.moods),
-  ];
-  checkLeak(parts, topic);
+  ].filter(Boolean);
+  checkLeak(parts, [topic, scene]);
   const user = [
     '【聊天记录】（方括号里是编号，最新的在最后）\n' + x.transcript,
     '【每个人现在的账】\n' + x.state,
@@ -199,18 +220,20 @@ export function buildDirectorMessages(x: DirectorInput & { moods: MoodDef[]; tem
 export function buildActorMessages(x: ActorInput & { memes: MemeCard[]; moods: MoodDef[] }): LlmMessage[] {
   const others = x.cfg.participants.filter((p) => p.agentId !== x.self.agentId);
   const topic = topicBlock(x.cfg);
+  const scene = sceneBlock(x.cfg);
   const parts = [
     OPENING,
     rulesBlock(),
     '【人物配置】\n' + dump(personaBlock(x.self)),
     '【你的性情】\n' + temperWords(x.temper),
     '【在场的人】\n' + [...others.map(publicIntro), '- 用户：群里的一个真人朋友，也在聊，不是主持人也不是裁判。'].join('\n'),
+    scene,
     topic,
     x.memes.length ? '【可用梗卡】\n' + dump(x.memes) : '【可用梗卡】\n本次没有提供梗卡。',
-    '【闲聊规则】\n' + CHAT_RULES.map((r) => '- ' + r).join('\n'),
+    '【闲聊规则】\n' + [...CHAT_RULES, ...(scene ? [ACTOR_SCENE_RULE] : [])].map((r) => '- ' + r).join('\n'),
     '【输出格式】\n' + actorSchema(x.moods, x.whisper),
-  ];
-  checkLeak(parts, topic);
+  ].filter(Boolean);
+  checkLeak(parts, [topic, scene]);
   const now = x.whisper
     ? [
       `用户刚私下对你说：「${x.cue}」`,
@@ -235,7 +258,9 @@ export function buildSummaryMessages(cfg: SessionConfig, log: string): LlmMessag
     + 'recap 用两三句话说这场聊天的情绪走向——谁跟谁杠上了、谁被说服了、哪句是名场面；'
     + 'consensus 是大家基本认同的点，disagreements 是还有分歧的点（写清是谁和谁），openQuestions 是没聊完的，'
     + 'suggestions 是可以接着聊或者试试看的点子。每个数组 0 到 3 条中文短句。';
-  const user = '话题：' + (cfg.theme.title || '随便聊聊') + '\n\n聊天记录：\n' + log;
+  const user = '话题：' + (cfg.theme.title || '随便聊聊')
+    + (cfg.scene ? '\n场景：' + cfg.scene.name + (cfg.scene.description ? '：' + cfg.scene.description : '') : '')
+    + '\n\n聊天记录：\n' + log;
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 

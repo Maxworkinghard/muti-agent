@@ -62,6 +62,20 @@ const ORIGINAL_SCENES: Record<string, SceneDef> = {
     // 先坐上下左右，人少时也能围成一圈
     seats: [p(766, 210), p(1045, 450), p(766, 680), p(485, 450), p(955, 295), p(970, 600), p(565, 600), p(570, 295)],
   },
+  podcast: {
+    id: 'podcast',
+    name: '播客访谈间',
+    image: '/scenes/scene-podcast.png',
+    description: '一对一播客访谈：左边主持人提问，右边受邀嘉宾作答',
+    // 交给导演和每个角色：先入座的是主持人，第二位是嘉宾
+    brief: '一对一播客访谈：1号座主持人，2号座受邀嘉宾',
+    recommendedMode: 'entertainment',
+    maxSeats: 2,
+    // 正面视角：两人全身坐在扶手椅上、面朝镜头；座位点是椅面中间，人物宽度占舞台 15%（底图按这个比例画的椅子）
+    posture: 'sit',
+    actorWidth: 0.15,
+    seats: [p(472, 704), p(1064, 704)],
+  },
 };
 
 // 3D 场景使用独立 ID；原场景与各模式默认选择保持原样。

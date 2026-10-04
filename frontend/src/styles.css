@@ -578,3 +578,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* 接的是前面某一条 */
 .line .quote { margin-top: 2px; padding-left: 6px; border-left: 3px solid var(--ac); font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 .line.cut p { border-right-style: dashed; }
+
+/* ---------- 正面坐姿的二维场景（场景 posture: 'sit'） ----------
+   人物全身坐在底图的椅子上、面朝屏幕。宽度按舞台宽度等比缩放：--aw 是人物宽度占舞台宽度的比例，舞台宽 = min(100cqw, 150cqh)。
+   锚点是椅面，在坐姿 22 格高里的第 16.5 格（约 3/4 处）；名牌挂到脚下，.seat 的高度就是身体高度。
+   说话、思考都坐着，只按一格像素上下动；脚下光圈和选中虚线圈在大人物上看不清，改由名牌和气泡表示 */
+.sit-cast .seat { transform: translate(-50%, -75%); }
+.sit-cast .seat .pixel-avatar { width: calc(min(100cqw, 150cqh) * var(--aw, .15)); height: auto; }
+.sit-cast .seat .pixel-avatar.img { height: calc(min(100cqw, 150cqh) * var(--aw, .15)); }
+.sit-cast .seat .nameplate { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2px; }
+.sit-cast .seat.st-speaking .body, .sit-cast .seat.st-speaking.arrive .body { animation: talksit .5s steps(1) infinite; }
+.sit-cast .seat.st-thinking .body, .sit-cast .seat.st-thinking.arrive .body, .sit-cast .seat.sitdown .body { animation: idle 2.4s steps(2) infinite; }
+.sit-cast .seat.st-speaking::after, .sit-cast .seat.focus::before { display: none; }
+@keyframes talksit { 50% { transform: translateY(calc(min(100cqw, 150cqh) * var(--aw, .15) / -16)); } }
+@media (prefers-reduced-motion: reduce) { .sit-cast .seat.st-speaking .body, .sit-cast .seat.st-speaking.arrive .body { animation: none; } }

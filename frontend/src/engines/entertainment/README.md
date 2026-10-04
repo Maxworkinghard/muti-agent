@@ -18,7 +18,9 @@
 | `material.ts` | 事实和安全规则，热梗卡 |
 | `config.ts` | 可调参数：演员和导演的温度、`maxMessages`（一场最多几次发言，默认 50）、`pace`（节奏倍数，默认 1）、`spontaneity`（随性程度，默认 0.6）、梗卡 |
 
-人物在 `frontend/personas/entertainment/`，7 个：老方（反驳型）、小正（反反驳型）、阿实（确实型）、小林（正常人）、阿冷、小戏、阿禾。每人的性情写在 `x-temperament` 里，会的小反应写在 `x-reactions` 里（说明见 `frontend/personas/README.md`）。
+人物在 `frontend/personas/entertainment/`，8 个：老方（反驳型）、小正（反反驳型）、阿实（确实型）、小林（正常人）、阿冷、小戏、阿禾，以及播客主持人阿麦。每人的性情写在 `x-temperament` 里，会的小反应写在 `x-reactions` 里（说明见 `frontend/personas/README.md`）。
+
+场景带了说明时（内置场景的 `brief`，比如播客访谈间的「1号座主持人，2号座受邀嘉宾」；自己添加的场景用描述），导演和每个人都会看到一段【场景】：说明加上谁坐几号座。导演按场景写的形式排戏（访谈就是主持人问、嘉宾答，有人刚被问就只提名他），这时闲聊的口吻和“情绪要递进”让位于场景；开场不再随机指定首位发言者，由导演按分工安排。
 
 ## 1. 一句话是怎么来的
 

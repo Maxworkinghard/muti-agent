@@ -19,20 +19,22 @@ function shade(hex: string, k = 0.8) {
 }
 
 /**
- * 16x16 像素小人，standing=true 时画出身体（站立）。
+ * 16x16 像素小人，standing=true 时画出身体（站立）；pose='sit' 是坐着的全身（不画椅子，坐在底图画好的椅子上）。
  * facing 是朝向：S 面朝观众（默认），N 背对观众，E / W 侧身，其余是斜 45 度。
  */
-export function PixelAvatar({ v, size = 48, standing = false, facing = 'S' }: {
+export function PixelAvatar({ v, size = 48, standing = false, facing = 'S', pose }: {
   v: PersonaVisual;
   size?: number;
   standing?: boolean;
   facing?: Facing;
+  pose?: 'sit';
 }) {
   // 人物文件给了头像图片就用图片（没有朝向和站立姿势）；没有时画像素小人
   if (v.image) {
     return <img className="pixel-avatar img" src={v.image} width={size} height={size} alt="" draggable={false} style={{ objectFit: 'cover' }} />;
   }
-  const h = standing ? 24 : 16;
+  const sitting = pose === 'sit' && !standing;
+  const h = standing ? 24 : sitting ? 22 : 16;
   const base = MIRROR[facing] ?? facing;
   const flip = base !== facing;
   const px: Array<[number, number, number, number, string]> = [];
@@ -188,8 +190,22 @@ export function PixelAvatar({ v, size = 48, standing = false, facing = 'S' }: {
     if (f) r(side ? 10 : 9 + dx, 12, 2, 2, accent);
   }
 
+  const pants = '#3d3550';
+  if (sitting) {
+    // 坐着：大腿朝前缩成两格，小腿垂下，脚在最底一行
+    if (side) {
+      r(6, 16, 6, 2, pants);
+      r(10, 18, 2, 3, pants);
+      r(9, 21, 4, 1, O);
+    } else {
+      r(2, 12, 1, 4, shirt); r(13, 12, 1, 4, shirt);
+      r(2, 16, 1, 1, skin); r(13, 16, 1, 1, skin);
+      r(3, 16, 4, 2, pants); r(9, 16, 4, 2, pants);
+      r(3, 18, 3, 3, shade(pants)); r(10, 18, 3, 3, shade(pants));
+      r(2, 21, 4, 1, O); r(9, 21, 4, 1, O);
+    }
+  }
   if (standing) {
-    const pants = '#3d3550';
     if (side) {
       // 侧身站：一条手臂在前，两条腿前后错开
       r(7, 12, 2, 5, shade(shirt)); r(7, 17, 2, 1, skin);

@@ -61,6 +61,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     const from = stageView.seats[seatIndex];
     return from ? facingToward(from, conversationCenter, stageView) : 'S';
   };
+  // 正面坐姿的二维场景：人物全身坐在底图的椅子上，大小按舞台宽度等比缩放
+  const sitCast = !threeActive && scene.posture === 'sit';
+  const actorWidth = scene.actorWidth ?? 0.15;
   // 娱乐、情感分析（导演 + 演员底盘）：每个人的内心、引擎给的段名（换话题 / 走到哪一步）
   const live = config.mode === 'entertainment' || config.mode === 'emotion';
   const [minds, setMinds] = useState<Record<string, MindView>>({});
@@ -178,8 +181,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
         }
       }
     };
+    // 娱乐模式的场景带了说明（比如座位分工）时，开场由导演按场景里的分工安排（比如主持人先开口），
+    // 不再随机指定首位发言者和切入点；其他情况照旧每场随机开局
+    const variation = config.scene && config.mode === 'entertainment' ? undefined : nextConversationVariation(config);
     try {
-      engine.start({ ...config, conversationVariation: nextConversationVariation(config), theme: { ...config.theme, brief } }, onEvent);
+      engine.start({ ...config, conversationVariation: variation, theme: { ...config.theme, brief } }, onEvent);
     } catch (err) {
       onEvent({ type: 'error', id: 'start', message: '引擎启动失败：' + (err as Error).message });
     }
@@ -240,7 +246,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 
       {/* 中左：场景动态演示 */}
       <section className="stage">
-        <div className={'stage-inner' + (threeActive ? ' stage-3d-ready' : '')}>
+        <div className={'stage-inner' + (threeActive ? ' stage-3d-ready' : '') + (sitCast ? ' sit-cast' : '')}
+          style={sitCast ? { ['--aw' as string]: actorWidth } : undefined}>
           <img className="stage-bg" src={scene.image} alt={scene.name} draggable={false} />
           {view3D && scene.model3d && <Suspense fallback={null}><SceneStage3D
             scene={scene}
@@ -266,6 +273,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             const seat = stageSeat(p.seatIndex);
             const msg = st === 'speaking' ? lastSpeech(p.agentId) : undefined;
             const mind = minds[p.agentId];
+            // 正面坐姿的场景里人坐在椅子上说话，也不站起来
+            const standing = st === 'speaking' && !sitCast;
+            // 气泡和思考云默认在头顶，头顶离舞台上沿太近时翻到身下。正面坐姿的头顶在座位点上方 3/4 个身高
+            // （身高 = 宽 × 22/16，舞台高 = 宽 / 1.5，合起来约 宽占比 × 155 个百分点）
+            const below = sitCast ? seat.y - actorWidth * 155 < 18 : seat.y < 30;
             return (
               <button
                 key={p.agentId}
@@ -278,14 +290,15 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
                 {hasError(p.agentId) && <span className="err-badge" title="发言失败，在右侧工作区可以重试">!</span>}
                 {mind && mind.label !== '平静' && <span key={mind.emoji} className="mood-badge">{mind.emoji}</span>}
                 {st === 'thinking' && (
-                  <span className={'thought' + (seat.y < 30 ? ' below' : '')} aria-label="思考中">
+                  <span className={'thought' + (below ? ' below' : '')} aria-label="思考中">
                     <span className="cloud"><i /><i /><i /></span>
                     <b className="puff p1" /><b className="puff p2" />
                   </span>
                 )}
-                {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
+                {msg && <span className={'bubble' + (below ? ' below' : '')}>{msg.text}</span>}
                 {st === 'working' && <span className="work-icon">⌨</span>}
-                <span className="body"><PixelAvatar v={withFace(p.persona.visual, mind)} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} facing={facingOf(p.seatIndex)} /></span>
+                <span className="body"><PixelAvatar v={withFace(p.persona.visual, mind)} size={standing ? 44 : 36} standing={standing} facing={facingOf(p.seatIndex)}
+                  pose={sitCast ? 'sit' : undefined} /></span>
                 <span className="nameplate">{p.isLead ? '★' : ''}{p.persona.name}</span>
               </button>
             );

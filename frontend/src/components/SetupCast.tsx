@@ -108,9 +108,12 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
         personalityId: pk.personalityId, persona,
       };
     });
+    const brief = scene.brief ?? (scene.custom ? scene.description : undefined);
     onStart({
       sessionId: 's-' + Date.now().toString(36),
       mode: draft.mode, sceneId: draft.sceneId,
+      // 场景说明（座位分工等）交给引擎：内置场景写在 brief 里，自己添加的场景用描述；其他内置场景的描述是界面文案，不传
+      scene: brief ? { name: scene.name, description: brief } : undefined,
       theme: { title: draft.theme.trim() },
       // 娱乐模式不固定轮数：每场随机 7～8 轮，太短不好看
       maxRounds: isRational ? format.rounds : draft.mode === 'entertainment' ? 7 + Math.floor(Math.random() * 2) : modeById(draft.mode).roundLabels.length,
