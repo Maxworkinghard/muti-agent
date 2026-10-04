@@ -222,10 +222,10 @@ export const MODES: ModeDef[] = [
     id: 'product',
     name: '工作 · 创造项目',
     tag: 'BUILD',
-    desc: '负责人拆任务，工作 Agent 分工交接，最后产出网站、App 或设计',
+    desc: '像真实公司一样干活：负责人派活，大家分头做、当面讨论、互相评审，最后交付网站、App 或设计',
     color: 'var(--c-green)',
     scene: 'office',
-    roundLabels: ['任务拆分', '并行执行', '复核交付'],
+    roundLabels: ['立项派活', '分头干活', '互相评审', '定稿交付'],
     presets: [
       '做一个帮学生管理 DDL 的小程序',
       '为社区咖啡店设计会员系统',

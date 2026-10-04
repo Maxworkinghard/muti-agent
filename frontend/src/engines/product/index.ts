@@ -2,7 +2,7 @@ import type { EngineModule } from '../../types';
 import { createBackendEngine } from '../backend';
 import { PRODUCT_DEFAULTS } from './config';
 
-/** 工作引擎：工作 Agent 分工交接，后续导入的工作部分合并到这个文件夹。现在由后端跑（server/session.ts 的负责人派活、交接、汇总流程），接入时把 create 换成自己的实现，保持 DiscussionEngine 接口不变 */
+/** 工作引擎：后端 server/work.ts 跑派活、并行工作、当面讨论、互相评审与会议交付；前端通过 SSE 接收状态、走动和任务流转。 */
 export const productEngine: EngineModule = {
   mode: 'product',
   name: '工作引擎',

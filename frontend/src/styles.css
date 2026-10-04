@@ -329,7 +329,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .line { --ac: var(--ink-2); display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; animation: linein .3s steps(3); }
 .line .l-avatar { border: 2px solid var(--ink); background: var(--ac); flex: none; }
-.line .who { font-size: 12px; font-weight: bold; color: var(--ac); display: flex; gap: 6px; align-items: center; }
+.line .who { font-size: 12px; font-weight: bold; color: var(--ac); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .line .who i { font-style: normal; font-weight: normal; background: var(--c-yellow); color: var(--ink); padding: 0 4px; font-size: 10px; }
 .line p { margin: 2px 0 0; background: #fff; border: 2px solid var(--ink); padding: 5px 8px; line-height: 1.5; font-size: 13px; }
 .line.task p { background: var(--sand); border-style: dashed; font-size: 12px; }
@@ -342,7 +342,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .line.user.private p { background: var(--sand); }
 @keyframes linein { from { opacity: 0; transform: translateY(6px); } }
 .task-board .task { font-size: 12px; padding: 3px 6px; border-left: 4px solid var(--c-yellow); background: #fff; margin-bottom: 3px; display: flex; gap: 4px; }
-.task-board .task em { margin-left: auto; font-style: normal; color: var(--ink-2); }
+.task-board .task em { margin-left: auto; font-style: normal; color: var(--ink-2); white-space: nowrap; flex-shrink: 0; }
+.task-route { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.task-route b { white-space: nowrap; }
 .task-board .t-done { border-color: var(--c-green); }
 .task-board .t-handoff { border-color: var(--c-blue); }
 .result { animation: linein .4s steps(3); }
@@ -592,3 +594,22 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .sit-cast .seat.st-speaking::after, .sit-cast .seat.focus::before { display: none; }
 @keyframes talksit { 50% { transform: translateY(calc(min(100cqw, 150cqh) * var(--aw, .15) / -16)); } }
 @media (prefers-reduced-motion: reduce) { .sit-cast .seat.st-speaking .body, .sit-cast .seat.st-speaking.arrive .body { animation: none; } }
+
+/* ---------- 工作模式：人在办公室里走动（只在二维；三维的位置每帧由镜头写入，不能加过渡） ---------- */
+.walk-cast .seat { transition: opacity .2s, filter .2s; }
+/* 离开工位的人站着，脚踩在目标点上 */
+.walk-cast .seat.away { transform: translate(-50%, -86%); z-index: 3; }
+.walk-cast .seat.away.st-speaking { z-index: 6; }
+.walk-cast .seat.walking .body { animation: walk .28s steps(2) infinite; }
+@keyframes walk { 50% { transform: translateY(-3px) rotate(2deg); } }
+.task-board .t-review { border-color: var(--c-purple); }
+.paused .stage-inner * { animation-play-state: paused !important; }
+.walk-cast .office-bubble:focus-visible { outline: 3px solid var(--c-blue); outline-offset: 3px; }
+.office-bubbles { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.office-bubble { position: absolute; text-align: left; background: #fff; color: var(--ink); border: 2px solid var(--ink); border-left: 5px solid var(--ac); padding: 5px 8px; box-shadow: var(--shadow); pointer-events: auto; cursor: pointer; }
+.office-bubble b { display: block; font-size: 11px; line-height: 16px; color: var(--ac); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.office-bubble span { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 17px; overflow-wrap: anywhere; }
+
+/* ---------- 交第一版：写好交出来的文件 ---------- */
+/* 记录里的第一版：像一页文件，和当面说的话区分开 */
+.line.doc p { background: #fffdf6; border-style: dashed; }

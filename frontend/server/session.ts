@@ -1,8 +1,10 @@
 import type { AgentState, ChatMessage, EngineEvent, ModeDef, ModeId, Participant, SessionConfig, TaskEvent } from '../src/types.ts';
 import { modeById, roundLabel } from '../src/data/modes.ts';
+import { sceneById } from '../src/data/scenes.ts';
 import { LlmAgent, LlmTurnError } from './llmAgent.ts';
-import { RECORDER_PROMPT, SIDE_NAME, TITLER_PROMPT, agentSystemPrompt, cleanTitle, clip, extractJson, toResult, whoIs } from './prompts.ts';
+import { RECORDER_PROMPT, SIDE_NAME, TITLER_PROMPT, agentSystemPrompt, cleanTitle, clip, extractJson, toResult } from './prompts.ts';
 import type { LlmConfig } from './config.ts';
+import { Presence, runWorkFlow, type Doing } from './work.ts';
 
 type Listener = (e: EngineEvent, index: number) => void;
 
@@ -47,7 +49,16 @@ export class RoundtableSession {
   private state: 'running' | 'finished' | 'stopped' = 'running';
   /** 用户点了暂停：下一位发言前停住，期间用户的话照常回应 */
   private paused = false;
-  private pauseWake: (() => void) | null = null;
+  /** 台上的时钟不走暂停的那段：这次暂停从什么时候开始、之前一共停了多久 */
+  private pausedAt = 0;
+  private pausedTotal = 0;
+  /** 暂停时停在 gate 里的人；工作模式里同时有好几个人在等 */
+  private pauseWaiters: Array<() => void> = [];
+  private clockWaiters = new Set<() => void>();
+  /** 每位成员正在进行的一次回答：同一个人的请求排队，一次只答一件事（工作模式里大家并行，可能同时找上同一个人） */
+  private turns = new Map<string, Promise<void>>();
+  /** 工作模式：谁在干什么、说完话气泡停多久，由它统一管 */
+  private presence: Presence | null = null;
   /** 讨论结束后用户继续追问时，正在回应中 */
   private followingUp = false;
   protected round = 0;
@@ -93,10 +104,11 @@ export class RoundtableSession {
       else if (this.cfg.mode === 'rational') await this.runDebate();
       else await this.runTalk();
       await this.drainUser();
+      await this.gate();
       if (this.ended) return;
       await this.summarize();
       if (this.ended) return;
-      this.cfg.participants.forEach((p) => this.status(p, 'done', '完成'));
+      this.cfg.participants.forEach((p) => (this.presence ? this.presence.set(p, 'done', '完成') : this.status(p, 'done', '完成')));
       this.finish('finished');
       // 总结期间用户发的话，结束后接着回答
       if (this.userQueue.length) void this.followUp();
@@ -124,21 +136,26 @@ export class RoundtableSession {
     }
     if (!opening) this.userQueue.push({ target, whisperEnd: target ? this.whispers.get(target)?.length : undefined });
     this.wake?.();
-    this.pauseWake?.();
+    this.wakePaused();
     if (this.finished) void this.followUp();
   }
 
   pause() {
     if (this.ended || this.finished || this.paused) return;
     this.paused = true;
+    this.pausedAt = Date.now();
+    this.presence?.pause(true);
+    this.wakeClock();
     this.emit({ type: 'session', state: 'paused' });
   }
 
   resume() {
     if (!this.paused) return;
     this.paused = false;
+    this.pausedTotal += Date.now() - this.pausedAt;
+    this.presence?.pause(false);
     if (!this.ended && !this.finished) this.emit({ type: 'session', state: 'running' });
-    this.pauseWake?.();
+    this.wakePaused();
   }
 
   stop() {
@@ -146,7 +163,7 @@ export class RoundtableSession {
     this.finish('stopped');
     this.paused = false;
     this.wake?.();
-    this.pauseWake?.();
+    this.wakePaused();
     this.dispose();
   }
 
@@ -168,8 +185,33 @@ export class RoundtableSession {
   private async gate() {
     while (this.paused && !this.ended) {
       if (this.userQueue.length) { await this.drainUser(); continue; }
-      await new Promise<void>((resolve) => { this.pauseWake = resolve; });
-      this.pauseWake = null;
+      await new Promise<void>((resolve) => { this.pauseWaiters.push(resolve); });
+    }
+  }
+
+  /** 叫醒停在 gate 里的每一个人（继续、停止、用户说话时） */
+  private wakePaused() {
+    this.pauseWaiters.splice(0).forEach((resolve) => resolve());
+  }
+
+  private wakeClock() {
+    for (const wake of this.clockWaiters) wake();
+    this.clockWaiters.clear();
+  }
+
+  /** 走动和气泡等待不跨过暂停；停止时无需等计时器跑完 */
+  private async wait(ms: number) {
+    let remaining = ms;
+    while (!this.ended) {
+      await this.gate();
+      if (this.ended || remaining <= 0) return;
+      const since = Date.now();
+      await new Promise<void>((resolve) => {
+        const wake = () => { clearTimeout(timer); this.clockWaiters.delete(wake); resolve(); };
+        const timer = setTimeout(wake, remaining);
+        this.clockWaiters.add(wake);
+      });
+      remaining -= Date.now() - since;
     }
   }
 
@@ -259,56 +301,35 @@ export class RoundtableSession {
     }
   }
 
-  /** 工作 · 创造项目：负责人拆分派发 → 成员依次完成并交接 → 复核后负责人汇总 */
+  /** 工作 · 创造项目：像真实公司那样立项派活 → 分头干活、当面讨论 → 互相评审 → 对齐后定稿交付（流程在 work.ts） */
   private async runWork() {
     const ps = this.cfg.participants;
     const lead = ps.find((p) => p.isLead) ?? ps[0];
-    const members = rotate(ps.filter((p) => p !== lead), this.variation());
-    const tasks = new Map<string, string>();
-
-    this.beginRound(1);
-    await this.drainUser();
-    const roster = members.map((m, i) => `- m${i + 1}：${whoIs(m)}`).join('\n');
-    const plan = await this.think(lead,
-      `第 1 轮「${this.label(1)}」：你是负责人。用户的需求是「${this.request}」。请据此拆分工作，给下面每位成员各派一项具体任务，需求不清楚的地方写成合理假设：\n${roster}\n` +
-      '先用一两句话说明拆分思路（不超过 100 字），再单独输出一个 JSON 代码块：\n```json\n{"assignments":[{"member":"m1","task":"不超过 30 字的任务"}]}\n```');
-    if (this.ended) return;
-    const parsed = plan ? extractJson(plan) : null;
-    const assignments: any[] = Array.isArray(parsed?.json?.assignments) ? parsed!.json.assignments : [];
-    members.forEach((m, i) => {
-      const a = assignments.find((x) => x?.member === `m${i + 1}`) ?? assignments[i];
-      tasks.set(m.agentId, clip(String(a?.task || `从「${m.persona.knowledge[0] ?? m.persona.name}」角度处理用户的需求`), 40));
+    const opts = this.cfg.engineOptions ?? {};
+    const pace = Number(opts.pace ?? 1);
+    const parallel = Math.trunc(Number(opts.parallel ?? 4));
+    this.presence = new Presence((p, d) => this.status(p, d.state, d.action), () => (Number.isFinite(pace) && pace >= 0 ? pace : 1));
+    await runWorkFlow({
+      lead,
+      members: rotate(ps.filter((p) => p !== lead), this.variation()),
+      request: this.request,
+      pace: Number.isFinite(pace) && pace >= 0 ? pace : 1,
+      parallel: parallel >= 1 ? Math.min(parallel, 8) : 4,
+      presence: this.presence,
+      ended: () => this.ended,
+      beginRound: (r) => this.beginRound(r),
+      label: (r) => this.label(r),
+      drainUser: () => this.drainUser(),
+      scene: sceneById(this.cfg.sceneId),
+      gate: () => this.gate(),
+      wait: (ms) => this.wait(ms),
+      clock: () => Date.now() - this.pausedTotal - (this.paused ? Date.now() - this.pausedAt : 0),
+      think: (p, instruction, doing) => this.think(p, instruction, { doing }),
+      say: (p, text, meta) => { if (!this.ended) this.say(p, text, 'speech', meta?.to?.agentId, false, meta?.tag, meta?.doc); },
+      note: (p, text, to) => { if (!this.ended) this.message({ round: this.round, speakerId: p.agentId, text, kind: 'task', targetId: to?.agentId }); },
+      task: (t) => { if (!this.ended) this.task(t); },
+      move: (p, to) => { if (!this.ended) this.emit({ type: 'move', agentId: p.agentId, to: typeof to === 'string' ? to : to.agentId }); },
     });
-    this.say(lead, parsed?.rest || (plan && !parsed ? plan : '我来拆分这个需求：每人认领一块，文件统一经过中央交换台流转。'));
-    for (const m of members) {
-      if (this.ended) return;
-      const t = tasks.get(m.agentId)!;
-      this.task({ title: t, from: lead.agentId, to: m.agentId, status: 'assigned' });
-      this.message({ round: 1, speakerId: lead.agentId, text: `→ 派给 ${m.persona.name}：${t}`, kind: 'task', targetId: m.agentId });
-      this.status(m, 'working', '处理 ' + clip(t, 12));
-      await sleep(600);
-    }
-
-    this.beginRound(2);
-    for (const m of members) {
-      await this.drainUser();
-      if (this.ended) return;
-      const out = await this.speak(m, `第 2 轮「${this.label(2)}」：负责人派给你的任务是「${tasks.get(m.agentId)}」。请完成你的部分，直接说你的结论和最关键的依据，不超过 200 字。`);
-      const next = ps[(ps.indexOf(m) + 1) % ps.length];
-      if (out !== null && next !== m && !this.ended) {
-        this.task({ title: tasks.get(m.agentId)!, from: m.agentId, to: next.agentId, status: 'handoff' });
-        await sleep(600);
-      }
-    }
-
-    this.beginRound(3);
-    for (const m of members) {
-      await this.drainUser();
-      await this.speak(m, `第 3 轮「${this.label(3)}」：结合其他人的产出复核你的部分，补充或修正一点，不超过 120 字。`);
-    }
-    await this.drainUser();
-    await this.speak(lead, `第 3 轮「${this.label(3)}」：作为负责人给出最终交付结论，说清结论和关键取舍，不用把每个人的话再复述一遍，不超过 200 字。`);
-    if (!this.ended) members.forEach((m) => this.task({ title: '交付物', from: m.agentId, to: lead.agentId, status: 'done' }));
   }
 
   /** 由单独的记录员角色把全程整理成共识 / 分歧 / 待验证 / 建议 / 交付物 */
@@ -321,6 +342,7 @@ export class RoundtableSession {
         `下面是「${this.mode.name}」模式的完整记录，用户提出的问题或任务是「${this.request}」${this.theme ? `（主题「${this.theme}」）` : ''}。\n\n${log}\n\n` +
         '请整理结果，只输出一个 JSON 代码块：\n```json\n{"consensus":[],"disagreements":[],"openQuestions":[],"suggestions":[],"deliverables":[]}\n```\n' +
         `每项 1~4 条，每条不超过 40 字。${work ? 'deliverables 按「名字：产出」列出每位成员的交付。' : 'deliverables 留空数组。'}`);
+      await this.gate();
       if (!this.ended) this.emit({ type: 'result', result: toResult(extractJson(text)?.json, text, work) });
     } catch (e) {
       if (!this.ended) this.notice('整理结论失败：' + errMsg(e));
@@ -349,10 +371,37 @@ export class RoundtableSession {
       + news.map((m) => '用户：' + m.text).join('\n');
   }
 
-  /** 把新发言和本轮指令发给这位成员，拿回他的回答（不发到前端） */
-  private async think(p: Participant, instruction: string, forUser = false, whisper = false, whisperEnd?: number): Promise<string | null> {
+  /**
+   * 把新发言和本轮指令发给这位成员，拿回他的回答（不发到前端）。
+   * 同一个人的请求排队：上一件答完、记下他看过哪些发言，再开始下一件。
+   * doing：想的这段时间显示成什么（工作模式里写方案显示成「工作」）；不给就是「思考」。
+   */
+  private async think(p: Participant, instruction: string, opts: { forUser?: boolean; whisper?: boolean; whisperEnd?: number; doing?: Doing } = {}): Promise<string | null> {
+    const { forUser = false, whisper = false, whisperEnd, doing } = opts;
     if (!forUser) await this.gate();
     if (this.ended) return null;
+    const prev = this.turns.get(p.agentId);
+    let done!: () => void;
+    const turn = new Promise<void>((r) => { done = r; });
+    const queued = (prev ?? Promise.resolve()).then(() => turn);
+    this.turns.set(p.agentId, queued);
+    await prev;
+    let text: string | null = null;
+    const defer = !forUser && this.paused;
+    try {
+      if (this.ended) return null;
+      if (!defer) text = await this.ask(p, instruction, whisper, whisperEnd, doing ?? { state: 'thinking', action: whisper ? '想怎么私下回你…' : forUser ? '准备回应用户' : '思考中…' });
+    } finally {
+      done();
+      if (this.turns.get(p.agentId) === queued) this.turns.delete(p.agentId);
+    }
+    // 先释放人物的请求队列，再等恢复：暂停时用户仍可私聊这个人。
+    if (!forUser) await this.gate();
+    if (this.ended) return null;
+    return defer ? this.think(p, instruction, opts) : text;
+  }
+
+  private async ask(p: Participant, instruction: string, whisper: boolean, whisperEnd: number | undefined, doing: Doing): Promise<string | null> {
     const agent = this.agents.get(p.agentId)!;
     const from = this.seen.get(p.agentId) ?? 0;
     const news = this.transcript.slice(from)
@@ -362,34 +411,42 @@ export class RoundtableSession {
     const whisperMark = whisperEnd ?? this.whispers.get(p.agentId)?.length ?? 0;
     const priv = this.whisperText(p.agentId, this.whisperSeen.get(p.agentId) ?? 0, whisperMark);
     const prompt = (news.length ? `【新发言】\n${news.join('\n')}\n\n` : '') + (priv ? priv + '\n\n' : '') + instruction;
-    this.status(p, 'thinking', whisper ? '想怎么私下回你…' : forUser ? '准备回应用户' : '思考中…');
-    for (let attempt = 1; ; attempt++) {
-      try {
-        const text = await agent.ask(prompt);
-        this.failures = 0;
-        this.seen.set(p.agentId, mark);
-        this.whisperSeen.set(p.agentId, whisperMark);
-        return this.ended ? null : text || '（没有说话）';
-      } catch (e) {
-        if (this.ended) return null;
-        const fatal = e instanceof LlmTurnError && e.fatal;
-        if (!fatal && attempt === 1) {
-          await sleep(3000);
-          // 等的这 3 秒里用户可能已经停止了会话，别再发新请求
+    if (this.presence) this.presence.busy(p, doing); else this.status(p, doing.state, doing.action);
+    let failed = false;
+    try {
+      for (let attempt = 1; ; attempt++) {
+        try {
+          const text = await agent.ask(prompt);
+          this.failures = 0;
+          this.seen.set(p.agentId, mark);
+          this.whisperSeen.set(p.agentId, whisperMark);
+          return this.ended ? null : text || '（没有说话）';
+        } catch (e) {
           if (this.ended) return null;
-          continue;
+          const fatal = e instanceof LlmTurnError && e.fatal;
+          if (!fatal && attempt === 1) {
+            await sleep(3000);
+            // 等的这 3 秒里用户可能已经停止了会话，别再发新请求
+            if (this.ended) return null;
+            continue;
+          }
+          failed = true;
+          this.presence?.free(p);
+          this.status(p, 'idle', '调用失败');
+          this.notice(`${p.persona.name} 调用模型失败：${errMsg(e)}`);
+          if (fatal || ++this.failures >= 3) throw new Error('模型调用连续失败，已停止');
+          return null;
         }
-        this.status(p, 'idle', '调用失败');
-        this.notice(`${p.persona.name} 调用模型失败：${errMsg(e)}`);
-        if (fatal || ++this.failures >= 3) throw new Error('模型调用连续失败，已停止');
-        return null;
       }
+    } finally {
+      // 失败时上面已经放开并显示了「调用失败」，这里不再盖掉
+      if (this.presence && !failed && !this.ended) this.presence.free(p);
     }
   }
 
-  private async speak(p: Participant, instruction: string, forUser = false, whisper = false, whisperEnd?: number): Promise<string | null> {
-    const text = await this.think(p, instruction, forUser, whisper, whisperEnd);
-    if (text !== null) this.say(p, text, forUser ? 'reply' : 'speech', forUser ? 'user' : undefined, whisper);
+  private async speak(p: Participant, instruction: string, opts: { forUser?: boolean; whisper?: boolean; whisperEnd?: number } = {}): Promise<string | null> {
+    const text = await this.think(p, instruction, opts);
+    if (text !== null) this.say(p, text, opts.forUser ? 'reply' : 'speech', opts.forUser ? 'user' : undefined, opts.whisper);
     return text;
   }
 
@@ -404,16 +461,25 @@ export class RoundtableSession {
       const instruction = whisper
         ? `用户刚在私下对你说了话（见上面的私下对话）。请私下回应用户，一句话说清就行，不超过 ${this.maxChars(300)} 字。`
         : `用户对全体说了话（见上面的新发言）。请直接回应用户：问得简单就一两句话，复杂再展开，不超过 ${this.maxChars(300)} 字。`;
-      await this.speak(p, instruction, true, whisper, item?.whisperEnd);
+      await this.speak(p, instruction, { forUser: true, whisper, whisperEnd: item?.whisperEnd });
     }
   }
 
   // ---------- 事件 ----------
 
-  private say(p: Participant, text: string, kind: ChatMessage['kind'] = 'speech', targetId?: string, whisper = false) {
+  /** tag：这句话在流程里的作用（工作模式的评审、第二版……），显示在记录里 */
+  private say(p: Participant, text: string, kind: ChatMessage['kind'] = 'speech', targetId?: string, whisper = false, tag?: string, doc?: boolean) {
+    const action = whisper ? '私下回应用户' : kind === 'reply' ? '回应用户' : tag ?? '发言中';
+    if (this.presence) {
+      // 工作模式里好几个人同时在说，不把上一位说话的人改成倾听；说完由 presence 放回他手上的事
+      this.message({ round: this.round, speakerId: p.agentId, text, kind, targetId, tag, doc: doc || undefined, private: whisper || undefined },
+        whisper ? p.agentId : undefined);
+      this.presence.spoke(p, action, text);
+      return;
+    }
     if (this.speaking && this.speaking !== p) this.status(this.speaking, 'idle', '倾听');
-    this.status(p, 'speaking', whisper ? '私下回应用户' : kind === 'reply' ? '回应用户' : '发言中');
-    this.message({ round: this.round, speakerId: p.agentId, text, kind, targetId, private: whisper || undefined },
+    this.status(p, 'speaking', action);
+    this.message({ round: this.round, speakerId: p.agentId, text, kind, targetId, tag, doc: doc || undefined, private: whisper || undefined },
       whisper ? p.agentId : undefined);
     this.speaking = p;
   }
@@ -441,7 +507,10 @@ export class RoundtableSession {
     // 公开记录里只有用户对全体说的话，点成员的私聊在 whispers 里，由 whisperText 单独拼
     if (m.speakerId === 'user') return `用户对全体说：${m.text}`;
     const who = this.byId(m.speakerId)?.persona.name ?? m.speakerId;
-    return m.kind === 'task' ? `（${who} ${m.text}）` : `${who}：${m.text}`;
+    if (m.kind === 'task') return `（${who} ${m.text}）`;
+    // 工作模式里当面跟同事说的话：标上对谁说、在干什么，大家才分得清是谁和谁在谈
+    const to = m.targetId && m.targetId !== 'user' ? this.byId(m.targetId)?.persona.name : undefined;
+    return to ? `${who}（对${to}说${m.tag ? '，' + m.tag : ''}）：${m.text}` : `${who}${m.tag ? `（${m.tag}）` : ''}：${m.text}`;
   }
 
   protected byId(id: string) { return this.cfg.participants.find((p) => p.agentId === id); }
@@ -464,6 +533,7 @@ export class RoundtableSession {
   }
 
   protected status(p: Participant, state: AgentState, action: string) {
+    if (this.ended) return;
     this.emit({ type: 'status', agentId: p.agentId, state, action });
   }
 
@@ -480,9 +550,16 @@ export class RoundtableSession {
     if (this.ended || (this.finished && state === 'finished')) return;
     this.state = state;
     this.emit({ type: 'session', state });
+    if (state === 'stopped') {
+      this.paused = false;
+      this.wake?.();
+      this.wakePaused();
+      this.wakeClock();
+    }
   }
 
   protected dispose() {
+    this.presence?.dispose();
     for (const a of this.agents.values()) a.abort();
     this.recorder?.abort();
     this.titler?.abort();

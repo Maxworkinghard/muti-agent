@@ -81,6 +81,11 @@ export interface SceneDef {
   actorWidth?: number;
   /** 交给导演和每个角色的场景说明，比如座位分工（“1号座主持人”）；用户自己添加的场景用描述 */
   brief?: string;
+  /**
+   * 工作模式里人物离开工位时去的地方（二维，百分比坐标）。不设的场景里大家一直坐在座位上。
+   * visits 和 seats 一一对应，是同事走过来时站的位置；meeting 是会议室的椅子；huddle 是站会围着的中心和半径。
+   */
+  stations?: { visits: Array<{ x: number; y: number }>; meeting: Array<{ x: number; y: number }>; huddle: { x: number; y: number; rx: number; ry: number } };
 }
 
 export interface ModeDef {
@@ -136,7 +141,7 @@ export interface ChatMessage {
   text: string;
   /** notice：引擎提示（如模型调用失败），在工作区里显示；react：不抢话的小反应（“哈哈哈”“？”） */
   kind: 'speech' | 'user' | 'reply' | 'system' | 'task' | 'notice' | 'react';
-  /** 用户消息指向的成员；成员回复用户时为 'user' */
+  /** 用户消息指向的成员；成员回复用户时为 'user'；工作模式里成员当面跟同事说话时是那位同事 */
   targetId?: string;
   /** 私聊消息：点成员说的话及其回应，只有这一对看得到，别人拿不到 */
   private?: boolean;
@@ -146,6 +151,8 @@ export interface ChatMessage {
   quote?: { name: string; text: string };
   /** 话说到一半被人打断了 */
   cut?: boolean;
+  /** 写好交出来的文件（工作模式的第一版）：舞台上照样出气泡看要点，记录里按文件样式显示 */
+  doc?: boolean;
   at: number;
 }
 
@@ -177,7 +184,8 @@ export interface TaskEvent {
   title: string;
   from: string;
   to: string;
-  status: 'assigned' | 'handoff' | 'done';
+  /** review：把自己的方案交给同事评审 */
+  status: 'assigned' | 'handoff' | 'review' | 'done';
 }
 
 export interface DiscussionResult {
@@ -206,6 +214,8 @@ export type EngineEvent =
   /** 人物的内心状态变了（娱乐引擎用） */
   | { type: 'mind'; agentId: string; mind: MindView }
   | { type: 'task'; task: TaskEvent }
+  /** 人物离开或回到座位（工作模式用）：desk 回自己工位，huddle 去中央站会，meeting 去会议室，其他值是同事的 agentId（走到他工位旁） */
+  | { type: 'move'; agentId: string; to: string }
   | { type: 'result'; result: DiscussionResult }
   /** 没填主题时，引擎按用户对全体说的第一句话生成的主题 */
   | { type: 'theme'; title: string }

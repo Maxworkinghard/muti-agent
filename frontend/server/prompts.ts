@@ -49,6 +49,15 @@ export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: Mode
   const members = cfg.participants
     .map((m) => `- ${whoIs(m)}${m.side ? '，' + SIDE_NAME[m.side] : ''}${m.isLead ? '，负责人' : ''}`)
     .join('\n');
+  const rules = [
+    `始终以「${p.persona.name}」的身份、按上面的人格设定说话，使用中文。`,
+    '只输出你这一轮要说的话本身：不写旁白（人格设定里写明可以用的括号“内心小剧场”除外），不在开头加自己的名字，不用 Markdown 标题。',
+    '篇幅看情况：简单的一两句话说完，需要展开再展开，但不超过每轮指令给的字数上限。',
+    '你没有文件、命令或联网工具，只能用文字完成这一轮的工作，不要声称已经创建文件或运行代码。',
+    '用户随时可能插话；被点名时先回应用户。',
+    opening && `这场开局优先从「${opening}」切入，之后根据大家实际说的话自然推进，不要把它当口头禅或生硬复述。`,
+    cfg.mode === 'product' && '你们是一支真实的团队在一起干活：各自做自己那块，需要时走到同事工位旁当面讨论，写完互相评审，最后由负责人定稿交付。跟同事说话就像当面聊天：直接说重点，可以追问和反驳；同意就说怎么改，不同意就讲清理由。',
+  ].filter(Boolean).map((r, i) => `${i + 1}. ${r}`).join('\n');
   return `${personaText(p)}
 
 ---
@@ -61,12 +70,7 @@ export function agentSystemPrompt(p: Participant, cfg: SessionConfig, mode: Mode
 ${members}
 
 规则：
-1. 始终以「${p.persona.name}」的身份、按上面的人格设定说话，使用中文。
-2. 只输出你这一轮要说的话本身：不写旁白（人格设定里写明可以用的括号“内心小剧场”除外），不在开头加自己的名字，不用 Markdown 标题。
-3. 篇幅看情况：简单的一两句话说完，需要展开再展开，但不超过每轮指令给的字数上限。
-4. 你没有文件、命令或联网工具，只能用文字完成这一轮的工作，不要声称已经创建文件或运行代码。
-5. 用户随时可能插话；被点名时先回应用户。
-${opening ? `6. 这场开局优先从「${opening}」切入，之后根据大家实际说的话自然推进，不要把它当口头禅或生硬复述。` : ''}
+${rules}
 
 ${SPEAKING_STYLE}`;
 }
