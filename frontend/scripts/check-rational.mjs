@@ -45,11 +45,17 @@ try {
   }
 
   async function play(config) {
-    const seen = { judgePrompt: '', actorPrompts: [] };
+    const seen = { judgePrompt: '', actorPrompts: [], directorPrompts: [], targetActor: [], otherActor: [] };
     let invalidPositionOnce = true;
+    // 发私聊时私聊对象已经拿到过几次提示词；之后的才算“私聊之后”
+    let chatAt = -1;
     const mock = async (messages) => {
       const system = messages[0].content;
-      if (system.includes('正式辩论的导演')) return JSON.stringify({ gist: '回应现场具体论点', tone: '自然', stance: '坚持本方', plan: '继续追问', pressure: 1, confidence: 0 });
+      if (system.includes('正式辩论的导演')) {
+        // 记下这一步导演在安排谁
+        seen.directorPrompts.push({ speaker: messages[1].content.match(/下一句固定由 (.+?)（/)?.[1], text: system + '\n' + messages[1].content });
+        return JSON.stringify({ gist: '回应现场具体论点', tone: '自然', stance: '坚持本方', plan: '继续追问', pressure: 1, confidence: 0 });
+      }
       if (system.includes('本场主持人兼裁判') || system.includes('你是中立裁判')) {
         seen.judgePrompt = messages[1].content;
         return JSON.stringify({ winner: '正方', proScore: 82, conScore: 78,
@@ -59,13 +65,17 @@ try {
       }
       if (system.includes('正式辩论中扮演')) {
         seen.actorPrompts.push(system);
+        // 私聊对象（participants[0]）和其他辩手每次公开发言拿到的提示词
+        const name = system.match(/"name":\s*"([^"]+)"/)?.[1];
+        (name === participants[0].persona.name ? seen.targetActor : seen.otherActor).push(system + '\n' + messages[1].content);
         const position = system.match(/"position":"(支持辩题|反对辩题|中立)"/)?.[1];
         assert.ok(position);
         if (invalidPositionOnce) {
           invalidPositionOnce = false;
           return JSON.stringify({ say: ['跑到对方阵营'], inner: '', position: '换边' });
         }
-        return JSON.stringify({ say: ['发言'.repeat(100)], inner: '认真听对方', position });
+        // 每人的心里话带上自己的名字，用来检查导演安排别人时有没有读到
+        return JSON.stringify({ say: ['发言'.repeat(100)], inner: '内心-' + name, position });
       }
       return '我听见了，先把这个问题记下来。';
     };
@@ -76,6 +86,7 @@ try {
       engine.start(config, (event) => {
         events.push(event);
         if (event.type === 'message' && event.message.kind === 'speech' && !events.some((x) => x.type === 'session' && x.state === 'paused')) {
+          chatAt = seen.targetActor.length;
           engine.pause();
           engine.sendUserMessage({ text: '私下问一句', targetAgentId: participants[0].agentId });
           engine.sendUserMessage({ text: '请解释成本' });
@@ -94,6 +105,23 @@ try {
     assert.ok(events.some((x) => x.type === 'message' && x.message.kind === 'reply' && !x.message.private));
     assert.ok(!seen.judgePrompt.includes('私下问一句'));
     assert.ok(seen.judgePrompt.includes('请解释成本'));
+    // 不读心：导演安排谁，只看得到谁自己的心思；别人的心思看不到，只能从公开记录去猜
+    const names = config.participants.map((p) => p.persona.name);
+    assert.ok(seen.directorPrompts.some((d) => d.text.includes('内心-' + d.speaker)), '导演应该看得到下一位发言人自己的心思');
+    for (const d of seen.directorPrompts) {
+      for (const n of names) if (n !== d.speaker) assert.ok(!d.text.includes('内心-' + n), `安排${d.speaker}时导演读到了${n}的心思`);
+    }
+    // 私聊整场有效：导演只在安排当事辩手时看到私下约定，安排别人时看不到；
+    // 当事辩手之后每次发言都带着，只有紧接着的那次要求“这一句就体现”；其他辩手看不到
+    const target = participants[0].persona.name;
+    const directorKnows = seen.directorPrompts.filter((d) => d.text.includes('私下问一句'));
+    assert.ok(directorKnows.length > 0, '安排当事辩手时导演应该知道私聊，才能把它落实到整场');
+    assert.ok(directorKnows.every((d) => d.speaker === target), '安排其他辩手时导演不应该看到私聊');
+    assert.ok(seen.directorPrompts.filter((d) => d.speaker === target).at(-1).text.includes('私下问一句'), '私下约定应该整场有效');
+    const targetAfter = seen.targetActor.slice(chatAt);
+    assert.ok(targetAfter.length > 0 && targetAfter.every((x) => x.includes('私下问一句')), '私聊应该整场有效：对方之后每次发言都带着');
+    assert.equal(targetAfter.filter((x) => x.includes('上次公开发言之后的新私聊')).length, 1, '新私聊只在紧接着的那次发言里要求立刻体现');
+    assert.ok(!seen.otherActor.some((x) => x.includes('私下问一句')), '其他辩手不应该看到私聊');
     assert.ok(seen.actorPrompts.some((x) => x.includes('性格是一种倾向')));
     const result = events.find((x) => x.type === 'result')?.result;
     assert.equal(result?.verdict?.winner, '正方');

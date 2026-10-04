@@ -12,12 +12,16 @@ const uid = (prefix: string) => prefix + '-' + Date.now().toString(36) + '-' + s
 
 type UserInput = { text: string; targetAgentId?: string };
 type Mind = { inner: string; stance: string; plan: string; pressure: number; confidence: number };
+/** 别人看得出来的神情（界面上的表情也按这个）；心思看不出来 */
+const demeanor = (m: Mind) => (m.pressure >= 7 ? '压力很大' : m.confidence >= 7 ? '有底气' : '平静');
 
 class DebateRoom {
   private readonly turns: DebateTurn[];
   private readonly transcript: ChatMessage[] = [];
   private readonly minds = new Map<string, Mind>();
   private readonly privateTalk = new Map<string, string[]>();
+  /** 每位辩手的私聊里，已经交给过公开发言的条数：之后的算“新私聊”，这一句就要体现；之前的作为整场有效的约定一直带着 */
+  private readonly privateSeen = new Map<string, number>();
   private readonly queue: UserInput[] = [];
   private readonly pace: number;
   private readonly maxChars: number;
@@ -121,12 +125,20 @@ class DebateRoom {
     this.status(p, 'thinking', '组织论点');
     const transcript = this.publicText();
     const mind = this.minds.get(p.agentId)!;
+    // 私聊整场有效：之前的私聊作为约定一直带着；上次公开发言之后的新私聊，这一句就要体现
+    const talk = this.privateTalk.get(p.agentId) ?? [];
+    const seenUpTo = talk.length;
+    const from = this.privateSeen.get(p.agentId) ?? 0;
+    const privateOld = talk.slice(0, from).slice(-12).join('\n');
+    const privateNew = talk.slice(from).slice(-12).join('\n');
     const directorTemp = Number(this.cfg.engineOptions?.directorTemperature ?? RATIONAL_DEFAULTS.directorTemperature);
     const actorTemp = Number(this.cfg.engineOptions?.temperature ?? RATIONAL_DEFAULTS.temperature);
-    const cue = await this.askJson(() => directorMessages(this.cfg, turn, transcript, this.mindText()), parseDirector, directorTemp);
-    const speech = await this.askJson(() => actorMessages(this.cfg, turn, cue, transcript, mind.inner, this.maxChars),
+    const cue = await this.askJson(() => directorMessages(this.cfg, turn, transcript, this.mindText(p), this.privateNotes(p)), parseDirector, directorTemp);
+    const speech = await this.askJson(() => actorMessages(this.cfg, turn, cue, transcript, mind.inner, this.maxChars, privateNew, privateOld),
       (text) => parseActor(text, actorPosition(p), this.maxChars), actorTemp);
     if (this.stopped) return false;
+    // 新私聊已经交给这一句，之后并入“之前的约定”；生成期间新来的私聊留给下一次
+    this.privateSeen.set(p.agentId, seenUpTo);
     mind.stance = cue.stance || mind.stance;
     mind.plan = cue.plan || mind.plan;
     mind.inner = speech.inner || mind.inner;
@@ -234,10 +246,20 @@ class DebateRoom {
     return this.transcript.map((m) => (m.speakerId === 'user' ? '用户' : this.cfg.participants.find((p) => p.agentId === m.speakerId)?.persona.name ?? m.speakerId) + '：' + m.text).join('\n');
   }
 
-  private mindText() {
+  /** 下一位发言人和用户的私下约定（最近两个来回）。只在安排他自己发言时给导演，安排别人时导演也看不到 */
+  private privateNotes(speaker: Participant) {
+    return (this.privateTalk.get(speaker.agentId) ?? []).slice(-4).join(' / ');
+  }
+
+  /**
+   * 给导演看的人物状态。导演每次只安排下一位发言人，所以只给这个人自己的心思；
+   * 其他人只给看得出来的神情：他们心里想什么、打算干嘛，发言人只能从公开记录去猜，不能读心
+   */
+  private mindText(speaker: Participant) {
     return this.cfg.participants.map((p) => {
       const m = this.minds.get(p.agentId)!;
-      return `${p.persona.name}：真实态度 ${m.stance || '尚未表态'}；打算 ${m.plan || '暂无'}；紧张 ${m.pressure}/10；信心 ${m.confidence}/10；内心 ${m.inner || '暂无'}`;
+      if (p.agentId !== speaker.agentId) return `${p.persona.name}：神情${demeanor(m)}（只看得出神情，心里怎么想不知道）`;
+      return `${p.persona.name}（下一位发言人）：真实态度 ${m.stance || '尚未表态'}；打算 ${m.plan || '暂无'}；紧张 ${m.pressure}/10；信心 ${m.confidence}/10；内心 ${m.inner || '暂无'}`;
     }).join('\n');
   }
 
@@ -248,7 +270,7 @@ class DebateRoom {
         { key: '紧张', value: m.pressure, color: 'var(--c-orange)' },
         { key: '信心', value: m.confidence, color: 'var(--c-blue)' },
       ],
-      label: m.pressure >= 7 ? '压力很大' : m.confidence >= 7 ? '有底气' : '平静',
+      label: demeanor(m),
       emoji: m.pressure >= 7 ? '😓' : m.confidence >= 7 ? '🙂' : '😐',
       face: m.pressure >= 7 ? ['sweat'] : m.confidence >= 7 ? ['happy'] : [],
       inner: m.inner || undefined, stance: m.stance || undefined, plan: m.plan || undefined,
