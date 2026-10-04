@@ -73,9 +73,12 @@ try {
     const engine = createRationalEngine(mock);
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('辩论没有结束')), 3000);
+      let injected = false;
       engine.start(config, (event) => {
         events.push(event);
-        if (event.type === 'message' && event.message.kind === 'speech' && !events.some((x) => x.type === 'session' && x.state === 'paused')) {
+        // 暂停要等当前这句打完才生效，不能靠“已经发出 paused”来只注入一次。
+        if (event.type === 'message' && event.message.kind === 'speech' && !injected) {
+          injected = true;
           engine.pause();
           engine.sendUserMessage({ text: '私下问一句', targetAgentId: participants[0].agentId });
           engine.sendUserMessage({ text: '请解释成本' });

@@ -505,8 +505,11 @@ class LiveRoom {
         if (i + 1 < lines.length) { this.drop(lines.slice(i + 1)); this.bump(); }
         break;
       }
-      if (i + 1 < lines.length) await this.sleep(350 + Math.random() * 400);
+      // demo cinematic: 同人连发气泡间隔收紧，下一句接得更紧
+      if (i + 1 < lines.length) await this.sleep(180 + Math.random() * 220);
     }
+    // demo cinematic: 末句多停一拍，气泡多挂一会儿，下一位再接
+    if (!this.stopped) await this.sleep(450 + Math.random() * 250);
     this.speaking = null;
     this.rest(m);
   }

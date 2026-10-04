@@ -53,6 +53,10 @@ export interface Seat {
   x: number; // 占底图宽度的百分比
   y: number; // 占底图高度的百分比
   group?: Side;
+  /** 这个席位上的角色，例如主持人。写在场景里，不是单独的人物表单。 */
+  role?: string;
+  /** 角色的一句话身份 */
+  identity?: string;
 }
 
 export interface SceneDef {

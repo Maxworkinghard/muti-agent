@@ -10,6 +10,7 @@ import { playReady, playSeat, playVoice, SoundToggle, useMuted, warmAudio } from
 import { PixelAvatar } from './PixelAvatar';
 import { centroid, facingToward, type StagePoint, type StageView } from './stageFacing';
 import { createBgm, playThinking, type Bgm } from './stageFx';
+import { demoFlags } from '../demoFlags';
 
 interface Status { state: AgentState; action: string }
 interface Flight { id: string; fromSeat: number; toSeat: number; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
@@ -24,7 +25,13 @@ const withFace = (v: PersonaVisual, mind?: MindView): PersonaVisual =>
   mind?.face.length ? { ...v, extras: [...(v.extras ?? []).filter((e) => !FACE_EXTRAS.has(e)), ...mind.face] } : v;
 const SceneStage3D = lazy(() => import('./SceneStage3D').then((module) => ({ default: module.SceneStage3D })));
 
-export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
+export function DiscussionView({ config, onExit, cinematicIntro }: {
+  config: SessionConfig;
+  onExit: () => void;
+  /** demo cinematic：前约 20 秒场景聚焦，再展开工作区 */
+  cinematicIntro?: boolean;
+}) {
+  const cinematic = Boolean(cinematicIntro ?? demoFlags.cinematic);
   const scene = sceneById(config.sceneId);
   const mode = modeById(config.mode);
   const engineRef = useRef<DiscussionEngine | null>(null);
@@ -36,7 +43,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [tasks, setTasks] = useState<TaskEvent[]>([]);
   const [flights, setFlights] = useState<Flight[]>([]);
   const [focus, setFocus] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(cinematic);
+  const [sceneFocus, setSceneFocus] = useState(cinematic);
+  const [bubbleLinger, setBubbleLinger] = useState<Record<string, { text: string; until: number }>>({});
   const [draft, setDraft] = useState('');
   const [errors, setErrors] = useState<ErrorItem[]>([]);
   const [view3D, setView3D] = useState(Boolean(scene.model3d));
@@ -99,7 +108,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     const t = window.setTimeout(() => setLanding(new Set()), 1000);
     return () => clearTimeout(t);
   }, [seated]);
-  // 发言结束的人播放一次坐下（缩回座位）动画
+  // 发言结束的人播放一次坐下（缩回座位）动画；demo cinematic 时末句气泡再挂一会儿
   const prevState = useRef<Record<string, AgentState>>({});
   const [sitting, setSitting] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -110,7 +119,36 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     if (!ended.length) return;
     setSitting((s) => new Set([...s, ...ended]));
     window.setTimeout(() => setSitting((s) => new Set([...s].filter((id) => !ended.includes(id)))), 400);
-  }, [status]);
+    // demo cinematic: linger after speaking ends (~1100ms last visible; mid-lines stay via status===speaking)
+    if (cinematic) {
+      for (const id of ended) {
+        const msg = [...messages].reverse().find((m) => m.speakerId === id && m.kind !== 'task');
+        if (!msg?.text) continue;
+        const hold = 1100;
+        const until = Date.now() + hold;
+        setBubbleLinger((b) => ({ ...b, [id]: { text: msg.text, until } }));
+        window.setTimeout(() => {
+          setBubbleLinger((b) => {
+            if (!b[id] || b[id].until > Date.now()) return b;
+            const { [id]: _, ...rest } = b;
+            return rest;
+          });
+        }, hold + 30);
+      }
+    }
+  }, [status, messages, cinematic]);
+
+  // demo cinematic：约 20 秒后从场景聚焦展开到整页
+  useEffect(() => {
+    if (!cinematic) return;
+    setCollapsed(true);
+    setSceneFocus(true);
+    const t = window.setTimeout(() => {
+      setSceneFocus(false);
+      setCollapsed(false);
+    }, 20000);
+    return () => clearTimeout(t);
+  }, [cinematic]);
 
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
   const seatOf = (id: string) => scene.seats[byId[id]?.seatIndex ?? 0];
@@ -186,6 +224,16 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   };
   useEffect(() => () => engineRef.current?.stop(), []);
 
+  // demo cinematic：入座后用主题自动开场，省掉 brief 输入
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!cinematic || !allSeated || session !== 'waiting' || autoStarted.current) return;
+    autoStarted.current = true;
+    const t = window.setTimeout(() => startWith(config.theme.title || '开始吧'), 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cinematic, allSeated, session]);
+
   // 自动滚到底部
   useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, focus, result, errors]);
 
@@ -224,10 +272,10 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
     return [...g.entries()].sort((a, b) => a[0] - b[0]);
   }, [visible]);
 
-  const lastSpeech = (id: string) => [...messages].reverse().find((m) => m.speakerId === id && m.kind !== 'task');
+  const lastSpeech = (id: string) => [...messages].reverse().find((m) => m.speakerId === id && m.kind !== 'task' && !m.private);
 
   return (
-    <div className={'room' + (collapsed ? ' collapsed' : '')}>
+    <div className={'room' + (collapsed ? ' collapsed' : '') + (sceneFocus ? ' scene-focus' : '') + (cinematic ? ' demo-discussion' : '')}>
       {/* 顶部：主题 */}
       <header className="room-theme">
         <button className="px-btn tiny" onClick={onExit}>◀</button>
@@ -264,13 +312,17 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             if (i >= seated) return null;
             const st = status[p.agentId]?.state ?? 'idle';
             const seat = stageSeat(p.seatIndex);
-            const msg = st === 'speaking' ? lastSpeech(p.agentId) : undefined;
+            const liveSpeech = st === 'speaking' ? lastSpeech(p.agentId) : undefined;
+            const linger = bubbleLinger[p.agentId];
+            const lingerOk = linger && linger.until > Date.now();
+            const msg = liveSpeech ?? (lingerOk ? { text: linger!.text } as ChatMessage : undefined);
             const mind = minds[p.agentId];
             return (
               <button
                 key={p.agentId}
                 className={`seat st-${st}${landing.has(p.agentId) ? ' arrive' : ''}${sitting.has(p.agentId) && st !== 'speaking' ? ' sitdown' : ''}${focus === p.agentId ? ' focus' : ''}${focus && focus !== p.agentId ? ' dim' : ''}${hasError(p.agentId) ? ' err' : ''}`}
                 style={{ left: seat.x + '%', top: seat.y + '%', ['--ac' as string]: p.color }}
+                data-demo-seat={p.persona.name}
                 onClick={() => setFocus(focus === p.agentId ? null : p.agentId)}
                 title={mind ? `${p.persona.name} · ${mind.emoji} ${mind.label}${mind.inner ? '\n心里：' + mind.inner : ''}` : undefined}
               >
@@ -283,7 +335,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
                     <b className="puff p1" /><b className="puff p2" />
                   </span>
                 )}
-                {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '')}>{msg.text}</span>}
+                {msg && <span className={'bubble' + (seat.y < 30 ? ' below' : '') + (!liveSpeech && lingerOk ? ' linger' : '')}>{msg.text}</span>}
                 {st === 'working' && <span className="work-icon">⌨</span>}
                 <span className="body"><PixelAvatar v={withFace(p.persona.visual, mind)} size={st === 'speaking' ? 44 : 36} standing={st === 'speaking'} facing={facingOf(p.seatIndex)} /></span>
                 <span className="nameplate">{p.isLead ? '★' : ''}{p.persona.name}</span>
@@ -331,7 +383,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             <>
               <span className="wh-dot" style={{ background: focused.color }} />
               <strong>工作区 · {focused.persona.name} {live ? '的发言和私聊' : '的每轮发言'}</strong>
-              <button className="px-btn tiny" onClick={() => setFocus(null)}>返回全部</button>
+              <button className="px-btn tiny" data-demo="back-all" onClick={() => setFocus(null)}>返回全部</button>
             </>
           ) : (
             <strong>工作区 · 全部对话</strong>
@@ -437,6 +489,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
                 key={p.agentId}
                 className={`member st-${st.state}${focus === p.agentId ? ' on' : ''}`}
                 style={{ ['--ac' as string]: p.color }}
+                data-demo-member={p.persona.name}
                 onClick={() => setFocus(focus === p.agentId ? null : p.agentId)}
               >
                 <span className="m-avatar"><PixelAvatar v={withFace(p.persona.visual, minds[p.agentId])} size={40} /></span>
@@ -450,7 +503,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           })}
         </div>
         {(session === 'running' || session === 'paused') && (
-          <button className={'px-btn ' + (session === 'paused' ? 'primary' : 'danger')} onClick={togglePause}>
+          <button className={'px-btn ' + (session === 'paused' ? 'primary' : 'danger')} data-demo="pause" onClick={togglePause}>
             {session === 'paused' ? '▶ 继续' : '⏸ 暂停'}
           </button>
         )}

@@ -578,3 +578,370 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* 接的是前面某一条 */
 .line .quote { margin-top: 2px; padding-left: 6px; border-left: 3px solid var(--ac); font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 .line.cut p { border-right-style: dashed; }
+
+/* ========== demo cinematic ========== */
+/* intro / collage reuse setup paper bg + panel / scene-card / persona-card language.
+   Do NOT paint a custom dark purple cinema skin on setup steps. */
+.app.demo-cinematic {
+  /* inherit body --paper grid; only discussion scene-focus may go dark */
+  background: transparent;
+  overflow: hidden;
+}
+html:has(.app.demo-cinematic),
+body:has(.app.demo-cinematic) {
+  overflow: hidden;
+}
+
+.demo-intro {
+  /* .setup already sets padding / max-width; center the theme panel vertically */
+  justify-content: center;
+  animation: demo-fade-in .55s ease both;
+}
+.demo-intro.demo-leave {
+  animation: demo-leave .45s ease forwards;
+  pointer-events: none;
+}
+.demo-intro-panel {
+  width: min(920px, 100%);
+  margin: 0 auto;
+}
+.demo-intro-inner {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+}
+.demo-intro-field { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
+.demo-intro .px-input.big.typing { caret-color: transparent; }
+.demo-caret {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  width: 2px; height: 1.15em; background: var(--ink);
+  animation: demo-caret-blink .9s steps(1) infinite;
+  pointer-events: none;
+}
+@keyframes demo-caret-blink { 50% { opacity: 0; } }
+.demo-confirm {
+  flex-shrink: 0; min-width: 96px; padding: 12px 18px; font-size: 15px;
+  opacity: .4; transition: opacity .3s, transform .2s, box-shadow .2s;
+}
+.demo-confirm.ready {
+  opacity: 1;
+  animation: demo-ready-pulse 1.35s ease-in-out infinite;
+}
+@keyframes demo-ready-pulse {
+  0%, 100% { transform: none; }
+  50% { transform: translateY(-1px); }
+}
+
+/* collage: same .setup / .panel / .scene-grid / .persona-grid as SetupScene/SetupCast */
+.demo-collage {
+  animation: demo-slide-in .45s ease both;
+  /* sticky setup-foot 不要挡住人物卡（带描述后卡片更高） */
+  padding: 8px 12px 70px !important;
+  gap: 8px;
+  max-width: 1280px;
+  overflow: hidden;
+}
+.demo-collage .panel { padding: 8px 10px 10px; }
+.demo-collage .panel h2 { margin-bottom: 8px; }
+.demo-collage .scene-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.demo-collage .scene-card {
+  overflow: visible;
+}
+.demo-collage .scene-card img {
+  /* source art is 1536×1024 (3:2). A short fixed height + cover sliced the pixel scene. */
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  object-position: center center;
+  max-height: none;
+}
+.demo-collage .scene-meta { padding: 4px 8px 2px; }
+.demo-collage .scene-card small { display: none; }
+.demo-persona-grid {
+  /* 人数随场景推荐模式变化，仍保持一行，和场景行同时留在视口里 */
+  grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
+  gap: 8px;
+}
+.demo-persona-card {
+  cursor: pointer;
+  padding: 8px 8px;
+  gap: 4px;
+  min-height: 0;
+  overflow: visible;
+}
+.demo-persona-card .pc-top { gap: 6px; align-items: flex-start; }
+.demo-persona-card .pc-avatar canvas, .demo-persona-card .pc-avatar img { width: 44px; height: 44px; }
+.demo-persona-card .pc-top strong { font-size: 15px; }
+.demo-persona-card .pc-top small { font-size: 11px; line-height: 1.3; }
+.demo-persona-card dl { font-size: 11px; line-height: 1.35; gap: 2px 4px; grid-template-columns: 32px 1fr; }
+.demo-persona-card dd { margin: 0; }
+.demo-persona-card .pc-top { cursor: pointer; }
+.demo-persona-card dl { pointer-events: none; }
+.demo-persona-card .pc-actions { margin-top: 2px; }
+.demo-persona-card .px-btn.pc-side {
+  padding: 1px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+/* 演示隐藏性格下拉等操作区（本卡未渲染） */
+
+/* 讨论页：前 20s 场景聚焦（仅 discussion，不影响 setup 纸色） */
+.room.scene-focus {
+  --work-w: 0px;
+  grid-template-columns: minmax(0, 1fr) 0;
+  grid-template-rows: 0 minmax(0, 1fr) 0;
+  grid-template-areas: 'theme theme' 'stage stage' 'members members';
+  padding: 0; gap: 0; background: #0e0c12;
+  transition: grid-template-columns .9s ease, grid-template-rows .9s ease, padding .9s ease, gap .9s ease;
+}
+.room.scene-focus > * { border: none; box-shadow: none; }
+.room.scene-focus .room-theme,
+.room.scene-focus .work,
+.room.scene-focus .members {
+  opacity: 0; pointer-events: none; overflow: hidden;
+  transition: opacity .6s ease;
+}
+.room.scene-focus .stage {
+  background: #0e0c12;
+}
+.room.demo-discussion:not(.scene-focus) {
+  transition: grid-template-columns .9s ease, grid-template-rows .9s ease, padding .9s ease, gap .9s ease;
+}
+.room.demo-discussion:not(.scene-focus) .room-theme,
+.room.demo-discussion:not(.scene-focus) .work,
+.room.demo-discussion:not(.scene-focus) .members {
+  animation: demo-fade-in .8s ease both;
+}
+.bubble.linger { opacity: .92; transition: opacity .35s ease; }
+
+@keyframes demo-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes demo-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes demo-leave {
+  to { opacity: 0; transform: scale(.99); }
+}
+
+@media (max-width: 900px) {
+  .demo-intro-inner { flex-direction: column; align-items: stretch; }
+}
+
+
+/* ---------- demo add scene / persona (local, ?demo=add) ---------- */
+.demo-add {
+  padding: 14px 18px 18px !important;
+  gap: 12px;
+  max-width: 1280px;
+  overflow: hidden;
+}
+.demo-add .panel h2 small { font-weight: normal; color: var(--ink-2); margin-left: 8px; }
+.demo-add-scenes, .demo-add-cast {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+.demo-add-scenes .scene-card { width: 280px; flex: 0 0 280px; }
+.demo-add-scenes .scene-card img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  object-position: center;
+  background: #1c1724;
+}
+.demo-add .scene-card small { display: block; padding: 0 10px 10px; color: var(--ink-2); font-size: 12px; }
+.demo-add .scene-add { min-height: 168px; }
+.demo-add-cast .persona-card,
+.demo-add-cast .add-persona { width: 230px; flex: 0 0 230px; }
+.demo-add-cast .add-persona { min-height: 168px; }
+.demo-add .just-added { animation: cardrise .45s cubic-bezier(.2, .8, .2, 1) both; }
+.scene-editor.has-picks { width: min(980px, 96vw); }
+.scene-editor.has-picks .se-drop { aspect-ratio: auto; min-height: 64px; padding: 8px; }
+.scene-editor.has-picks .se-canvas { width: min(100%, 520px); max-height: 280px; margin: 0 auto; }
+.se-picks { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.se-picks > span { font-size: 12px; color: var(--ink-2); }
+.se-picks > div { display: flex; gap: 8px; }
+.se-picks button {
+  width: 112px; padding: 0; border: 2px solid var(--ink); background: var(--paper);
+  box-shadow: 2px 2px 0 var(--ink); display: flex; flex-direction: column; text-align: center;
+}
+.se-picks button img { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; image-rendering: pixelated; background: #1c1724; border-bottom: 2px solid var(--ink); }
+.se-picks button small { padding: 3px 2px 4px; font-size: 11px; }
+.se-picks button:hover { background: var(--c-yellow); }
+.persona-editor { width: min(640px, 96vw); --ac: var(--c-blue); }
+.pe-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.pe-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.pe-form .pe-wide { grid-column: 1 / -1; }
+.pe-form .px-input { font: inherit; font-size: 15px; color: var(--ink); }
+
+.se-roles { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.se-role { display: grid; grid-template-columns: 44px minmax(0, .7fr) minmax(0, 1.3fr); gap: 8px; align-items: center; }
+.se-role b { font-size: 13px; color: var(--ink); }
+.se-role-head { color: var(--ink-2); font-size: 12px; }
+.se-role-head b { color: var(--ink-2); font-weight: normal; }
+.se-role input { font: inherit; font-size: 14px; color: var(--ink); border: 2px solid var(--ink); background: var(--paper); padding: 4px 6px; width: 100%; }
+
+.demo-collage.demo-can-add .scene-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.demo-collage.demo-can-add .scene-add {
+  min-height: 0; height: 100%; gap: 4px; padding: 8px 4px;
+}
+.demo-collage.demo-can-add .scene-add b { width: 40px; height: 40px; font-size: 24px; }
+.demo-collage.demo-can-add .scene-add strong { font-size: 13px; }
+.demo-collage.demo-can-add .scene-add small { display: block; font-size: 11px; line-height: 1.3; padding: 0 6px; }
+.demo-collage.demo-can-add .scene-meta { gap: 4px; padding: 4px 6px 2px; }
+.demo-collage.demo-can-add .scene-meta strong { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.demo-collage .scene-card.custom small { display: block; padding: 0 8px 6px; font-size: 11px; line-height: 1.3; }
+.demo-collage [data-demo="seat-cast"] { grid-template-columns: repeat(2, minmax(0, 280px)); justify-content: start; }
+.scene-editor.has-picks .se-canvas { max-height: 210px; }
+
+.demo-collage h2 .import-plus { margin-left: auto; }
+.demo-collage [data-demo="imported-cast"] { grid-template-columns: repeat(2, minmax(0, 280px)); justify-content: start; }
+.demo-collage .persona-card .mine { font-style: normal; background: var(--c-purple); color: var(--cream); padding: 0 5px; font-size: 11px; margin-left: auto; }
+
+
+.demo-prompt {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 14px 18px 16px;
+  box-sizing: border-box;
+}
+.prompt-panel {
+  width: min(880px, 100%);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+.prompt-panel header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 3px solid var(--ink);
+  background: var(--paper);
+}
+.prompt-panel header b { background: var(--ink); color: var(--cream); padding: 1px 6px; }
+.prompt-panel header strong { font-size: 18px; }
+.prompt-panel header small { color: var(--ink-2); font-size: 12px; }
+.prompt-thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 16px 18px 18px;
+  scroll-behavior: smooth;
+}
+.prompt-turn { display: flex; width: 100%; }
+.prompt-turn.user { justify-content: flex-end; }
+.prompt-turn.agent { justify-content: flex-start; }
+.prompt-user {
+  width: fit-content;
+  max-width: 70%;
+  margin: 0;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-right: 8px solid var(--c-yellow);
+  padding: 10px 14px;
+  font-size: 16px;
+  line-height: 1.5;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.prompt-think {
+  width: fit-content;
+  max-width: 78%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-left: 8px solid var(--ink-2);
+  padding: 8px 14px 10px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.prompt-think small {
+  color: var(--ink-2);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.prompt-think p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.prompt-think i {
+  width: 8px; height: 14px;
+  background: var(--ink);
+  animation: prompt-caret .7s steps(1) infinite;
+}
+@keyframes prompt-caret { 50% { opacity: 0; } }
+.prompt-scene {
+  margin: 0;
+  width: min(460px, 100%);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.prompt-scene.draw img { animation: prompt-draw 1.15s ease both; }
+@keyframes prompt-draw {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+.prompt-scene img {
+  display: block;
+  width: 100%;
+  height: 240px;
+  object-fit: contain;
+  object-position: center;
+  background: #1c1724;
+  image-rendering: pixelated;
+}
+.prompt-scene figcaption { padding: 6px 10px 8px; color: var(--ink-2); font-size: 12px; }
+.prompt-cards {
+  width: min(620px, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.prompt-cards .persona-card dl { display: flex; flex-direction: column; gap: 3px; }
+.prompt-cards .prompt-field {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 2px 4px;
+  animation: prompt-field-in .45s ease both;
+}
+@keyframes prompt-field-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.prompt-compose {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 12px 14px 14px;
+  border-top: 3px solid var(--ink);
+  background: var(--paper);
+}
+.prompt-compose textarea {
+  flex: 1;
+  resize: none;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.prompt-compose .px-btn { min-width: 88px; padding: 12px 16px; font-size: 16px; }
