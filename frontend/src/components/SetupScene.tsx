@@ -40,7 +40,8 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
               <span className="tag">{m.tag}</span>
               <strong>{m.name}</strong>
               <small>{m.desc}</small>
-              <em>{m.roundLabels.join(' → ')}</em>
+              {/* 阶段名不拆开：一行放不下时只在两个阶段之间换行 */}
+              <em>{m.roundLabels.flatMap((label, i) => [i ? ' ' : null, <span key={label}>{label}{i < m.roundLabels.length - 1 ? ' →' : ''}</span>])}</em>
             </button>
           ))}
         </div>

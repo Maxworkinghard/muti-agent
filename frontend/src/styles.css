@@ -99,6 +99,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mode-card strong { font-size: 20px; }
 .mode-card small { color: var(--ink-2); }
 .mode-card em { font-style: normal; font-size: 12px; border-top: 2px dashed var(--ink-2); padding-top: 6px; color: var(--ink-2); }
+.mode-card em span { white-space: nowrap; }
 .mode-card.on { background: var(--mc); color: var(--cream); transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
 .mode-card.on small, .mode-card.on em { color: var(--cream); border-color: var(--cream); }
 .mode-card.on .tag { background: var(--ink); }

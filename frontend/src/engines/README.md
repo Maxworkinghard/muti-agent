@@ -6,7 +6,7 @@
 - `emotion/` 情感分析引擎（情感组）：同一套导演 + 演员底盘，换成情感的导演规则、情绪和三步（回应情绪 → 分清事实与感受 → 下一步行动）；跑在浏览器里，说明见该目录的 `README.md`
 - `live/` 娱乐和情感分析共用的活人聊天底盘（导演 + 演员），说明见该目录的 `README.md`
 - `rational/` 独立辩论引擎：自己的导演、辩手、裁判与固定轮次，只共用模型接口和页面
-- `product/` 工作引擎（工作部分导入后合并到这里）
+- `product/` 工作引擎：像真实团队一样立项派活 → 分头干活（当面讨论）→ 互相评审 → 定稿交付，画面按现实规矩排队；流程跑在 Node 后端 `server/work.ts`，见[工作引擎说明](./product/README.md)
 
 每个文件夹里：
 
@@ -17,7 +17,7 @@
 
 ## 调用 AI
 
-四个模式共用同一个 AI 接口，不要各自直连模型服务商，也不要把 API Key 写进前端代码。
+四个模式共用服务器端的模型配置，API Key 只留在服务器。娱乐、情感分析和辩论在浏览器里运行，通过下面的 `chat` / `chatStream` 接口调用模型；工作引擎在 Node 后端通过 `server/llmAgent.ts` 调用模型，前端只接收会话事件，详见[工作引擎说明](./product/README.md)。
 
 ```ts
 import { chat, chatStream } from '../../llm/client';
@@ -34,7 +34,7 @@ await chatStream(messages, (chunk) => { /* 追加到当前发言 */ });
 
 请求走同源的 `/api/llm/chat`，由 `server/llm-proxy.ts` 补上 Key 后转给服务商。Key、服务商地址和默认模型都写在 `frontend/.env`（参考 `.env.example`）。
 
-## 引擎要遵守的几条约定
+## 浏览器引擎要遵守的几条约定
 
 - 默认 `maxTokens` 是 10000（`DEFAULT_MAX_TOKENS`），默认超时 90 秒。当前模型会先思考，思考也算在额度里，别调得太小，否则会报“没写出回复”。
 - 所有失败都会抛 `LlmError`，带 `kind`（aborted / timeout / network / auth / quota / rate_limit / server / bad_request / empty）、`retryable` 和中文 `message`。用户点停止引起的中断用 `isAbort(e)` 判断，不要当成错误显示。
