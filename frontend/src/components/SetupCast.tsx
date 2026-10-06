@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Draft } from '../App';
 import type { Persona, SessionConfig, Side } from '../types';
 import { sceneById } from '../data/scenes';
@@ -19,19 +19,40 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   notice?: string;
   onStart: (cfg: SessionConfig) => void;
 }) {
-  const isRational = draft.mode === 'rational';
   const scene = sceneById(draft.sceneId);
-  // 辩论模式不管选哪个场景都分正反方；其他模式即使选了辩论室也不分
+  const isMcDebate = scene.mcStage === 'debate';
+  // MC 辩论室始终用辩论引擎；也兼容更新前仍停留在娱乐模式的选择页。
+  const mode = isMcDebate ? 'rational' : draft.mode;
+  const isRational = mode === 'rational';
+  // 其他场景仍由用户选的模式决定是否分正反方。
   const isDebate = isRational;
-  const isProduct = draft.mode === 'product';
-  const isEmotion = draft.mode === 'emotion';
+  const isProduct = mode === 'product';
+  const isEmotion = mode === 'emotion';
   // 辩论最多 7 人（正 3 反 3 主持 1）；情感分析最多 7 位回应风格；其他模式按场景和引擎上限
   const maxSeats = isDebate ? Math.min(7, scene.maxSeats)
     : Math.min(scene.maxSeats, maxMembers ?? scene.maxSeats, isEmotion ? EMOTION_SEATS : Infinity);
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
-  const available = personas.filter((p) => !p.modes || p.modes.includes(draft.mode));
   const [picked, setPicked] = useState<Record<string, Pick>>({});
   const [order, setOrder] = useState<string[]>([]);
+  const available = personas.filter((p) => !p.modes || p.modes.includes(mode)
+    || (isMcDebate && (picked[p.id] || (mode !== draft.mode && p.modes.includes(draft.mode)))));
+  // 旧页面的已选人物没有阵营：保留选择并补齐，不能只显示下拉框而提交空阵营。
+  useEffect(() => {
+    if (!isMcDebate) return;
+    setPicked((current) => {
+      const missing = order.filter((id) => current[id] && !current[id].side);
+      if (!missing.length) return current;
+      const counts = { pro: 0, con: 0, host: 0 };
+      for (const id of order) { const side = current[id]?.side; if (side) counts[side]++; }
+      const next = { ...current };
+      for (const id of missing) {
+        const side: Side = counts.pro <= counts.con && counts.pro < 3 ? 'pro' : counts.con < 3 ? 'con' : counts.pro < 3 ? 'pro' : 'host';
+        next[id] = { ...current[id], side };
+        counts[side]++;
+      }
+      return next;
+    });
+  }, [isMcDebate, order]);
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
   // 辩论流程固定，只选快辩还是标准
@@ -107,15 +128,15 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
     const brief = scene.brief ?? (scene.custom ? scene.description : undefined);
     onStart({
       sessionId: 's-' + Date.now().toString(36),
-      mode: draft.mode, sceneId: draft.sceneId,
+      mode, sceneId: draft.sceneId,
       // 场景说明（座位分工等）交给引擎：内置场景写在 brief 里，自己添加的场景用描述；其他内置场景的描述是界面文案，不传
       scene: brief ? { name: scene.name, description: brief } : undefined,
       theme: { title: draft.theme.trim() },
       // 娱乐模式不固定轮数：每场随机 7～8 轮，太短不好看
-      maxRounds: isRational ? format.rounds : draft.mode === 'entertainment' ? 7 + Math.floor(Math.random() * 2) : modeById(draft.mode).roundLabels.length,
+      maxRounds: isRational ? format.rounds : mode === 'entertainment' ? 7 + Math.floor(Math.random() * 2) : modeById(mode).roundLabels.length,
       maxChars: isRational ? DEBATE_CHAR_LIMIT : undefined,
       participants,
-      engineOptions: { ...engineFor(draft.mode).defaults },
+      engineOptions: { ...engineFor(mode).defaults },
       createdAt: new Date().toISOString(),
     });
   };
@@ -125,7 +146,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   return (
     <main className="setup cast">
       <section className="panel cast-head">
-        <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{maxSeats}
+        <h2><b>04</b> 选择人物 <small>{modeById(mode).name} · {scene.name} · 已选 {order.length}/{maxSeats}
           {isDebate && `（正方 ${sideCount('pro')}/3 · 反方 ${sideCount('con')}/3 · 主持 ${sideCount('host')}/1）`}</small></h2>
         <span className="hint">{notice || (isDebate
           ? '先点「入座」，再用「阵营」选择正方、反方或主持。正反方各最多 3 人，主持最多 1 人。'
