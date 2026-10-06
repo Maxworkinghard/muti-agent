@@ -196,8 +196,44 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .stage-view-toggle:hover { background: var(--c-yellow); }
 .stage-view-hint { position: absolute; left: 10px; bottom: 10px; z-index: 9; padding: 3px 7px; color: #f7f3e9; background: #24202cbb; font-size: 11px; pointer-events: none; }
 .stage-model-error { position: absolute; top: 11px; left: 82px; z-index: 12; background: #fff9e9; color: var(--ink); padding: 4px 8px; font-size: 11px; }
-.stage-3d-ready .seat { transform: translate(-50%, -75%); }
+/* 3D 房间右上角：「跟拍」开关、「进屋 / 俯视」切换 */
+.stage-cam-bar { position: absolute; top: 10px; right: 10px; z-index: 13; display: flex; gap: 8px; }
+.stage-cam-toggle { border: 2px solid var(--ink); background: #fff9e9; color: var(--ink); padding: 4px 9px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+.stage-cam-toggle:hover { background: var(--c-yellow); }
+/* 跟拍中：红点像录制指示灯一样闪；关掉后是空心圈 */
+.stage-cam-toggle .rec { font-style: normal; color: #d8443c; animation: blink 1.2s steps(2) infinite; }
+/* 三维舞台铺满整块区域：镜头按实际画面比例取景，不用像底图那样按 3:2 留黑边 */
+.stage-inner.stage-3d-ready { width: 100cqw; height: 100cqh; aspect-ratio: auto; }
+.stage-3d-ready .stage-bg { object-fit: cover; }
+/* 三维里人物大小跟着镜头远近走：--s 由镜头每帧写入，像素画按格子放大不发糊 */
+.stage-3d-ready .seat .pixel-avatar { width: calc(36px * var(--s, 1)); height: auto; }
+.stage-3d-ready .seat .pixel-avatar.img { height: calc(36px * var(--s, 1)); }
+/* 三维里说话不站起来（坐在桌后），按像素画的一格上下跳：16 格宽的小人，一格 = 36px × --s / 16 */
+.stage-3d-ready .seat.st-speaking .body { animation: talk3d .5s steps(1) infinite; }
+.stage-3d-ready .seat.sitdown .body { animation: idle 2.4s steps(2) infinite; }
+@keyframes talk3d { 50% { transform: translateY(calc(-2.25px * var(--s, 1))); } }
+/* 脚下光圈、选中虚线圈跟着人一起放大，推近时不会只剩脚边一小点 */
+.stage-3d-ready .seat.st-speaking::after { width: calc(72px * min(var(--s, 1), 3)); height: calc(22px * min(var(--s, 1), 3)); }
+.stage-3d-ready .seat.focus::before { width: calc(64px * min(var(--s, 1), 3)); height: calc(18px * min(var(--s, 1), 3)); }
+/* 三维里人物是固定像素大小的 DOM 精灵：锚点落在桌面/讲台面上，底边贴着它 */
+/* 三维里锚点是桌面/讲台面：让「身体底边」落在锚点上，名牌挂到身下。
+   名牌改成绝对定位后不再参与排版，.seat 的高度就等于身体高度，
+   translate(-50%,-100%) 才能把身体底边精确对到座位点。 */
+.stage-3d-ready .seat { transform: translate(-50%, -100%); }
+.stage-3d-ready .seat .nameplate { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 0; }
 .stage-3d-ready .seat .nameplate { box-shadow: 0 2px 7px #1b1920aa; }
+.stage-3d-ready.pixel-cast .seat { transform: translate(-50%, -100%); }
+.stage-3d-ready.pixel-cast .seat.st-speaking::after,
+.stage-3d-ready.pixel-cast .seat.focus::before { display: none; }
+/* Imported 3D rooms draw the original pixel people inside WebGL. The transparent
+   body keeps their click target and speech bubbles aligned with the world anchor. */
+.stage-3d-ready.world-cast .seat .body {
+  display: block; width: calc(36px * var(--s, 1)); height: calc(34px * var(--s, 1));
+  animation: none; filter: none;
+}
+.stage-3d-ready.world-cast .seat.st-speaking::after,
+.stage-3d-ready.world-cast .seat.focus::before { display: none; }
+.stage-3d-ready.world-cast .seat.dim { opacity: 1; filter: none; }
 .scene-3d-badge { background: #c9d8d0; color: #1f3431; font-style: normal; font-weight: 700; padding: 1px 4px; }
 .debate-board {
   position: absolute; left: 39%; top: 7.5%; width: 22%; height: 11%; display: flex; align-items: center; justify-content: center;
@@ -283,6 +319,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
   .thought .cloud, .thought .cloud i, .typing i, .seat.st-thinking .body { animation-duration: .01s !important; animation-iteration-count: 1 !important; }
+  .stage-cam-toggle .rec, .stage-3d-ready .seat.st-speaking .body { animation: none; }
 }
 @keyframes idle { 50% { transform: translateY(-1px); } }
 @keyframes standup { 0% { transform: translateY(10px) scale(.9); } 100% { transform: translateY(-6px) scale(1); } }
@@ -545,6 +582,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .se-tools { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 .se-tools .hint { margin-right: auto; }
 .se-err { color: #a2463e; }
+/* 正面坐姿的预览小人：锚点和舞台上一样落在椅面（身高 3/4 处），不挡点击 */
+.se-ghost { position: absolute; transform: translate(-50%, -75%); pointer-events: none; opacity: .8; }
+.se-ghost .pixel-avatar { width: 100%; height: auto; }
+.se-form .se-note { grid-column: 1 / -1; margin: 0; }
+.se-form input[type=range] { width: 100%; accent-color: var(--ac); }
 .se-form { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 10px; }
 .se-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
 .se-form .px-input, .se-form select { font: inherit; font-size: 14px; color: var(--ink); }
@@ -614,3 +656,63 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- 交第一版：写好交出来的文件 ---------- */
 /* 记录里的第一版：像一页文件，和当面说的话区分开 */
 .line.doc p { background: #fffdf6; border-style: dashed; }
+
+@font-face { font-family: MCFont; src: url('/mc/font/mc.ttf'); font-display: swap; }
+.mc-stage { position: absolute; inset: 0; container-type: inline-size; background: #111; overflow: hidden; font-family: MCFont, monospace; font-size: 16px; color: white; image-rendering: pixelated; -webkit-font-smoothing: none; }
+.mc-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.mc-hud { position: absolute; inset: 0; pointer-events: none; text-shadow: 2px 2px #0008; }
+.mc-views { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; width: 164px; gap: 4px; pointer-events: auto; z-index: 10; }
+.mc-button { font: 16px MCFont, monospace; color: white; text-shadow: 1px 1px #333; background: #777 url('/mc/textures/gui/sprites/widget/button.png') center / 100% 100%; border: 2px solid #111; box-shadow: inset 2px 2px #aaa, inset -2px -2px #444; padding: 6px 10px; cursor: pointer; }
+.mc-button:hover, .mc-button[aria-pressed=true] { background-color: #9896b6; border-color: white; }
+.mc-button:focus-visible { outline: 2px solid #ffff55; outline-offset: 2px; }
+.mc-button:disabled { color: #aaa; cursor: default; filter: brightness(.6); }
+.mc-button option { background: #333; }
+.mc-name { position: absolute; transform: translate(-50%, -100%); padding: 2px 4px; white-space: nowrap; background: #0004; font-size: 16px; }
+.mc-free-hint { position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%); max-width: calc(100% - 48px); padding: 4px 12px; background: #000000a8; color: #fff; font-size: 15px; white-space: normal; text-align: center; animation: mcFreeHint 6s forwards; pointer-events: none; }
+.mc-flight-hint { animation: none; width: max-content; }
+.mc-paused-camera { position: absolute; left: 14px; top: 14px; padding: 5px 10px; color: #fff; background: #000000a8; font-size: 14px; pointer-events: none; }
+@keyframes mcFreeHint { 0%, 72% { opacity: 1; } 100% { opacity: 0; } }
+.mc-tooltip { color: white; background: #100010f0; border: 9px solid transparent; border-image: url('/mc/textures/gui/sprites/tooltip/background.png') 9 fill / 9px / 0 stretch; padding: 9px 12px; font-size: 16px; line-height: 1.5; text-align: left; }
+.mc-tooltip p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.mc-bubble { position: absolute; transform: translate(-50%, -100%); width: min(320px, 38%); max-height: 260px; overflow: auto; pointer-events: auto; z-index: 4; }
+.mc-chat { position: absolute; left: 12px; bottom: 48px; width: 40%; max-height: 180px; overflow: auto; font-size: 16px; line-height: 1.35; }
+.mc-chat > div { background: #0008; padding: 3px 5px; margin-top: 2px; overflow-wrap: anywhere; }
+.mc-title { position: absolute; top: 22%; left: 0; right: 0; text-align: center; text-shadow: 4px 4px #0008; z-index: 5; }
+.mc-title strong { font-size: 64px; font-weight: normal; }
+.mc-title > div { font-size: 32px; }
+.mc-actionbar { position: absolute; bottom: 16px; width: 100%; text-align: center; z-index: 8; }
+.mc-own-speech { position: absolute; left: 15%; width: 70%; bottom: 56px; text-align: center; background: #0008; padding: 8px; }
+.mc-toast { position: absolute; right: 12px; bottom: 52px; display: flex; gap: 12px; align-items: center; background: #333 url('/mc/textures/gui/sprites/toast/advancement.png') center / 100% 100%; border: 2px solid #111; min-width: 300px; max-width: calc(100% - 56px); padding: 16px; animation: mc-toast-enter .4s steps(8); }
+.mc-toast > span { display: block; width: 32px; height: 32px; font-size: 0; background: url('/mc/item-atlas.png'); }
+.mc-toast small { display: block; font-size: 16px; margin-top: 4px; color: #ffff55; }
+.mc-hover { position: absolute; width: 280px; z-index: 12; }
+.mc-paused, .mc-offline-view { position: absolute; inset: 0; background: #0006; display: grid; place-items: center; }
+.mc-paused strong { font-size: 48px; font-weight: normal; }
+.mc-offline-view { background: #8885; }
+.mc-disconnect { position: absolute; left: 15%; right: 15%; top: 30%; text-align: center; background: #101010ee; border: 2px solid #888; padding: 24px; z-index: 12; }
+.mc-disconnect strong { font-size: 32px; color: #ff5555; }
+.mc-disconnect p { overflow-wrap: anywhere; }
+.mc-loading { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 24px; background: #151515; z-index: 20; }
+.mc-loading strong { font-size: 24px; font-weight: normal; }
+.mc-progress { width: 60%; height: 16px; border: 2px solid white; padding: 2px; }
+.mc-progress i { display: block; height: 100%; background: white; }
+.mc-error-mark, .mc-lab-error { color: #ff5555; }
+.mc-pack-credit { position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: #cccccc; opacity: .8; z-index: 9; }
+.mc-unavailable { opacity: .45; filter: grayscale(1); cursor: default; }
+.mc-lab { padding: 24px; min-height: 100vh; background: #ece7db; color: #333; font-family: MCFont, monospace; }
+.mc-lab h1 { font-size: 32px; margin: 0; }
+.mc-lab header { display: flex; align-items: baseline; gap: 24px; margin-bottom: 16px; }
+.mc-lab header p { flex: 1; }
+.mc-lab-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; }
+.mc-lab-stage { position: relative; height: calc(100vh - 132px); min-height: 600px; }
+.mc-lab-controls { max-height: calc(100vh - 132px); overflow: auto; }
+.mc-lab-controls label { display: block; margin-bottom: 16px; }
+.mc-lab-controls select { width: 100%; padding: 8px; margin-top: 8px; }
+.mc-lab-controls > div { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+@keyframes mc-toast-enter { from { transform: translateX(110%); } to { transform: translateX(0); } }
+@media (max-width: 900px) { .mc-views { max-width: 80%; flex-wrap: wrap; justify-content: flex-end; }.mc-name { font-size: 8px; }.mc-lab-layout { grid-template-columns: 1fr; }.mc-lab-stage { min-height: 550px; } }
+@media (prefers-reduced-motion: reduce) { .mc-toast { animation: none; } }
+@container (max-width: 1100px) { .mc-views { width: min(360px, calc(100cqw - 24px)); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }.mc-views .mc-button { min-width: 0; font-size: 12px; padding: 5px 6px; } }
+
+.mc-tooltip::before { content: ''; pointer-events: none; position: absolute; inset: -9px; border: 10px solid transparent; border-image: url('/mc/textures/gui/sprites/tooltip/frame.png') 10 / 10px / 0 stretch; }.mc-views { right: 12px; }
+.mc-tooltip::before { z-index: -1; }

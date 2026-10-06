@@ -115,8 +115,25 @@ const MODEL_SEATS: Record<string, Seat[]> = {
   ],
 };
 
+// 精模（scene-debate-meshy.glb）的座位点：正反方沿各自长桌一字排开，主持在讲台后
+const MESHY_DEBATE_SEATS: Seat[] = [
+  { x: 30.6, y: 34.18, group: 'pro' },
+  { x: 26.69, y: 40.04, group: 'pro' },
+  { x: 22.79, y: 46.39, group: 'pro' },
+  { x: 69.4, y: 34.18, group: 'con' },
+  { x: 73.31, y: 40.04, group: 'con' },
+  { x: 77.47, y: 46.39, group: 'con' },
+  { x: 50, y: 14, group: 'host' },
+];
+
 export const SCENES: Record<string, SceneDef> = {
   ...ORIGINAL_SCENES,
+  'debate-mc': {
+    ...ORIGINAL_SCENES.debate,
+    id: 'debate-mc', name: '辩论室 · 我的世界', sourceSceneId: 'debate', mcStage: 'debate',
+    previewImage: '/mc/preview-debate.png',
+    description: '《我的世界》里的辩论室：发言人按话筒开麦、舞台灯跟着照，主持按铃换轮，辩题屏亮出比分，情绪会冒粒子',
+  },
   ...Object.fromEntries(['roundtable', 'debate', 'office'].map((sourceId) => {
     const source = ORIGINAL_SCENES[sourceId];
     const id = `${sourceId}-3d`;
@@ -131,6 +148,20 @@ export const SCENES: Record<string, SceneDef> = {
       description: `可旋转、缩放的三维${source.name}，沿用现有人物和讨论功能`,
     } satisfies SceneDef];
   })),
+  'debate-meshy': {
+    ...ORIGINAL_SCENES.debate,
+    id: 'debate-meshy',
+    name: '辩论室 · 精模',
+    sourceSceneId: 'debate',
+    model3d: '/models/scene-debate-meshy.glb',
+    previewImage: '/models/scene-debate-meshy-preview.png',
+    // 精模的桌椅位置和旧模型不一样，不能借用 MODEL_SEATS.debate：
+    // 那组百分比是按旧模型的包围盒量的，套到精模上 6 位辩手会全部落到地板上。
+    // 这里按精模自己的包围盒重新量过 —— 正反方三席各自落在自家桌面上（桌面约高出地板 87mm），
+    // 主持落在讲台后方（讲台顶约 164mm）。
+    modelSeats: MESHY_DEBATE_SEATS.map((seat) => ({ ...seat })),
+    description: '按原来的辩论室做的立体房间：蓝桌红桌、讲台、书架上墙，可以走进屋里转头看。原来的辩论室和辩论室 · 3D 不动',
+  },
 };
 
 export const SCENE_LIST = Object.values(SCENES);

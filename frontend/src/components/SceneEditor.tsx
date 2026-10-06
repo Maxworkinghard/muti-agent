@@ -1,8 +1,11 @@
 import { useRef, useState } from 'react';
-import type { ModeId, SceneDef, Seat } from '../types';
+import type { ModeId, PersonaVisual, SceneDef, Seat } from '../types';
 import { MODES } from '../data/modes';
+import { PixelAvatar } from './PixelAvatar';
 
 const MAX_SEATS = 10;
+/** 正面坐姿时在图上预览的灰色小人，看坐上去的位置和大小 */
+const GHOST: PersonaVisual = { skin: '#e6c3a2', hair: '#5a4f49', shirt: '#8d97a3', accent: '#dcd6ca' };
 
 /** 把上传的图片裁成舞台的 3:2 比例，缩到最宽 1536，存成 dataURL */
 async function toSceneImage(f: File): Promise<string> {
@@ -43,6 +46,8 @@ export function SceneEditor({ initial, defaultMode, onSave, onDelete, onClose }:
   const [desc, setDesc] = useState(initial?.description ?? '');
   const [mode, setMode] = useState<ModeId>(initial?.recommendedMode ?? defaultMode);
   const [seats, setSeats] = useState<Seat[]>(initial?.seats ?? []);
+  const [posture, setPosture] = useState<'' | 'sit'>(initial?.posture ?? '');
+  const [actorWidth, setActorWidth] = useState(initial?.actorWidth ?? 0.15);
   const [err, setErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +82,8 @@ export function SceneEditor({ initial, defaultMode, onSave, onDelete, onClose }:
       maxSeats: seats.length,
       seats,
       custom: true,
+      posture: posture || undefined,
+      actorWidth: posture ? actorWidth : undefined,
     });
   };
 
@@ -96,6 +103,11 @@ export function SceneEditor({ initial, defaultMode, onSave, onDelete, onClose }:
         {image ? (
           <div className="se-canvas" onClick={place}>
             <img src={image} alt="" draggable={false} />
+            {posture === 'sit' && seats.map((s, i) => (
+              <span key={'ghost' + i} className="se-ghost" style={{ left: s.x + '%', top: s.y + '%', width: actorWidth * 100 + '%' }}>
+                <PixelAvatar v={GHOST} pose="sit" chair={false} />
+              </span>
+            ))}
             {seats.map((s, i) => (
               <button
                 key={i}
@@ -124,12 +136,25 @@ export function SceneEditor({ initial, defaultMode, onSave, onDelete, onClose }:
 
         <div className="se-form">
           <label>名称<input className="px-input" value={name} maxLength={16} placeholder="比如：宿舍楼顶" onChange={(e) => setName(e.target.value)} /></label>
-          <label>描述<input className="px-input" value={desc} maxLength={40} placeholder="一句话介绍这个场景" onChange={(e) => setDesc(e.target.value)} /></label>
+          <label>描述<input className="px-input" value={desc} maxLength={40} placeholder="一句话介绍场景，可以写座位分工" onChange={(e) => setDesc(e.target.value)} /></label>
           <label>推荐模式
             <select value={mode} onChange={(e) => setMode(e.target.value as ModeId)}>
               {MODES.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </label>
+          <label>人物姿态
+            <select value={posture} onChange={(e) => setPosture(e.target.value as '' | 'sit')}>
+              <option value="">俯视半身，说话时站起来</option>
+              <option value="sit">正面坐姿，全身坐在椅子上</option>
+            </select>
+          </label>
+          {posture === 'sit' && <label>人物大小 · {Math.round(actorWidth * 100)}%
+            <input type="range" min={6} max={30} step={1} value={Math.round(actorWidth * 100)} onChange={(e) => setActorWidth(Number(e.target.value) / 100)} />
+          </label>}
+          <p className="hint se-note">
+            {posture === 'sit' ? '正面坐姿：座位点在椅面中间，图上的灰色小人就是坐上去的位置和大小。' : ''}
+            娱乐模式里，名称和描述会交给导演和每个角色；描述可以写座位分工，比如“1号座主持人，2号座嘉宾”。
+          </p>
         </div>
 
         <div className="se-foot">

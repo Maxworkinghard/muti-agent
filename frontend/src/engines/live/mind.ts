@@ -79,7 +79,7 @@ export function heat(m: Mind, moods: MoodDef[]) {
   return Math.max(0, ...moods.filter((d) => d.hot).map((d) => m.mood[d.key] / 10));
 }
 
-function level(d: MoodDef, v: number) {
+export function level(d: MoodDef, v: number) {
   let word = '';
   for (const [min, w] of d.levels) if (v >= min) word = w;
   return word;

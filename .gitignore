@@ -4,6 +4,7 @@ server-dist/
 
 node_modules/
 *.log
+frontend/.env.bak-*
 
 # npm run legacy 检出的旧版（git worktree）
 .legacy/

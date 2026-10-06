@@ -1,0 +1,29 @@
+# Faithful 64x - Release 15
+
+- 材质包：Faithful 64x（https://faithfulpack.net），从官方 Modrinth 页面下载
+- 许可：Faithful 许可（署名、附官网链接和许可原文、不得商用），原文见同目录 LICENSE.txt
+- 用到的贴图（22 张来自材质包）：
+  - block/birch_planks
+  - block/bookshelf
+  - block/dirt
+  - block/fern
+  - block/flower_pot
+  - block/glass
+  - block/glass_pane_top
+  - block/gray_concrete
+  - block/lantern
+  - block/oak_planks
+  - block/potted_azalea_bush_plant
+  - block/potted_azalea_bush_side
+  - block/potted_azalea_bush_top
+  - block/red_wool
+  - block/redstone_lamp
+  - block/redstone_lamp_on
+  - block/sandstone_top
+  - block/spruce_door_bottom
+  - block/spruce_door_top
+  - block/spruce_log
+  - block/spruce_log_top
+  - block/spruce_planks
+- 旗帜：entity/banner/banner_base.png、entity/banner/gradient_up.png、entity/banner/curly_border.png、entity/banner/rhombus.png、entity/banner/circle.png
+- 优先使用包里的 `_n`、`_s`；缺失的法线按亮度生成，粗糙度按材质类别生成（G：粗糙度，B：金属度）

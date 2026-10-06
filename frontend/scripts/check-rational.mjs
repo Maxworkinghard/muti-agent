@@ -176,6 +176,41 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.ok(stopped.some((e) => e.type === 'session' && e.state === 'stopped'));
   assert.ok(!stopped.some((e) => e.type === 'result'));
+  const stageCfg = { ...a, participants: participants.slice(0, 2), maxRounds: 2 };
+  const stageChat = async (messages) => {
+    const system = messages[0].content;
+    if (system.includes('正式辩论的导演')) return JSON.stringify({ gist: '回应质询' });
+    if (system.includes('正式辩论中扮演')) return JSON.stringify({ say: ['这是一个公开论点。'], inner: '', position: system.match(/"position":"(支持辩题|反对辩题|中立)"/)?.[1] });
+    return JSON.stringify({ winner: '正方', proScore: 82, conScore: 76 });
+  };
+  const stageEvents = [], gateCalls = [];
+  const immediate = createRationalEngine(stageChat);
+  immediate.setStageGate({ round: async n => { gateCalls.push('round:' + n); }, speech: async id => { gateCalls.push('speech:' + id); } });
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('即时舞台门禁卡住')), 2500);
+    immediate.start(stageCfg, e => { stageEvents.push(e); if (e.type === 'error') { clearTimeout(timer); reject(new Error(e.message)); }
+      if (e.type === 'session' && e.state === 'finished') { clearTimeout(timer); resolve(); } });
+  });
+  const publicSpeech = stageEvents.filter(e => e.type === 'message' && e.message.kind === 'speech');
+  assert.equal(publicSpeech.length, debateSchedule(stageCfg).length);
+  assert.ok(publicSpeech.every(e => e.message.targetId && !e.message.private), '质询对象丢失或被误标成私聊');
+  assert.equal(gateCalls.length, publicSpeech.length + 2);
+  immediate.stop();
+  const delayed = createRationalEngine(stageChat);
+  let firstStageWait = true, startedGate = 0, pausedFor = 0;
+  delayed.setStageGate({ round: async () => {}, speech: () => {
+    if (!firstStageWait) return Promise.resolve(); firstStageWait = false; startedGate = Date.now();
+    setTimeout(() => { delayed.pause(); const start = Date.now(); setTimeout(() => { pausedFor = Date.now()-start; delayed.resume(); }, 250); }, 100);
+    return new Promise(() => {});
+  } });
+  await new Promise((resolve, reject) => {
+    const timer=setTimeout(() => reject(new Error('舞台门禁超时没有释放')), 6500);
+    delayed.start(stageCfg, e => { if (e.type==='message' && e.message.kind==='speech') {
+      const active=Date.now()-startedGate-pausedFor; try { assert.ok(active>=3900 && active<4500, '舞台等待应为 4 秒，暂停时间不计：'+active); } catch(err) { clearTimeout(timer); delayed.stop(); reject(err); return; }
+      clearTimeout(timer); delayed.stop(); resolve();
+    } });
+  });
+  console.log('Pass：公开质询 targetId、即时门禁顺序、永不完成门禁的 4 秒上限和暂停扣时。');
   console.log('独立辩论引擎：静态人物、轮次、随机开局、私聊隔离、字数限制、裁决均通过。');
 } finally {
   await server.close();

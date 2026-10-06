@@ -10,9 +10,9 @@ export interface DebateTurn {
   task: string;
 }
 
-const sideName = (p: Participant) => p.side === 'pro' ? '正方' : p.side === 'con' ? '反方' : '主持人';
+export const sideName = (p: Participant) => p.side === 'pro' ? '正方' : p.side === 'con' ? '反方' : '主持人';
 
-function role(team: Participant[], p: Participant): string {
+export function role(team: Participant[], p: Participant): string {
   const i = team.indexOf(p);
   if (team.length === 1) return '一辩';
   if (team.length === 2) return i === 0 ? '一辩' : '三辩';

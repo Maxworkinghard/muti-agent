@@ -1,19 +1,28 @@
-import type { ChatMessage, DiscussionEngine, EngineEvent, MindView, Participant, SessionConfig } from '../../types';
+import type { ChatMessage, DiscussionEngine, EngineEvent, MindView, Participant, SessionConfig, StageGate } from '../../types';
 import { chat, isAbort, type LlmMessage } from '../../llm/client';
+// 情绪记账和娱乐/情感分析共用一套：情绪怎么涨落、好恶怎么回落只维护一份
+import { cool, createMind, dominant, feel, level, type Mind as MindState } from '../live/mind';
 import { RATIONAL_DEFAULTS } from './config';
+import { DEBATE_MOODS, readDebateTemperament } from './moods';
 import { debateSchedule, type DebateTurn } from './schedule';
 import { actorMessages, actorPosition, directorMessages, judgeMessages, parseActor, parseDirector, parseJudge, replyMessages } from './prompt';
 
 export type DebateChat = (messages: LlmMessage[], opt: { temperature: number; signal: AbortSignal }) => Promise<string>;
 const browserChat: DebateChat = async (messages, opt) => (await chat(messages, opt)).text;
 const errorText = (e: unknown) => e instanceof Error ? e.message : String(e);
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 let seq = 0;
 const uid = (prefix: string) => prefix + '-' + Date.now().toString(36) + '-' + seq++;
 
 type UserInput = { text: string; targetAgentId?: string };
-type Mind = { inner: string; stance: string; plan: string; pressure: number; confidence: number };
-/** 别人看得出来的神情（界面上的表情也按这个）；心思看不出来 */
-const demeanor = (m: Mind) => (m.pressure >= 7 ? '压力很大' : m.confidence >= 7 ? '有底气' : '平静');
+/** 辩手多了「这一句说完的心情」和「谁在追着他问」，其余沿用共用账本 */
+type Mind = MindState & { pressure: number; confidence: number; pressedBy: Record<string, number> };
+/** 别人看得出来的神情，和界面上的标签同一套（"被问住了""火力全开"）；心思看不出来 */
+const demeanor = (m: Mind) => {
+  const d = dominant(m, DEBATE_MOODS);
+  // 没有任何情绪上档时就是平静
+  return (d && level(d, m.mood[d.key])) || '平静';
+};
 
 class DebateRoom {
   private readonly turns: DebateTurn[];
@@ -33,6 +42,20 @@ class DebateRoom {
   private draining: Promise<void> | null = null;
   private wake: (() => void) | null = null;
   private retryWake: ((retry: boolean) => void) | null = null;
+  private stageGate: StageGate | null = null;
+  setStageGate(gate: StageGate | null) { this.stageGate = gate; }
+  private async waitStage(request: () => Promise<void> | undefined) {
+    if (!this.stageGate || (typeof document !== 'undefined' && document.hidden)) return;
+    let done = false, elapsed = 0;
+    void request()?.then(() => { done = true; }, () => { done = true; });
+    while (!done && !this.stopped && elapsed < 4000) {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      const start = Date.now(), active = !this.paused;
+      await new Promise<void>(resolve => { const finish = () => { clearTimeout(timer); this.ctrl.signal.removeEventListener('abort', finish); resolve(); };
+        const timer = setTimeout(finish, 20); this.ctrl.signal.addEventListener('abort', finish, { once: true }); });
+      if (active && !this.paused) elapsed += Date.now() - start;
+    }
+  }
 
   constructor(private cfg: SessionConfig, private emit: (e: EngineEvent) => void, private chatFn: DebateChat) {
     this.turns = debateSchedule(cfg);
@@ -44,7 +67,8 @@ class DebateRoom {
   start() {
     this.emit({ type: 'session', state: 'running' });
     for (const p of this.cfg.participants) {
-      this.minds.set(p.agentId, { inner: '', stance: '', plan: '', pressure: 2, confidence: 5 });
+      const base = createMind(p, readDebateTemperament(p), DEBATE_MOODS, {});
+      this.minds.set(p.agentId, { ...base, pressure: 2, confidence: 5, pressedBy: {} });
       this.status(p, 'idle', '就座');
       this.showMind(p);
     }
@@ -105,8 +129,9 @@ class DebateRoom {
       if (this.round !== turn.round) {
         this.round = turn.round;
         this.emit({ type: 'round', round: this.round, label: turn.stage });
+        await this.waitStage(() => this.stageGate?.round(this.round));
       }
-      const ok = await this.withRetry(() => this.speak(turn), turn.speaker.persona.name + '发言');
+      const ok = await this.withRetry(() => this.speak(turn), turn.speaker.persona.name + '发言', turn.speaker.agentId);
       if (!ok || this.stopped) return;
     }
     await this.drainUser();
@@ -142,18 +167,54 @@ class DebateRoom {
     mind.stance = cue.stance || mind.stance;
     mind.plan = cue.plan || mind.plan;
     mind.inner = speech.inner || mind.inner;
-    mind.pressure = Math.max(0, Math.min(10, mind.pressure + cue.pressure));
-    mind.confidence = Math.max(0, Math.min(10, mind.confidence + cue.confidence));
+    // 导演给的是「这一句的情绪变化」：压力、信心和火气/憋屈一起记进共用账本
+    this.feelStep(mind, {
+      压力: cue.pressure,
+      信心: cue.confidence,
+      火气: cue.tone.includes('激动') || cue.tone.includes('强硬') ? 1 : 0,
+      憋屈: cue.pressure >= 2 ? 1 : 0,
+    });
+    // 被点名质询的人，这一轮压力明显更高（追着问就是压力来源）
+    if (turn.target) {
+      const target = this.minds.get(turn.target.agentId);
+      if (target) {
+        target.pressedBy[p.agentId] = (target.pressedBy[p.agentId] ?? 0) + 1;
+        this.feelStep(target, { 压力: 1.5, 火气: 0.5 });
+      }
+    }
     this.showMind(p);
+    if (turn.target) { const t = this.cfg.participants.find((x) => x.agentId === turn.target!.agentId); if (t) this.showMind(t); }
     this.status(p, 'speaking', turn.tag);
+    await this.waitStage(() => this.stageGate?.speech(p.agentId));
     for (let i = 0; i < speech.say.length; i++) {
-      await this.display(p, speech.say[i], i === 0 ? turn.tag : undefined);
+      await this.display(p, speech.say[i], turn.tag, turn.target?.agentId);
       if (this.stopped) break;
       await this.gate();
       if (this.stopped || this.queue.length) break;
     }
     if (!this.stopped) this.status(p, 'idle', '倾听');
+    // 和底盘一致：每经过一次发言，所有人的情绪往平时的状态回落一点
+    for (const other of this.cfg.participants) {
+      const om = this.minds.get(other.agentId)!;
+      cool(om, DEBATE_MOODS);
+      if (other.agentId !== p.agentId) this.showMind(other);
+    }
     return !this.stopped;
+  }
+
+  /** 记一步情绪，和底盘 live/engine 的 moodStep 同一套限幅：每步每种最多 ±2，整体最多 ±3 */
+  private feelStep(m: Mind, delta: Record<string, number>) {
+    const before = { ...m.mood };
+    const raw: Record<string, number> = {};
+    for (const [k, v] of Object.entries(delta)) {
+      const mapped = k === '压力' ? '压力' : k;
+      raw[mapped] = clamp(v, -2, 2);
+    }
+    feel(m, raw, DEBATE_MOODS);
+    for (const d of DEBATE_MOODS) m.mood[d.key] = clamp(m.mood[d.key], before[d.key] - 3, before[d.key] + 3);
+    // 压力、信心是辩论自己的一套数值，和 mood 同步维护
+    m.pressure = clamp(m.mood['压力'] ?? m.pressure, 0, 10);
+    m.confidence = clamp(m.mood['信心'] ?? m.confidence, 0, 10);
   }
 
   private async judge() {
@@ -172,8 +233,8 @@ class DebateRoom {
     throw new Error('模型两次都没有按本轮要求回答');
   }
 
-  private async display(p: Participant, text: string, tag?: string) {
-    const message: ChatMessage = { id: uid('m'), round: this.round, speakerId: p.agentId, text, kind: 'speech', tag, at: Date.now() };
+  private async display(p: Participant, text: string, tag?: string, targetId?: string) {
+    const message: ChatMessage = { id: uid('m'), round: this.round, speakerId: p.agentId, text, kind: 'speech', tag, targetId, at: Date.now() };
     this.transcript.push(message);
     this.emit({ type: 'message', message: { ...message, text: '' } });
     const chunk = Math.max(1, Math.ceil(text.length / 22));
@@ -199,7 +260,7 @@ class DebateRoom {
         const input = this.queue.shift()!;
         const target = this.cfg.participants.find((p) => p.agentId === input.targetAgentId);
         const p = target ?? this.cfg.participants.find((x) => x.side === 'host') ?? this.cfg.participants[0];
-        const ok = await this.withRetry(() => this.reply(p, input.text, !!target), p.persona.name + '回应用户');
+        const ok = await this.withRetry(() => this.reply(p, input.text, !!target), p.persona.name + '回应用户', p.agentId);
         if (!ok) break;
       }
     })().finally(() => {
@@ -218,6 +279,11 @@ class DebateRoom {
     if (!answer) throw new Error('模型没有给出回答');
     if (this.stopped) return false;
     if (privateReply) this.privateTalk.get(p.agentId)?.push(p.persona.name + '：' + answer);
+    if (!privateReply) {
+      this.status(p, 'speaking', '回应用户');
+      await this.waitStage(() => this.stageGate?.speech(p.agentId));
+      if (this.stopped) return false;
+    }
     const message: ChatMessage = { id: uid('r'), round: this.round, speakerId: p.agentId, text: answer, kind: 'reply',
       targetId: 'user', private: privateReply || undefined, tag: this.finished ? '赛后追问' : undefined, at: Date.now() };
     if (!privateReply) this.transcript.push(message);
@@ -226,14 +292,15 @@ class DebateRoom {
     return true;
   }
 
-  private async withRetry<T>(action: () => Promise<T>, label: string): Promise<T | null> {
+  /** agentId：这次是谁出错，舞台上他头顶亮「!」，不会一直显示在思考 */
+  private async withRetry<T>(action: () => Promise<T>, label: string, agentId?: string): Promise<T | null> {
     while (!this.stopped) {
       try { return await action(); }
       catch (e) {
         if (this.stopped || isAbort(e)) return null;
         const again = await new Promise<boolean>((resolve) => {
           this.retryWake = resolve;
-          this.emit({ type: 'error', id: uid('err'), message: label + '失败：' + errorText(e),
+          this.emit({ type: 'error', id: uid('err'), agentId, message: label + '失败：' + errorText(e),
             retry: () => { if (this.retryWake === resolve) this.retryWake = null; resolve(true); } });
         });
         if (!again) return null;
@@ -253,28 +320,45 @@ class DebateRoom {
 
   /**
    * 给导演看的人物状态。导演每次只安排下一位发言人，所以只给这个人自己的心思；
-   * 其他人只给看得出来的神情：他们心里想什么、打算干嘛，发言人只能从公开记录去猜，不能读心
+   * 其他人只给看得出来的神情（"被问住了""火力全开"，导演据此决定要不要继续追着问）：
+   * 他们心里想什么、打算干嘛，发言人只能从公开记录去猜，不能读心
    */
   private mindText(speaker: Participant) {
     return this.cfg.participants.map((p) => {
       const m = this.minds.get(p.agentId)!;
-      if (p.agentId !== speaker.agentId) return `${p.persona.name}：神情${demeanor(m)}（只看得出神情，心里怎么想不知道）`;
-      return `${p.persona.name}（下一位发言人）：真实态度 ${m.stance || '尚未表态'}；打算 ${m.plan || '暂无'}；紧张 ${m.pressure}/10；信心 ${m.confidence}/10；内心 ${m.inner || '暂无'}`;
+      if (p.agentId !== speaker.agentId) return `${p.persona.name}：神情「${demeanor(m)}」（只看得出神情，心里怎么想不知道）`;
+      // 带上档位说法，发言人清楚自己现在的状态
+      const feelings = DEBATE_MOODS.map((d) => {
+        const w = level(d, m.mood[d.key]);
+        return d.key + ' ' + Math.round(m.mood[d.key]) + '/10' + (w ? '（' + w + '）' : '');
+      }).join('，');
+      const pressed = Object.entries(m.pressedBy).filter(([, n]) => n > 0)
+        .map(([id, n]) => (this.cfg.participants.find((x) => x.agentId === id)?.persona.name ?? id) + ' 质询过 ' + n + ' 次').join('；');
+      return `${p.persona.name}（下一位发言人）：真实态度 ${m.stance || '尚未表态'}；打算 ${m.plan || '暂无'}；${feelings}${pressed ? '；' + pressed : ''}；内心 ${m.inner || '暂无'}`;
     }).join('\n');
   }
 
+  /**
+   * 界面上的内心面板：情绪走和娱乐/情感分析同一套 view()，四种情绪各对应一套表情。
+   * 对谁有意见按「谁追着他问」折算 —— 辩论里的好恶就是被质询的次数。
+   */
   private showMind(p: Participant) {
     const m = this.minds.get(p.agentId)!;
+    const nameOf = (id: string) => id === 'user' ? '你' : this.cfg.participants.find((x) => x.agentId === id)?.persona.name ?? id;
+    const toward = Object.entries(m.pressedBy)
+      .map(([id, times]) => ({ id, name: nameOf(id), value: -Math.min(2, times) }))
+      .filter((x) => x.value <= -2)
+      .sort((a, b) => a.value - b.value)
+      .slice(0, 5);
+    const d = dominant(m, DEBATE_MOODS);
     const view: MindView = {
-      mood: [
-        { key: '紧张', value: m.pressure, color: 'var(--c-orange)' },
-        { key: '信心', value: m.confidence, color: 'var(--c-blue)' },
-      ],
+      mood: DEBATE_MOODS.map((x) => ({ key: x.key, value: Math.round(m.mood[x.key] * 10) / 10, color: x.color })),
+      // 和导演看到的神情同一套；没有任何情绪上档时就是平静，脸上不加东西
       label: demeanor(m),
-      emoji: m.pressure >= 7 ? '😓' : m.confidence >= 7 ? '🙂' : '😐',
-      face: m.pressure >= 7 ? ['sweat'] : m.confidence >= 7 ? ['happy'] : [],
+      emoji: d ? d.emoji : '😐',
+      face: d ? d.face : [],
       inner: m.inner || undefined, stance: m.stance || undefined, plan: m.plan || undefined,
-      toward: [],
+      toward,
     };
     this.emit({ type: 'mind', agentId: p.agentId, mind: view });
   }
@@ -287,8 +371,10 @@ class DebateRoom {
 /** 独立的辩论模式：自己的导演、辩手、裁判与轮次，不依赖娱乐引擎或 Python 服务。 */
 export function createRationalEngine(chatFn: DebateChat = browserChat): DiscussionEngine {
   let room: DebateRoom | null = null;
+  let stageGate: StageGate | null = null;
   return {
-    start(cfg, emit) { room?.stop(); room = new DebateRoom(cfg, emit, chatFn); room.start(); },
+    setStageGate(gate) { stageGate = gate; room?.setStageGate(gate); },
+    start(cfg, emit) { room?.stop(); room = new DebateRoom(cfg, emit, chatFn); room.setStageGate(stageGate); room.start(); },
     sendUserMessage(input) { room?.sendUserMessage(input); },
     pause() { room?.pause(); },
     resume() { room?.resume(); },
