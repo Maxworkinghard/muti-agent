@@ -11,7 +11,7 @@ import {Pass,FullScreenQuad} from 'three/examples/jsm/postprocessing/Pass.js';
 const ROOM_MIN=new THREE.Vector3(1,1,1),ROOM_MAX=new THREE.Vector3(15,6,13);
 const STEPS=16,SPOTS=3;
 /** 散射强度（第 12.5 节）：只做点缀，光柱很淡，辩题板和人脸不能被雾罩住。 */
-const SUN_SCATTER=.035,SPOT_SCATTER=.025;
+const SUN_SCATTER=.022,SPOT_SCATTER=.025;
 export interface LightRig {sun:THREE.DirectionalLight;sunDirection:THREE.Vector3;spots:THREE.SpotLight[]}
 const quadVertex='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}';
 function spotBlock(i:number){return `{vec3 L=uSpotPos[${i}]-p;float d=length(L);vec3 l=L/d;float c=dot(-l,uSpotDir[${i}]);
@@ -84,7 +84,7 @@ export function createFakeShafts(windows:Array<{y0:number;y1:number;z0:number;z1
     vertexShader:'attribute float aAlong;attribute float aFloor;uniform vec3 uLight;varying float vAlong;void main(){float len=min(26.0,(position.y-aFloor)/max(0.05,-uLight.y));vec3 p=position+uLight*len*aAlong;vAlong=aAlong;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}',
     fragmentShader:'uniform vec3 uColor;varying float vAlong;void main(){float fade=pow(1.0-vAlong,1.3)*smoothstep(0.0,0.08,vAlong);gl_FragColor=vec4(uColor*fade,1.0);}'});
   const mesh=new THREE.Mesh(geometry,material);mesh.frustumCulled=false;mesh.renderOrder=11;mesh.name='fake-shafts';
-  return {mesh,update(rig:LightRig){const light=(material.uniforms.uLight.value as THREE.Vector3).copy(rig.sunDirection).negate();material.uniforms.uColor.value.copy(rig.sun.color).multiplyScalar(rig.sun.intensity*.016*(light.y<-.02?1:0));},dispose(){geometry.dispose();material.dispose();}};
+  return {mesh,update(rig:LightRig){const light=(material.uniforms.uLight.value as THREE.Vector3).copy(rig.sunDirection).negate();material.uniforms.uColor.value.copy(rig.sun.color).multiplyScalar(rig.sun.intensity*.011*(light.y<-.02?1:0));},dispose(){geometry.dispose();material.dispose();}};
 }
 /** 浮尘：在舞台上方和观众席前排慢慢飘，查太阳阴影和舞台灯的照射范围，只在光里亮。 */
 export function createDust(rig:LightRig,count=900){

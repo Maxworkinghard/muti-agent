@@ -50,7 +50,12 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
     root.add(mesh(ring,keep(new THREE.MeshStandardMaterial({map:markTex,transparent:true,roughness:.95})),pod[0],pod[1]+.016,pod[2],false));
     // 浅黄描线把辩论区围出来（第 12.5 节，对齐 2D 参照里那一圈黄线）：贴着书架和讲台后面，围到两队桌子外沿。
     const lineMat=keep(new THREE.MeshStandardMaterial({color:'#c5d08a',roughness:.95}));
-    const [bx0,bx1,bz0,bz1]=[room.bounds.min[0]+1.8,room.bounds.max[0]-1.8,room.bounds.min[2]+.3,9.4];
+    // 描线框包住两队桌子（12.16 二轮房间放宽后同步重算），前后留一点余量。
+    const seats=layout.chairs.filter(c=>c.side==='pro'||c.side==='con');
+    const xs=seats.map(c=>c.position[0]),zs=seats.map(c=>c.position[2]);
+    const margin=layout.tables.find(t=>t.side==='pro')!.length/2+.9;
+    const [bx0,bx1]=[Math.min(...xs)-margin,Math.max(...xs)+margin];
+    const [bz0,bz1]=[room.bounds.min[2]+.3,Math.max(...zs)+1.4];
     for(const [w,d,x,z] of [[.14,bz1-bz0,bx0,(bz0+bz1)/2],[.14,bz1-bz0,bx1,(bz0+bz1)/2],[bx1-bx0,.14,(bx0+bx1)/2,bz0],[bx1-bx0,.14,(bx0+bx1)/2,bz1]] as const){
       const strip=new THREE.PlaneGeometry(w,d);strip.rotateX(-Math.PI/2);root.add(mesh(strip,lineMat,x,pod[1]+.013,z,false));}
   }

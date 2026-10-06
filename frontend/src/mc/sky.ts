@@ -32,11 +32,12 @@ export function createEnvironment(scene:THREE.Scene):Environment {
       sun.position.copy(center).addScaledVector(direction,70);
       const low=1-THREE.MathUtils.smoothstep(elevation,THREE.MathUtils.degToRad(4),THREE.MathUtils.degToRad(40));
       sun.color.setRGB(1,1-.24*low,1-.5*low);
-      sun.intensity=2.2*THREE.MathUtils.smoothstep(elevation,THREE.MathUtils.degToRad(.5),THREE.MathUtils.degToRad(12))*(1-.12*low);
+  // 窗外光线压一档（用户反馈「太耀眼」）：直射阳光从 2.2 降到 1.55，天空的环境补偿略增，屋里整体不变暗。
+  sun.intensity=1.55*THREE.MathUtils.smoothstep(elevation,THREE.MathUtils.degToRad(.5),THREE.MathUtils.degToRad(12))*(1-.12*low);
       sky.material.uniforms.sunPosition.value.copy(direction);sky.material.uniforms.rayleigh.value=1.2+1.8*low;
       (scene.fog as THREE.Fog).color.setRGB(.73-.05*low,.8-.2*low,.92-.36*low);
       // 亮堂的室内光（第 12.5 节）：环境光给足，傍晚天光系数也只轻轻压，画面始终明亮。
-      hemi.intensity=.5+.22*low;
+      hemi.intensity=.58+.24*low;
       env.daylight=1-.04*low;
       return Math.abs(target-current)>.002;
     },
