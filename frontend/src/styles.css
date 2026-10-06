@@ -711,6 +711,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mc-lab-controls label { display: block; margin-bottom: 16px; }
 .mc-lab-controls select { width: 100%; padding: 8px; margin-top: 8px; }
 .mc-lab-controls > div { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.mc-lab-cover { padding: 0; min-height: 0; }
+.mc-lab-cover > header, .mc-lab-cover .mc-lab-controls, .mc-lab-cover .mc-hud { display: none; }
+.mc-lab-cover .mc-lab-layout { display: block; }
+.mc-lab-cover .mc-lab-stage { width: min(100%, 960px); height: auto; min-height: 0; aspect-ratio: 3/2; }
 @keyframes mc-toast-enter { from { transform: translateX(110%); } to { transform: translateX(0); } }
 @media (max-width: 900px) { .mc-views { max-width: 80%; flex-wrap: wrap; justify-content: flex-end; }.mc-name { font-size: 8px; }.mc-lab-layout { grid-template-columns: 1fr; }.mc-lab-stage { min-height: 550px; } }
 @media (prefers-reduced-motion: reduce) { .mc-toast { animation: none; } }
