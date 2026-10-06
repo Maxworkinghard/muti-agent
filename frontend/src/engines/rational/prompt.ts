@@ -11,6 +11,8 @@ export interface DirectorCue {
   plan: string;
   pressure: number;
   confidence: number;
+  /** 对某位辩手的一步社交情绪：嫉妒、敬佩、同情等；正为好感负为敌意，强度 0~2 */
+  toward?: { agent: string; value: number; reason: string };
 }
 
 const side = (p: Participant) => p.side === 'pro' ? '正方' : p.side === 'con' ? '反方' : '主持人';
@@ -48,7 +50,7 @@ export function directorMessages(cfg: SessionConfig, turn: DebateTurn, transcrip
 人物性格是长期倾向，不是每句话都要重复的动作；人在压力或策略下会暂时收起习惯，甚至表面说出不符合平时性格的话，但要有眼前的原因。
 不要安排固定开场白，不要让辩手总说“我反驳”；分歧从具体论点和回应中体现。不要编造未经给出的数据或来源。
 【人物状态】里只有下一位发言人自己的心思；其他人只看得到他们说过的话和神情。他对别人怎么想只能根据公开记录去猜，别安排得像是知道别人没说出口的想法或打算。${privRule}
-只输出 JSON：{"gist":"这句的大意，不是台词","tone":"此刻语气","stance":"真实态度","plan":"下一步打算","pressure":0,"confidence":0}。pressure、confidence 是 -2 到 2 的情绪变化。`;
+只输出 JSON：{"gist":"这句的大意，不是台词","tone":"此刻语气","stance":"真实态度","plan":"下一步打算","pressure":0,"confidence":0}。pressure、confidence 是 -2 到 2 的情绪变化。可选字段 toward：{"agent":"辩手名字","value":-2到2,"reason":"一步之内的原因"}，表示发言人对某个人的嫉妒、敬佩、同情等社交情绪（不等于立场），只有有具体缘由时才写。`;
   const direction = turn.round === 1 ? openingDirection('rational', cfg.conversationVariation) : '';
   const user = `辩题：${cfg.theme.title}\n${direction ? '本场随机切入点：' + direction + '\n' : ''}在场：\n${cast}\n\n完整公开记录：\n${transcript}\n\n【人物状态】\n${minds}\n${privates ? '\n【私下约定】（下一位发言人和用户之间，只有他自己知道）\n' + privates + '\n' : ''}\n下一句固定由 ${turn.speaker.persona.name}（${turn.tag}）发言${turn.target ? '，主要回应 ' + turn.target.persona.name : ''}。任务：${turn.task}。只规划这一句，照实际记录推进。`;
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
@@ -60,6 +62,9 @@ export function parseDirector(text: string): DirectorCue | null {
   return {
     gist: str(j.gist, 200), tone: str(j.tone, 40), stance: str(j.stance, 90),
     plan: str(j.plan, 90), pressure: bounded(j.pressure), confidence: bounded(j.confidence),
+    toward: j.toward && typeof j.toward === 'object' && str((j.toward as Record<string, unknown>).agent, 40) && Number.isFinite(Number((j.toward as Record<string, unknown>).value))
+      ? { agent: str((j.toward as Record<string, unknown>).agent, 40), value: Math.max(-2, Math.min(2, Number((j.toward as Record<string, unknown>).value))), reason: str((j.toward as Record<string, unknown>).reason, 90) }
+      : undefined,
   };
 }
 

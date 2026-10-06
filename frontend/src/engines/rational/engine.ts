@@ -1,7 +1,7 @@
 import type { ChatMessage, DiscussionEngine, EngineEvent, MindView, Participant, SessionConfig, StageGate } from '../../types';
 import { chat, isAbort, type LlmMessage } from '../../llm/client';
 // 情绪记账和娱乐/情感分析共用一套：情绪怎么涨落、好恶怎么回落只维护一份
-import { cool, createMind, dominant, feel, level, type Mind as MindState } from '../live/mind';
+import { cool, createMind, dominant, feel, level, like, type Mind as MindState } from '../live/mind';
 import { RATIONAL_DEFAULTS } from './config';
 import { DEBATE_MOODS, readDebateTemperament } from './moods';
 import { debateSchedule, type DebateTurn } from './schedule';
@@ -17,6 +17,22 @@ const uid = (prefix: string) => prefix + '-' + Date.now().toString(36) + '-' + s
 type UserInput = { text: string; targetAgentId?: string };
 /** 辩手多了「这一句说完的心情」和「谁在追着他问」，其余沿用共用账本 */
 type Mind = MindState & { pressure: number; confidence: number; pressedBy: Record<string, number> };
+/** 此刻状态对发挥的影响：不只给表情，还写进发言人的提示词，让失常真的失常、爆发真的像爆发 */
+function formLine(m: Mind, nameOf: (id: string) => string): string {
+  const parts: string[] = [];
+  const pressured = m.mood['压力'] ?? 0, confident = m.mood['信心'] ?? 0, angry = m.mood['火气'] ?? 0, hurt = m.mood['憋屈'] ?? 0;
+  if (pressured >= 7) parts.push('你已经明显发挥失常：反应变慢、抓不住对方论点的要害、句子变短变急，可能漏掉本该回应的点');
+  else if (pressured >= 4) parts.push('你有点紧张，发挥比平时打折扣，偶尔抓错重点');
+  if (confident >= 8) parts.push('你今天状态特别好：思路清楚、临场反应快，甚至可能冒出平时想不到的精彩反驳（激发潜能）');
+  else if (confident <= 1 && pressured >= 5) parts.push('信心见底又顶着压力：这一句大概率说得不漂亮，但绝境里也可能豁出去拼出意外的好表现');
+  if (angry >= 7) parts.push('你情绪上头：说话冲、容易翻旧账、听不进对方道理，可能因激动露出口误');
+  else if (angry >= 4) parts.push('你有点上头，语气比平时冲');
+  if (hurt >= 7) parts.push('你被将死了：说不出完整有力的话，语气发虚，甚至想放弃这一轮的纠缠');
+  const grudges = Object.entries(m.pressedBy).filter(([, n]) => n >= 2)
+    .map(([id]) => nameOf(id)).filter(Boolean);
+  if (grudges.length) parts.push('你特别想压过 ' + grudges.join('、') + '（他追着问过你）：面对他时求胜心切，容易盯着他打');
+  return parts.join('；');
+}
 /** 别人看得出来的神情，和界面上的标签同一套（"被问住了""火力全开"）；心思看不出来 */
 const demeanor = (m: Mind) => {
   const d = dominant(m, DEBATE_MOODS);
@@ -167,6 +183,14 @@ class DebateRoom {
     mind.stance = cue.stance || mind.stance;
     mind.plan = cue.plan || mind.plan;
     mind.inner = speech.inner || mind.inner;
+    // 社交情绪：嫉妒、敬佩、同情 —— 记进对人的账本（rel），下次他面对这个人时心态就不一样
+    if (cue.toward) {
+      const target = this.cfg.participants.find((x) => x.persona.name === cue.toward!.agent && x.agentId !== p.agentId);
+      if (target) {
+        like(mind, target.agentId, cue.toward.value);
+        mind.inner = (mind.inner ? mind.inner + '；' : '') + '对' + target.persona.name + '（' + (cue.toward.reason || (cue.toward.value > 0 ? '心服' : '有想法')) + '）';
+      }
+    }
     // 导演给的是「这一句的情绪变化」：压力、信心和火气/憋屈一起记进共用账本
     this.feelStep(mind, {
       压力: cue.pressure,
@@ -334,7 +358,8 @@ class DebateRoom {
       }).join('，');
       const pressed = Object.entries(m.pressedBy).filter(([, n]) => n > 0)
         .map(([id, n]) => (this.cfg.participants.find((x) => x.agentId === id)?.persona.name ?? id) + ' 质询过 ' + n + ' 次').join('；');
-      return `${p.persona.name}（下一位发言人）：真实态度 ${m.stance || '尚未表态'}；打算 ${m.plan || '暂无'}；${feelings}${pressed ? '；' + pressed : ''}；内心 ${m.inner || '暂无'}`;
+      const form = p.agentId === speaker.agentId ? formLine(m, (id) => this.cfg.participants.find((x) => x.agentId === id)?.persona.name ?? '') : '';
+      return `${p.persona.name}（下一位发言人）：真实态度 ${m.stance || '尚未表态'}；打算 ${m.plan || '暂无'}；${feelings}${pressed ? '；' + pressed : ''}；内心 ${m.inner || '暂无'}${form ? '；【此刻状态对发挥的影响】' + form : ''}`;
     }).join('\n');
   }
 
