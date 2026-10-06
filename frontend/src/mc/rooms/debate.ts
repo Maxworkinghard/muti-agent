@@ -75,6 +75,10 @@ export function buildDebateRoom():Room {
   for(const x of [1,20])for(const z of [7,14])b.put(x,3,z,'spruce_fence').put(x,2,z,'lantern',{hanging:'true'});
   for(const x of [3,18])b.put(x,3,1,'spruce_fence').put(x,2,1,'lantern',{hanging:'true'});
   for(const x of [5,16])b.put(x,3,18,'spruce_fence').put(x,2,18,'lantern',{hanging:'true'});
+  // 吊灯照两队和后方过道；木吊杆接在实体天花板下，灯具是房间主光（12.17）。
+  for(const x of [5,16])for(const z of [4,9,14])b.put(x,5,z,'spruce_fence').put(x,4,z,'lantern',{hanging:'true'});
+  // 主持两侧的落地灯柱照人和讲稿，灯与支架都低于辩题板下沿。
+  for(const x of [8,13])b.put(x,1,1,'spruce_fence').put(x,2,1,'lantern');
   // 两队桌后的落地灯笼（给座位补光）。
   for(const x of [1,20])b.put(x,1,10,'lantern');
   const anchors:ActorAnchor[]=[];

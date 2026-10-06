@@ -93,14 +93,16 @@ export function McStage3D(props:McStageProps){
         renderer.domElement.addEventListener('pointerdown',()=>freeView?.setActive(true));
         const outsideDown=(e:PointerEvent)=>{if(!(e.target instanceof Node)||!renderer.domElement.contains(e.target)){freeView?.setActive(false);spectator.deactivate();}};
         document.addEventListener('pointerdown',outsideDown);
-        const light=propagate(room.blocks);updateLightTable(assets.lightTexture,1);
-        const shading:BlockShading={lightMap:assets.lightTexture,indirect:{value:.78},direct:{value:1}};
+        // 屋顶同样挡天光；先初始化天色，不能把室内当作露天的满亮天光。
+        env.update(0,0);
+        const light=propagate([...room.blocks,...room.ceiling]);updateLightTable(assets.lightTexture,env.daylight);
+        const shading:BlockShading={lightMap:assets.lightTexture,indirect:{value:.55},direct:{value:1}};
         const staticMesh=buildBlockMesh(room.blocks,assets,light,shading);scene.add(staticMesh);
         // 实体天花板：默认机位在门内，不再为了全景剖开屋顶。
-        const ceiling=buildBlockMesh(room.ceiling,assets,light,shading);ceiling.name='room-ceiling';ceiling.visible=false;scene.add(ceiling);
-        // 灯笼都是暖色点光源：舞台上的吊灯、落地灯笼和讲台边的灯柱实时算光，壁灯只靠游戏光照网格。
-        const lanterns=room.blocks.filter(b=>b.id==='lantern').sort((a,b)=>Math.hypot(a.x-room.cameraTarget[0],a.y-room.cameraTarget[1],a.z-room.cameraTarget[2])-Math.hypot(b.x-room.cameraTarget[0],b.y-room.cameraTarget[1],b.z-room.cameraTarget[2])).slice(0,8);
-        const lanternLights=lanterns.map(b=>{const l=new THREE.PointLight('#ffb067',.3,5,2);l.position.set(b.x+.5,b.y+(b.props.hanging==='true'?.35:.3),b.z+.5);scene.add(l);return l;});
+        const ceiling=buildBlockMesh(room.ceiling,assets,light,shading);ceiling.name='room-ceiling';scene.add(ceiling);
+        // 六盏吊灯和主持两侧灯柱实时照人物、桌面和地板；其余壁灯提供传播后的间接光。
+        const lanterns=room.blocks.filter(b=>b.id==='lantern').sort((a,b)=>b.y-a.y||Math.hypot(a.x+.5-room.host[0],a.z+.5-room.host[2])-Math.hypot(b.x+.5-room.host[0],b.z+.5-room.host[2])).slice(0,8);
+        const lanternLights=lanterns.map(b=>{const l=new THREE.PointLight('#ffe0b5',b.y>=4?8:6,12,2);l.name=`lantern-${b.x}-${b.y}-${b.z}`;l.position.set(b.x+.5,b.y+(b.props.hanging==='true'?.35:.3),b.z+.5);scene.add(l);return l;});
         const entities=createEntities(assets,room);scene.add(entities.root);
         const critters=createCritters(assets,stateRef.current.now);scene.add(critters.root);
         const cast=latest.current.participants.map(p=>({id:p.agentId,anchor:p.seatIndex,side:(p.side??'host') as 'pro'|'con'|'host',name:p.persona.name,identity:identity(p,latest.current.participants)}));
@@ -148,10 +150,8 @@ export function McStage3D(props:McStageProps){
           // 天色跟辩论进度：开场前是下午两点，最后一轮接近傍晚，出结果时太阳贴着地平线。
           const total=Math.max(1,latest.current.totalRounds),progress=s.resultStage>=0?1:Math.min(1,Math.max(0,(s.round-1)/total+(s.round?.5/total:0)));
           if(!frozen&&env.update(progress,dt))updateLightTable(assets!.lightTexture,env.daylight);
-          // 曝光跟着天色（第 12.5 节）：傍晚只轻轻提一点，画面始终亮堂，不变压抑。
-          // 曝光收回正常范围（此前为压暗像素调到过曝发白，白天发白）。傍晚太阳落山后
-          // 只补偿自然变暗的部分，画面保持明亮，但不给白天加任何额外曝光。
-          renderer.toneMappingExposure=.96+(1-env.daylight)*4.6;
+          // 灯具亮度稳定，傍晚也使用正常曝光；不把辅助天光的降低补偿成整屋发白。
+          renderer.toneMappingExposure=.96;
           if(!frozen){clouds.update(dt,env.sun.color,env.daylight);dust.update(s.now/1000,host.clientHeight);}shafts.update(rig);
           if(qualityRef.current!=='low'&&(envProgress<0||Math.abs(progress-envProgress)>.12)){envProgress=progress;captureEnvironment();}
           if(!frozen){staticMesh.traverse(o=>o.userData.animate?.(s.now));entities.update(s);critters.setMusicPlaying(sounds.musicActive);for(const c of critters.critters)c.update(s,dt);}
@@ -206,14 +206,14 @@ export function McStage3D(props:McStageProps){
           if(import.meta.env.DEV)renderer.domElement.dataset.freeCamera=JSON.stringify({view:viewRef.current,entered:spectator.entered,active:spectator.active,locked:spectator.locked,speed:spectator.speed,position:cam.camera.position.toArray(),quaternion:cam.camera.quaternion.toArray(),sceneTime:s.now});
           if(!manualQuality.current&&!document.hidden&&latest.current.visible!==false&&time>warmUntil){if(!tuneFrom){tuneFrom=time;tuneFrames=0;}tuneFrames++;if(time-tuneFrom>3000){const measured=tuneFrames*1000/(time-tuneFrom);tuneFrom=0;if(measured<45&&qualityRef.current!=='low'){const next=qualityRef.current==='high'?'medium':'low';qualityRef.current=next;setQualityState(next);warmUntil=time+2500;}else manualQuality.current=true;}}
           renderer.domElement.dataset.audioPlaying=String(sounds.playing);renderer.domElement.dataset.audioMuted=String(latest.current.muted);renderer.domElement.dataset.fps=fps.toFixed(1);renderer.domElement.dataset.calls=String(calls);renderer.domElement.dataset.loadedMs=loadedMs.toFixed(0);renderer.domElement.dataset.clock=s.now.toFixed(0);renderer.domElement.dataset.quality=qualityRef.current;
-          if(import.meta.env.DEV){renderer.domElement.dataset.hidden=String(document.hidden);renderer.domElement.dataset.draws=JSON.stringify({shadow:firstDraw,objects:[...draws]});renderer.domElement.dataset.stageState=JSON.stringify({session:s.session,round:s.round,stage:s.stage,mics:s.mics,result:s.boardResult,actors:Object.values(s.actors).map(a=>({id:a.id,sit:a.sit,position:a.position,action:a.active?.action.kind,gap:players.get(a.id)?.contactGap,pose:players.get(a.id)?.mesh.skeleton.bones.map(b=>b.rotation.toArray().slice(0,3)),error:!!a.error})),lights:[]});}
+          if(import.meta.env.DEV){renderer.domElement.dataset.hidden=String(document.hidden);renderer.domElement.dataset.draws=JSON.stringify({shadow:firstDraw,objects:[...draws]});renderer.domElement.dataset.stageState=JSON.stringify({session:s.session,round:s.round,stage:s.stage,mics:s.mics,result:s.boardResult,actors:Object.values(s.actors).map(a=>({id:a.id,sit:a.sit,position:a.position,action:a.active?.action.kind,gap:players.get(a.id)?.contactGap,pose:players.get(a.id)?.mesh.skeleton.bones.map(b=>b.rotation.toArray().slice(0,3)),error:!!a.error})),lights:lanternLights.map(l=>({id:l.name,position:l.position.toArray(),intensity:l.intensity,color:l.color.getHexString(),distance:l.distance})),lighting:{sun:env.sun.intensity,ambient:env.hemi.intensity,daylight:env.daylight,exposure:renderer.toneMappingExposure}});}
           const hsig=JSON.stringify([s.session,s.bubbles,s.chat,s.title,s.toast,s.focus,s.globalError,Object.values(s.actors).map(a=>[a.id,a.error,a.mind,a.actionText])]);if(time-lastHud>100||hsig!==hudSignature){lastHud=time;hudSignature=hsig;setHud(s);}
           latest.current.onSnapshot?.(s,outputs,{fps,calls,loadedMs,quality:qualityRef.current});raf=requestAnimationFrame(frame);
         };
         cleanup=()=>{cancelAnimationFrame(raf);observer.disconnect();document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('click',click);renderer.domElement.removeEventListener('pointerleave',leave);cam.dispose();sounds.dispose();players.forEach(p=>p.dispose());particles.dispose();propBatches.dispose();propIndirect.dispose();stageProps.dispose();entities.dispose();critters.dispose();freeView?.dispose();document.removeEventListener('pointerdown',outsideDown);disposeObject(staticMesh);disposeObject(ceiling);disposeObject(gallery);lanternLights.forEach(l=>l.dispose());shafts.dispose();dust.dispose();clouds.dispose();env.dispose();envTexture?.dispose();cubeTarget.dispose();pmrem.dispose();post.dispose();renderer.dispose();renderer.domElement.remove();assets?.dispose();};
         // 开场前先把着色器编译完（Windows 上走 D3D 编译很慢），免得第一帧卡好几秒。
         const disposeStage=cleanup;cleanup=()=>{spectator.dispose();spectatorRef.current=null;cameraRef.current=null;disposeStage();};
-        setProgress({n:.85,step:'准备画面'});captureEnvironment();envProgress=0;ceiling.visible=true;await renderer.compileAsync(scene,cam.camera);ceiling.visible=false;if(disposed)return;
+        setProgress({n:.85,step:'准备画面'});captureEnvironment();envProgress=0;await renderer.compileAsync(scene,cam.camera);if(disposed)return;
         setProgress({n:1,step:'准备人物'});setLoaded(true);latest.current.onLoaded();warmUntil=performance.now()+2500;raf=requestAnimationFrame(frame);
       }catch(e){if(import.meta.env.DEV)console.error('[mc-stage] 加载失败',e instanceof Error?e.stack:e);if(!disposed)latest.current.onLoaded(e instanceof Error?e.message:String(e));assets?.dispose();renderer.dispose();}
     })();return ()=>{disposed=true;cleanup();};

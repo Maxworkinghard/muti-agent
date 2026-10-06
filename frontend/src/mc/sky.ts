@@ -16,14 +16,14 @@ export function sunAt(progress:number){
 export function createEnvironment(scene:THREE.Scene):Environment {
   const sky=new Sky();sky.scale.setScalar(450);
   // 原版天空着色器的太阳盘亮到超出半精度浮点的范围，会变成无穷大，环境反射和泛光都会被它带坏；这里给输出加个上限。
-  const clampLine='gl_FragColor = vec4( texColor, 1.0 );';if(!sky.material.fragmentShader.includes(clampLine))console.warn('[mc-stage] 天空着色器的写法变了，没能给输出加上限');sky.material.fragmentShader=sky.material.fragmentShader.replace(clampLine,'gl_FragColor = vec4( min( texColor, vec3( 24.0 ) ), 1.0 );');sky.material.uniforms.turbidity.value=5;sky.material.uniforms.cloudCoverage.value=0;sky.material.uniforms.mieCoefficient.value=.004;sky.material.uniforms.mieDirectionalG.value=.82;scene.add(sky);
-  const sun=new THREE.DirectionalLight('#fff4e6',1.8);sun.castShadow=true;
+  const clampLine='gl_FragColor = vec4( texColor, 1.0 );';if(!sky.material.fragmentShader.includes(clampLine))console.warn('[mc-stage] 天空着色器的写法变了，没能给输出加上限');sky.material.fragmentShader=sky.material.fragmentShader.replace(clampLine,'gl_FragColor = vec4( min( texColor, vec3( 2.0 ) ) * 0.4, 1.0 );');sky.material.uniforms.turbidity.value=5;sky.material.uniforms.cloudCoverage.value=0;sky.material.uniforms.mieCoefficient.value=.004;sky.material.uniforms.mieDirectionalG.value=.82;scene.add(sky);
+  const sun=new THREE.DirectionalLight('#fff4e6',.3);sun.castShadow=true;
   const cam=sun.shadow.camera;cam.left=-17;cam.right=17;cam.top=17;cam.bottom=-17;cam.near=1;cam.far=140;sun.shadow.bias=-.0004;sun.shadow.normalBias=.035;sun.shadow.mapSize.set(4096,4096);sun.shadow.intensity=.5;
   sun.target.position.copy(center);scene.add(sun,sun.target);
-  const hemi=new THREE.HemisphereLight('#bcd8ff','#97774f',.62);scene.add(hemi);
+  const hemi=new THREE.HemisphereLight('#bcd8ff','#97774f',.16);scene.add(hemi);
   scene.fog=new THREE.Fog('#b9d3f0',45,160);
   let current=-1;
-  const env:Environment={sun,hemi,sky,daylight:1,elevation:1,direction:new THREE.Vector3(),
+  const env:Environment={sun,hemi,sky,daylight:.35,elevation:1,direction:new THREE.Vector3(),
     update(progress,dt){
       // 每轮开始后天色在大约 10 秒里平滑过去，不跳。
       const target=Math.min(1,Math.max(0,progress));current=current<0?target:current+(target-current)*Math.min(1,dt/3.5);
@@ -32,13 +32,13 @@ export function createEnvironment(scene:THREE.Scene):Environment {
       sun.position.copy(center).addScaledVector(direction,70);
       const low=1-THREE.MathUtils.smoothstep(elevation,THREE.MathUtils.degToRad(4),THREE.MathUtils.degToRad(40));
       sun.color.setRGB(1,1-.24*low,1-.5*low);
-  // 窗外光线压一档（用户反馈「太耀眼」）：直射阳光从 2.2 降到 1.55，天空的环境补偿略增，屋里整体不变暗。
-  sun.intensity=1.55*THREE.MathUtils.smoothstep(elevation,THREE.MathUtils.degToRad(.5),THREE.MathUtils.degToRad(12))*(1-.12*low);
+      // 灯具是室内主光；阳光只在窗口附近补一点冷暖和方向（12.17）。
+      sun.intensity=.3*THREE.MathUtils.smoothstep(elevation,THREE.MathUtils.degToRad(.5),THREE.MathUtils.degToRad(12))*(1-.12*low);
       sky.material.uniforms.sunPosition.value.copy(direction);sky.material.uniforms.rayleigh.value=1.2+1.8*low;
       (scene.fog as THREE.Fog).color.setRGB(.73-.05*low,.8-.2*low,.92-.36*low);
-      // 亮堂的室内光（第 12.5 节）：环境光给足，傍晚天光系数也只轻轻压，画面始终明亮。
-      hemi.intensity=.58+.24*low;
-      env.daylight=1-.04*low;
+      // 辅助光只填暗部，傍晚不靠大幅提环境光或曝光把全屋刷亮。
+      hemi.intensity=.16+.02*low;
+      env.daylight=.35-.17*low;
       return Math.abs(target-current)>.002;
     },
     setShadow(size){if(sun.shadow.mapSize.x===size)return;sun.shadow.mapSize.set(size,size);sun.shadow.map?.dispose();sun.shadow.map=null as unknown as THREE.WebGLRenderTarget;},

@@ -26,7 +26,7 @@ export function createTable(t:Room['layout']['tables'][number],m:PropMaterials){
   // 端头方墩：木色，比桌面略窄，顶上贴着桌面；一盏小灯笼（装饰，像素风）。
   for(const s of [-1,1]){
     g.add(mesh(rbox(.52,H,.62,.008),m.wood,s*(L/2-.26),H/2,0));
-    const lantern=new THREE.Group();lantern.position.set(s*(L/2-.26),H+.13,0);
+    const lantern=new THREE.Group();lantern.position.set(s*(L/2-.26),H+.005,0);
     lantern.add(mesh(rbox(.15,.05,.15,.004),m.brassDark,0,.02,0),mesh(rbox(.11,.14,.11,.004),m.flame,0,.11,0,false),mesh(rbox(.13,.03,.13,.004),m.brassDark,0,.19,0));
     g.add(lantern);
   }

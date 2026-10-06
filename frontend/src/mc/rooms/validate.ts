@@ -8,7 +8,8 @@ export interface Validation {checks:Record<string,number>;errors:string[]}
 /** 房间检查（第 4.7 节，第二轮加上写实物品）：方块合法、有依托、连接正确，人和视线不被挡，两队对称，光照够亮。 */
 export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atlas'>):Validation {
   const errors:string[]=[],checks:Record<string,number>={states:0,supports:0,connections:0,positions:0,mirror:0,camera:0,light:0,props:0};
-  const cells=new Map(room.blocks.map(b=>[key(b.x,b.y,b.z),b]));
+  const roomBlocks=[...room.blocks,...room.ceiling];
+  const cells=new Map(roomBlocks.map(b=>[key(b.x,b.y,b.z),b]));
   const boxes:Array<{name:string;box:THREE.Box3;soft?:boolean;cutaway?:boolean;obb?:OBB}>=[];
   const hitsRay=(b:{box:THREE.Box3;obb?:OBB},ray:THREE.Ray)=>b.obb?b.obb.intersectRay(ray,new THREE.Vector3()):ray.intersectBox(b.box,new THREE.Vector3());
   const solid=(x:number,y:number,z:number)=>fullBlock(cells.get(key(x,y,z)));
@@ -39,6 +40,6 @@ export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atl
   if(room.camera.some((v,i)=>v<=room.bounds.min[i]+.18||v>=room.bounds.max[i]-.18))errors.push('默认机位不在室内净空间');
   const targets=[...room.anchors.map(a=>a.seat===a.stand?new THREE.Vector3(a.stand[0],a.stand[1]+1.62,a.stand[2]):new THREE.Vector3(a.seat[0],a.seat[1]+1.15,a.seat[2])),...[-1,1].flatMap(x=>[-1,1].map(y=>new THREE.Vector3(sc.position[0]+x*(sc.width/2-.05),sc.position[1]+y*(sc.height/2-.05),sc.position[2]+.04)))];
   for(const target of targets){checks.camera++;const direction=target.clone().sub(eye),dist=direction.length();const ray=new THREE.Ray(eye,direction.normalize());const hits=boxes.filter(b=>{const hit=hitsRay(b,ray);return hit&&hit.distanceTo(eye)<dist-.05;});if(hits.length)errors.push('镜头遮挡 '+target.toArray().map(n=>n.toFixed(2))+' '+hits.map(b=>b.name).join(';'));}
-  const lights=propagate(room.blocks);for(const a of room.anchors)for(const p of [a.seat,a.stand]){checks.light++;const values=lights.sample(p[0],p[1]+1,p[2]);if(Math.max(...values)<9)errors.push('人物位置光照不足 '+p+' '+values);}
+  const lights=propagate(roomBlocks);for(const a of room.anchors)for(const p of [a.seat,a.stand]){checks.light++;const values=lights.sample(p[0],p[1]+1,p[2]);if(Math.max(...values)<9)errors.push('人物位置光照不足 '+p+' '+values);}
   return {checks,errors};
 }
