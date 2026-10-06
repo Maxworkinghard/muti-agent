@@ -25,7 +25,7 @@ async function run({ pressure, confidence, tone = '自然', rounds = 3, people =
   const mock = async (messages) => {
     const system = messages[0].content;
     if (system.includes('正式辩论的导演')) return JSON.stringify({ gist: '追问现场论点', tone, stance: '坚持本方', plan: '继续追问', pressure, confidence });
-    if (system.includes('主持人兼裁判') || system.includes('中立裁判')) return JSON.stringify({ winner: '正方', proScore: 80, conScore: 75 });
+    if (system.includes('赛后讨论记录')) return JSON.stringify({ summary: '双方围绕工作制展开讨论。' });
     if (system.includes('正式辩论中扮演')) {
       const position = system.match(/"position":"(支持辩题|反对辩题|中立)"/)?.[1];
       return JSON.stringify({ say: ['这是一句发言。'], inner: '认真听', position });

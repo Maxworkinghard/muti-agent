@@ -202,11 +202,6 @@ export interface DiscussionResult {
   deliverables?: string[];
   /** 主持人写的整段总结（辩论引擎用） */
   summary?: string;
-  /** 正式辩论的判定 */
-  verdict?: {
-    winner?: string; proScore?: number; conScore?: number; reason?: string; judge?: string;
-    motion?: { motion: string; pro: string; con: string };
-  };
 }
 
 /** 引擎回传给前端的事件 */

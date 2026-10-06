@@ -5,7 +5,7 @@ import { cool, createMind, dominant, feel, level, like, type Mind as MindState }
 import { RATIONAL_DEFAULTS } from './config';
 import { DEBATE_MOODS, readDebateTemperament } from './moods';
 import { debateSchedule, type DebateTurn } from './schedule';
-import { actorMessages, actorPosition, directorMessages, judgeMessages, parseActor, parseDirector, parseJudge, replyMessages } from './prompt';
+import { actorMessages, actorPosition, directorMessages, summaryMessages, parseActor, parseDirector, parseSummary, replyMessages } from './prompt';
 
 export type DebateChat = (messages: LlmMessage[], opt: { temperature: number; signal: AbortSignal }) => Promise<string>;
 const browserChat: DebateChat = async (messages, opt) => (await chat(messages, opt)).text;
@@ -152,7 +152,7 @@ class DebateRoom {
     }
     await this.drainUser();
     if (this.stopped) return;
-    const result = await this.withRetry(() => this.judge(), '裁判判定');
+    const result = await this.withRetry(() => this.summarize(), '赛后总结');
     if (!result || this.stopped) return;
     this.emit({ type: 'result', result });
     this.finished = true;
@@ -241,15 +241,15 @@ class DebateRoom {
     m.confidence = clamp(m.mood['信心'] ?? m.confidence, 0, 10);
   }
 
-  private async judge() {
-    const temperature = Number(this.cfg.engineOptions?.judgeTemperature ?? RATIONAL_DEFAULTS.judgeTemperature);
-    return this.askJson(() => judgeMessages(this.cfg, this.publicText()), (text) => parseJudge(text, this.cfg), temperature);
+  private async summarize() {
+    const temperature = Number(this.cfg.engineOptions?.summaryTemperature ?? RATIONAL_DEFAULTS.summaryTemperature);
+    return this.askJson(() => summaryMessages(this.cfg, this.publicText()), parseSummary, temperature);
   }
 
   private async askJson<T>(messages: () => LlmMessage[], parse: (text: string) => T | null, temperature: number): Promise<T> {
     const prompt = messages();
     for (let i = 0; i < 2; i++) {
-      const attempt = i ? [...prompt, { role: 'user' as const, content: '上次格式或立场不符合要求。请严格按系统指定的 JSON 字段和本场阵营重新回答。' }] : prompt;
+      const attempt = i ? [...prompt, { role: 'user' as const, content: '上次格式或内容不符合要求。请只输出系统指定的 JSON 字段，并遵守本场任务的约束。' }] : prompt;
       const text = await this.chatFn(attempt, { temperature, signal: this.ctrl.signal });
       const parsed = parse(text);
       if (parsed) return parsed;
@@ -393,7 +393,7 @@ class DebateRoom {
   }
 }
 
-/** 独立的辩论模式：自己的导演、辩手、裁判与轮次，不依赖娱乐引擎或 Python 服务。 */
+/** 独立的辩论模式：自己的导演、辩手、赛后总结与轮次，不依赖娱乐引擎或 Python 服务。 */
 export function createRationalEngine(chatFn: DebateChat = browserChat): DiscussionEngine {
   let room: DebateRoom | null = null;
   let stageGate: StageGate | null = null;

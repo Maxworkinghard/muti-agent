@@ -20,7 +20,7 @@ export function createEnvironment(scene:THREE.Scene):Environment {
   const sun=new THREE.DirectionalLight('#fff4e6',.3);sun.castShadow=true;
   const cam=sun.shadow.camera;cam.left=-17;cam.right=17;cam.top=17;cam.bottom=-17;cam.near=1;cam.far=140;sun.shadow.bias=-.0004;sun.shadow.normalBias=.035;sun.shadow.mapSize.set(4096,4096);sun.shadow.intensity=.5;
   sun.target.position.copy(center);scene.add(sun,sun.target);
-  const hemi=new THREE.HemisphereLight('#bcd8ff','#97774f',.16);scene.add(hemi);
+  const hemi=new THREE.HemisphereLight('#c6dcf4','#a3afb6',.16);scene.add(hemi);
   scene.fog=new THREE.Fog('#b9d3f0',45,160);
   let current=-1;
   const env:Environment={sun,hemi,sky,daylight:.35,elevation:1,direction:new THREE.Vector3(),

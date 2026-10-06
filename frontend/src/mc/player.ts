@@ -78,7 +78,7 @@ export function createPlayer(p:Participant,card:THREE.Object3D|null,contacts?:Pr
     if(a.desired==='thinking'&&p.side!=='host'){pose.writing=approach(pose.writing,1,dt*4);rx=-1.15;rz=-.2;lx=-1.23+(s.reduced?0:Math.sin(poseNow/260)*.045);ly=.5;lz=.5+(s.reduced?0:Math.sin(poseNow/170)*.04);}else pose.writing=approach(pose.writing,0,dt*4);
     if(action&&['mic','nextRound','tapBell','flipScript'].includes(action.kind)){rx=-1.15-Math.sin(t*Math.PI)*.45;rz=-.08;}
     else if(action?.kind==='cheer'){
-      // 胜方欢呼（第 12.6 节）：双臂高举，身子里外各跳一下。
+      // 欢呼动作（第 12.6 节）：双臂高举，身子里外各跳一下。
       const hop=Math.abs(Math.sin(t*Math.PI*2));rx=-Math.PI*.95;lx=-Math.PI*.95;rz=-.25;lz=.25;
       root.position.y+=hop*.14;headPitch-=.12;
     }
@@ -117,11 +117,10 @@ export function createPlayer(p:Participant,card:THREE.Object3D|null,contacts?:Pr
     }
     if(pen)pen.visible=a.desired==='thinking'||natural&&['write','tapPen','pointNote'].includes(idle.kind)&&k>.1;
     if(!s.reduced){root.position.y+=Math.abs(walk)*.035;if(listening&&a.sit>.8)bones[2].rotation.z=Math.sin(poseNow/5400+p.agentId.length)*.015;else bones[2].rotation.z=approach(bones[2].rotation.z,0,dt*3);}
-    // 神态（第 12.6 节）：被打断先惊讶；交锋提问的人挑眉逼视；结果时胜方大笑、负方嘴角下垂；队友发言时带一点笑。
+    // 神态（第 12.6 节）：被打断先惊讶；交锋提问的人挑眉逼视；队友发言时带一点笑。
     const faceExtra:Array<'raise'|'shock'|'cheer'|'frown'|'happy'>=[];
     if(a.cut&&!s.reduced)faceExtra.push('shock');
     else if(speaking&&typeof a.look==='object'&&s.pair.includes(a.id)&&!s.reduced)faceExtra.push('raise');
-    else if(s.resultStage>=2&&!s.reduced&&s.result){const w=s.result.verdict?.winner==='正方'?'pro':s.result.verdict?.winner==='反方'?'con':null;if(w&&p.side===w)faceExtra.push('cheer');else if(w&&p.side!=='host')faceExtra.push('frown');}
     else if(!s.reduced&&listening&&typeof a.look==='object'&&a.look.agent){const mate=s.actors[a.look.agent];if(mate&&mate.side===a.side&&mate.desired==='speaking')faceExtra.push('happy');}
     skin.face(a.mind,poseNow,speaking,s.reduced,faceExtra);
     root.updateMatrixWorld(true);bones[3].getWorldPosition(headWorld);bones[3].getWorldQuaternion(headQuat);

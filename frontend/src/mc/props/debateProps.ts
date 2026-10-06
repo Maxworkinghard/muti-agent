@@ -15,7 +15,7 @@ import {createTableDecor,createWallArt} from './decor';
  * 桌上扳拉杆开麦、红石灯亮，主持按讲台按钮换阶段、拍桌铃、翻讲稿（第 0.2 节：先表达信息，物理上说得通）。
  */
 export interface PropCast {id:string;anchor:number;side:'pro'|'con'|'host';name:string;identity:string}
-export interface PropState {now:number;mics:Record<string,boolean>;stages:boolean[];stage:number;bellAt:number;pageAt:number;buttonAt:number;/** 每个座位（按 anchor 序号）此刻坐着的程度，1 是坐稳 */sit:Record<number,number>;theme:string;label:string;round:number;total:number;proNames:string[];conNames:string[];result:{pro?:number;con?:number;winner:'pro'|'con'|'tie'}|null;reduced:boolean}
+export interface PropState {now:number;mics:Record<string,boolean>;stages:boolean[];stage:number;bellAt:number;pageAt:number;buttonAt:number;/** 每个座位（按 anchor 序号）此刻坐着的程度，1 是坐稳 */sit:Record<number,number>;theme:string;label:string;round:number;total:number;proNames:string[];conNames:string[];finished:boolean;reduced:boolean}
 export interface Fixture {id:string;actor:number;mount:THREE.Vector3;target:THREE.Vector3;on:boolean;since:number;level:number}
 export interface PropContacts {mics:Map<string,THREE.Object3D>;nextRound:THREE.Object3D;bell:THREE.Object3D;script:THREE.Object3D}
 export interface DebateProps {contacts:PropContacts;root:THREE.Group;fixtures:Fixture[];beamScale:number;update(s:PropState):void;setEnvironment(map:THREE.Texture|null,intensity?:number):void;setReflections(enabled:boolean):void;createBook(assets?:{itemAtlas:{width:number;height:number;textures:Record<string,{x:number;y:number;width:number;height:number}>};itemTexture:THREE.Texture}):THREE.Group;dispose():void}
@@ -31,32 +31,40 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
   const m=createMaterials(),owned:Array<THREE.Material|THREE.Texture>=[];
   const keep=<T extends THREE.Material|THREE.Texture>(x:T)=>{owned.push(x);return x;};
   const layout=room.layout,byAnchor=new Map(cast.map(p=>[p.anchor,p]));
-  // 青绿格纹的地垫：2D 场景的地板色，铺在舞台和观众席上，方块地面仍在下面管光照。
+  // 嵌入式灯具的灰色边框和乳白扩散罩，贴在海晶灯的底面。
+  for(const fixture of room.lights){
+    const [x,,z]=fixture.position;
+    root.add(mesh(rbox(1.04,.035,fixture.length+.04,.004),m.woodDark,x,5.982,z,false));
+    root.add(mesh(rbox(.92,.014,fixture.length-.08,.003),m.flame,x,5.957,z,false));
+  }
+  // 灰色大块地面饰面，低对比接缝保持空间清爽。
   if(room.floor.length){
     const tile=document.createElement('canvas');tile.width=tile.height=64;const tc=tile.getContext('2d')!;
-    tc.fillStyle='#74b29b';tc.fillRect(0,0,32,32);tc.fillStyle='#67a489';tc.fillRect(32,0,32,32);tc.fillRect(0,32,32,32);tc.fillStyle='#74b29b';tc.fillRect(32,32,32,32);
-    tc.fillStyle='#c5d08a';tc.fillRect(0,0,64,2);tc.fillRect(0,0,2,64);
+    tc.fillStyle='#8a6f4c';tc.fillRect(0,0,64,64);tc.fillStyle='#95784f';tc.fillRect(2,2,30,30);
+    tc.fillStyle='#7d6444';tc.fillRect(0,0,64,1);tc.fillRect(0,0,1,64);
     const tex=keep(new THREE.CanvasTexture(tile));tex.magFilter=THREE.NearestFilter;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.colorSpace=THREE.SRGBColorSpace;
     const mat=keep(new THREE.MeshStandardMaterial({map:tex,roughness:.95}));
-    for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0;tex.repeat.set(w,d);const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);
+    for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0;tex.repeat.set(w/3,d/3);const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);
       const quad=mesh(g,mat,(f.x0+f.x1)/2,f.y,(f.z0+f.z1)/2,false);quad.name='floor-cloth';root.add(quad);}
-    // 讲台脚下的圆形描线标记（第 12.5 节）：浅黄圆环 + 一横，画在地垫上，把讲台圈在中间（对齐 2D 参照）。
+    // 主持台的细圆形定位线。
     const mark=document.createElement('canvas');mark.width=mark.height=256;const mc=mark.getContext('2d')!;
-    mc.strokeStyle='#c5d08a';mc.lineWidth=7;mc.beginPath();mc.arc(128,128,86,0,Math.PI*2);mc.stroke();
-    mc.fillStyle='#c5d08a';mc.fillRect(112,236,32,8);
+    mc.strokeStyle='#a8946e';mc.lineWidth=3;mc.beginPath();mc.arc(128,128,86,0,Math.PI*2);mc.stroke();
+    mc.fillStyle='#a8946e';mc.fillRect(112,236,32,4);
     const markTex=keep(new THREE.CanvasTexture(mark));markTex.magFilter=THREE.NearestFilter;markTex.colorSpace=THREE.SRGBColorSpace;
     const ring=new THREE.PlaneGeometry(2.2,2.2);ring.rotateX(-Math.PI/2);
     const pod=layout.podium.position;
     root.add(mesh(ring,keep(new THREE.MeshStandardMaterial({map:markTex,transparent:true,roughness:.95})),pod[0],pod[1]+.016,pod[2],false));
-    // 浅黄描线把辩论区围出来（第 12.5 节，对齐 2D 参照里那一圈黄线）：贴着书架和讲台后面，围到两队桌子外沿。
-    const lineMat=keep(new THREE.MeshStandardMaterial({color:'#c5d08a',roughness:.95}));
-    // 描线框包住两队桌子（12.16 二轮房间放宽后同步重算），前后留一点余量。
+    // 细描线包住桌椅，同时限制在墙内，避免扩建后侧边跑进墙外。
+    const lineMat=keep(new THREE.MeshStandardMaterial({color:'#a8946e',roughness:.95}));
     const seats=layout.chairs.filter(c=>c.side==='pro'||c.side==='con');
-    const xs=seats.map(c=>c.position[0]),zs=seats.map(c=>c.position[2]);
-    const margin=layout.tables.find(t=>t.side==='pro')!.length/2+.9;
-    const [bx0,bx1]=[Math.min(...xs)-margin,Math.max(...xs)+margin];
-    const [bz0,bz1]=[room.bounds.min[2]+.3,Math.max(...zs)+1.4];
-    for(const [w,d,x,z] of [[.14,bz1-bz0,bx0,(bz0+bz1)/2],[.14,bz1-bz0,bx1,(bz0+bz1)/2],[bx1-bx0,.14,(bx0+bx1)/2,bz0],[bx1-bx0,.14,(bx0+bx1)/2,bz1]] as const){
+    const corners=layout.tables.filter(t=>t.side!=='judge').flatMap(t=>[-1,1].flatMap(x=>[-1,1].map(z=>{
+      const u=x*t.length/2,v=z*t.depth/2,c=Math.cos(t.skirtYaw),s=Math.sin(t.skirtYaw);
+      return [t.center[0]+u*c+v*s,t.center[2]-u*s+v*c];
+    })));
+    const xs=[...seats.map(c=>c.position[0]),...corners.map(p=>p[0])],zs=[...seats.map(c=>c.position[2]),...corners.map(p=>p[1])];
+    const [bx0,bx1]=[Math.max(room.bounds.min[0]+.5,Math.min(...xs)-.65),Math.min(room.bounds.max[0]-.5,Math.max(...xs)+.65)];
+    const [bz0,bz1]=[room.bounds.min[2]+.3,Math.min(room.bounds.max[2]-.5,Math.max(...zs)+.65)];
+    for(const [w,d,x,z] of [[.04,bz1-bz0,bx0,(bz0+bz1)/2],[.04,bz1-bz0,bx1,(bz0+bz1)/2],[bx1-bx0,.04,(bx0+bx1)/2,bz0],[bx1-bx0,.04,(bx0+bx1)/2,bz1]] as const){
       const strip=new THREE.PlaneGeometry(w,d);strip.rotateX(-Math.PI/2);root.add(mesh(strip,lineMat,x,pod[1]+.013,z,false));}
   }
   // 桌子和椅子。
@@ -76,7 +84,7 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
     dynamic.add(unit.stick);mics.set(id,{index,stick:unit.stick,on:false,level:0});
   };
   for(const d of layout.desk)if(d.mic&&d.actor!==undefined)addMic(d.id,root,new THREE.Vector3(...d.mic),d.yaw+Math.PI,d.actor);
-  // 桌上的小摆设：书、绿植、蜡烛；北墙两幅金框风景画挂在书架上方。
+  // 桌上的笔记本和绿植；北墙风景画使用细灰框。
   for(const t of layout.tables){const end=t.length/2-.55;const decor=createTableDecor(m,t.side==='judge'?'judge':t.side,end);
     // 摆件放在桌面上：y 要加桌面高度（第 12.12 节第 4 条，底面贴着桌面）。
     decor.position.set(t.center[0],t.center[1]+t.height,t.center[2]);decor.rotation.y=t.skirtYaw;root.add(decor);}

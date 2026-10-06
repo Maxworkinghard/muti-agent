@@ -18,7 +18,7 @@ export function Hud({s,cast,view,setView,reset,anchor,hover,credit,quality,setQu
     {s.bubbles.filter(b=>b.speakerId!==view).map(b=><div key={b.id} ref={el=>anchor(b.speakerId,'bubble',el)} className="mc-tooltip mc-bubble" style={{opacity:Math.min(1,Math.max(0,(b.expires-s.now)/200))}}><div style={{color:teamColor(s.actors[b.speakerId]?.side??'host')}}>{b.header}</div><p>{b.text}{b.cut?'——':''}</p></div>)}
     <div className="mc-chat" aria-live="polite">{s.chat.filter(c=>s.now-c.born<10500).map(c=><div key={c.id} style={{color:c.color,fontStyle:c.private?'italic':undefined,opacity:Math.min(1,(10500-(s.now-c.born))/500)}}>{c.text}</div>)}</div>
     {s.title&&titleOpacity>0&&<div className="mc-title" style={{color:s.title.color,opacity:titleOpacity}}><strong>{s.title.text}</strong><div>{s.title.sub}</div></div>}
-    {s.toast!==null&&s.now-s.toast<6000&&<aside className="mc-toast"><span>📖</span><div>辩论结束<small>结果已写入工作区</small></div></aside>}
+    {s.toast!==null&&s.now-s.toast<6000&&<aside className="mc-toast"><span>📖</span><div>辩论结束<small>讨论总结已生成</small></div></aside>}
     {me&&<div className="mc-own-speech"><span style={{color:teamColor(s.actors[view]?.side??'host')}}>{s.actors[view]?.name}：</span>{me.text}{me.cut?'——':''}</div>}
     <div className="mc-actionbar">{actionBar(s)}</div>
     {s.session==='paused'&&(view==='free'?<div className="mc-paused-camera">辩论已暂停 · 镜头可移动</div>:<div className="mc-paused"><strong>已暂停</strong></div>)}

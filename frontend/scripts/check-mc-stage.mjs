@@ -25,7 +25,19 @@ try {
   const initialBubbleCount=s.bubbles.length;tick([{type:'message',message:msg('private-u','秘密',{speakerId:'user',kind:'user',private:true,targetId:'p0'})},{type:'message',message:msg('private-r','悄悄回复',{kind:'reply',private:true,targetId:'user'})}]);assert.equal(s.bubbles.length,initialBubbleCount);assert.ok(s.chat.filter(c=>c.private).length>=2);console.log('Pass：私聊与回复没有气泡，只有灰色斜体聊天行。');
   tick([{type:'status',agentId:'p0',state:'speaking',action:'立论'}]);tick([{type:'session',state:'paused'}]);const paused=structuredClone(s);for(let i=0;i<20;i++)tick([],100);assert.deepEqual(s,paused);tick([{type:'session',state:'running'}],0);now=s.now;until(()=>s.actors.p0.ready);console.log('Pass：暂停期间动作、气泡、聊天计时均定格；恢复从原处继续。');
   tick([{type:'error',id:'offline',agentId:'p0',message:'测试错误'}]);assert.equal(s.actors.p0.error,'测试错误');tick([{type:'clear_error',agentId:'p0'}]);assert.equal(s.actors.p0.error,null);assert.ok(s.chat.some(c=>c.text.includes('重新加入')));console.log('Pass：成员掉线、恢复和提示。');
-  s=createDirector(cast,room,'辩题');now=0;trace=[];signals=[];tick([{type:'result',result:{consensus:[],disagreements:[],openQuestions:[],suggestions:[],verdict:{winner:'正方',proScore:82,conScore:76}}},{type:'session',state:'finished'}]);until(()=>s.resultStage===3);const bells=trace.filter(a=>a.kind==='tapBell');assert.equal(bells.length,2);const firstWinnerMic=trace.find(a=>a.kind==='mic'&&a.actor==='p0');assert.ok(firstWinnerMic.at>bells[1].at);assert.ok(trace.filter(a=>a.kind==='crouch').every(a=>a.at>firstWinnerMic.at));assert.ok(s.boardResult,'辩题屏没有显示结果');assert.ok(['p0','p1','p2'].every(id=>s.mics[s.actors[id].anchor.mic]),'胜方话筒灯环没有全亮');assert.ok(['p3','p4','p5'].every(id=>!s.mics[s.actors[id].anchor.mic]),'负方的话筒也亮了');assert.ok(Object.values(s.actors).filter(a=>a.side!=='host').every(a=>a.sit===1));assert.equal(s.executed,s.enqueued);console.log('Pass：拍两下桌铃→胜方按亮话筒→全体起立蹲两下→坐回→辩题屏显示比分；每个排入队列的动作均执行。');
+  s=createDirector(cast,room,'辩题');now=0;trace=[];signals=[];
+  // 故意带上旧版本的评分字段，确认已完成的旧会话也不会触发胜负展示。
+  tick([{type:'result',result:{summary:'双方讨论结束。',consensus:[],disagreements:[],openQuestions:[],suggestions:[],verdict:{winner:'正方',proScore:82,conScore:76}}},{type:'session',state:'finished'}]);
+  until(()=>s.resultStage===3);
+  const bells=trace.filter(a=>a.kind==='tapBell');assert.equal(bells.length,1);
+  assert.ok(s.boardResult,'辩题屏没有进入结束状态');
+  assert.ok(Object.values(s.actors).every(a=>!s.mics[a.anchor.mic]),'结束后仍有话筒灯亮着');
+  assert.ok(Object.values(s.actors).filter(a=>a.side!=='host').every(a=>a.sit===1));
+  assert.equal(Object.values(s.actors).find(a=>a.side==='host').sit,0,'主持人应留在讲台后站立');
+  assert.equal(trace.filter(a=>a.kind==='clap').length,cast.length,'双方和主持应同样鼓掌致意');
+  assert.ok(!trace.some(a=>a.kind==='cheer'||a.kind==='crouch'),'结束时仍有获胜庆祝');
+  assert.equal(s.title.text,'本场辩论结束');assert.equal(s.title.sub,'讨论总结已生成');
+  assert.equal(s.executed,s.enqueued);console.log('Pass：一次桌铃→关闭全部话筒→双方起立致意并归位→显示结束状态；旧评分数据不触发胜负动画。');
   s=createDirector(cast.filter(p=>p.side!=='host'),room,'辩题');now=0;tick([{type:'round',round:1,label:'立论陈述'}]);assert.ok(s.roundReady);assert.ok(s.stages.every(v=>!v)&&s.stage===-1);assert.ok(s.bellAt<0&&s.buttonAt<0);console.log('Pass：没有主持时没人按「下一轮」、没人拍桌铃。');
   console.log('11 项舞台检查通过。');
 }finally{await vite.close();}

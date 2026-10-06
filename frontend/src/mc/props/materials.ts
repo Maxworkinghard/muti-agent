@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import {createFlatBatch} from './geometry';
 /**
- * 道具材质：颜色和物件语言对齐项目 2D 像素场景的色板（pixelDebateRoom），
- * 全部是平色的像素风，不做照片级写实；交互器件（拉杆、红石灯、钟、按钮）保持我的世界原味。
+ * 现代 MC 辩论室的浅木、灰白和金属色板；蓝红用于队伍识别。
+ * 保留方块形体和游戏交互器件，使用哑光表面控制高光。
  * 开麦灯、阶段灯的亮度按座位逐级调（propGlow / propLevels）。
  */
-export const PALETTE={wood:'#ab7646',woodDark:'#8a5b34',cream:'#f8e2bc',board:'#fbf3df',ink:'#3d3a42',blue:'#4e79a1',red:'#c45f53',bench:'#8d3d4a',stone:'#8f8a7e',brass:'#d9a441',brassDark:'#b0812e',lampOff:'#54332a',leaf:'#2f8a55',leafDark:'#1f6b40',pot:'#f4efe4',paper:'#f6f2e8',gray:'#b8b2a4',flame:'#ffb84d'} as const;
+export const PALETTE={wood:'#b08a5a',woodDark:'#4a3a2c',cream:'#e4e8e9',board:'#e7eef3',ink:'#263947',blue:'#3f78b6',red:'#b95b63',bench:'#647282',stone:'#a9a8a3',brass:'#d9a441',brassDark:'#b0812e',lampOff:'#54332a',leaf:'#2f8a55',leafDark:'#1f6b40',pot:'#e4e9ed',paper:'#f1f4f5',gray:'#8999a8',flame:'#ffdfae'} as const;
 export interface PropMaterials {
   wood:THREE.MeshStandardMaterial;woodDark:THREE.MeshStandardMaterial;clothPro:THREE.MeshStandardMaterial;clothCon:THREE.MeshStandardMaterial;clothJudge:THREE.MeshStandardMaterial;
   stone:THREE.MeshStandardMaterial;brass:THREE.MeshStandardMaterial;brassDark:THREE.MeshStandardMaterial;lampOff:THREE.MeshStandardMaterial;board:THREE.MeshStandardMaterial;paper:THREE.MeshStandardMaterial;
@@ -47,7 +47,7 @@ export function createMaterials():PropMaterials {
     wood:flat(PALETTE.wood),woodDark:flat(PALETTE.woodDark,.85),clothPro:flat(PALETTE.blue,.95),clothCon:flat(PALETTE.red,.95),clothJudge:flat(PALETTE.gray,.95),
     stone:flat(PALETTE.stone,.9),brass:flat(PALETTE.brass,.45),brassDark:flat(PALETTE.brassDark,.5),lampOff:flat(PALETTE.lampOff,.8),board:flat(PALETTE.woodDark),paper:flat(PALETTE.paper,.9),
     pot:flat(PALETTE.pot,.95),leaf:flat(PALETTE.leaf,.95),leafDark:flat(PALETTE.leafDark,.95),candle:flat('#f3ecd9',.85),
-    flame:keep(new THREE.MeshStandardMaterial({color:'#7a4a1a',emissive:PALETTE.flame,emissiveIntensity:2.4,roughness:.5})),
+    flame:keep(new THREE.MeshStandardMaterial({color:'#e0e7e9',emissive:PALETTE.flame,emissiveIntensity:1.2,roughness:.5})),
     levels,flatBatch,glow,redstoneLamp,indicator:glowTile,owned,
     env(map,intensity=.9){for(const x of owned)if(x instanceof THREE.MeshStandardMaterial){x.envMap=map;x.envMapIntensity=intensity;x.needsUpdate=true;}},
   };

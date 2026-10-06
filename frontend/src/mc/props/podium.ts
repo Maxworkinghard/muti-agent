@@ -3,15 +3,14 @@ import type {Room} from '../rooms/debate';
 import type {PropMaterials} from './materials';
 import {mesh,rbox,textCanvas,FONT,type Keep} from './geometry';
 /**
- * 主持的讲台：像素风的暖木斜面台子，摊着一沓讲稿（翻页是物理的：一页真的翻过去），
+ * 主持的讲台：浅灰窄立柱、金属底座和浅木斜面，讲稿保留实体翻页，
  * 右侧一粒石质按钮按下去弹回来，旁边的小灯是主持自己的"开麦灯"。
  */
 export function createPodium(layout:Room['layout'],m:PropMaterials,keep:Keep,dynamic:Set<THREE.Object3D>,glowLamp:THREE.Material){
   const podium=new THREE.Group();podium.position.set(...layout.podium.position);podium.rotation.y=layout.podium.yaw;
   podium.add(mesh(rbox(.66,.06,.5,.004),m.woodDark,0,.03,0));
-  const side=new THREE.Shape([new THREE.Vector2(-.22,.06),new THREE.Vector2(.22,.06),new THREE.Vector2(.2,1.18),new THREE.Vector2(-.2,1.18)]);
-  const bodyGeo=new THREE.ExtrudeGeometry(side,{depth:.62,bevelEnabled:false});bodyGeo.translate(0,0,-.28);bodyGeo.rotateY(Math.PI/2);
-  podium.add(mesh(bodyGeo,m.wood));
+  podium.add(mesh(rbox(.42,1.06,.3,.008),m.stone,0,.59,0));
+  podium.add(mesh(rbox(.24,.025,.015,.003),m.clothJudge,0,.96,.158));
   const top=new THREE.Group();top.position.set(0,1.18,0);top.rotation.x=-.24;podium.add(top);
   top.add(mesh(rbox(.62,.035,.46,.004),m.wood));
   top.add(mesh(rbox(.58,.028,.02,.004),m.woodDark,0,.026,-.21));

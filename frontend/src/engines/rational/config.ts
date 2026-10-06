@@ -2,6 +2,6 @@
 export const RATIONAL_DEFAULTS: Record<string, unknown> = {
   temperature: 0.9,
   directorTemperature: 0.7,
-  judgeTemperature: 0.3,
+  summaryTemperature: 0.3,
   pace: 0.45,
 };

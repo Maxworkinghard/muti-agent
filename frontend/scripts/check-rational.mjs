@@ -45,23 +45,27 @@ try {
   }
 
   async function play(config) {
-    const seen = { judgePrompt: '', actorPrompts: [], directorPrompts: [], targetActor: [], otherActor: [] };
+    const seen = { summaryPrompt: '', summaryCalls: 0, actorPrompts: [], directorPrompts: [], targetActor: [], otherActor: [] };
     let invalidPositionOnce = true;
     // 发私聊时私聊对象已经拿到过几次提示词；之后的才算“私聊之后”
     let chatAt = -1;
     const mock = async (messages) => {
       const system = messages[0].content;
+      assert.ok(!system.includes('主持人兼裁判') && !system.includes('你是中立裁判'), '正式比赛仍然调用模型评比');
       if (system.includes('正式辩论的导演')) {
         // 记下这一步导演在安排谁
         seen.directorPrompts.push({ speaker: messages[1].content.match(/下一句固定由 (.+?)（/)?.[1], text: system + '\n' + messages[1].content });
         return JSON.stringify({ gist: '回应现场具体论点', tone: '自然', stance: '坚持本方', plan: '继续追问', pressure: 1, confidence: 0 });
       }
-      if (system.includes('本场主持人兼裁判') || system.includes('你是中立裁判')) {
-        seen.judgePrompt = messages[1].content;
+      if (system.includes('赛后讨论记录')) {
+        seen.summaryPrompt = messages[1].content;
+        seen.summaryCalls++;
+        assert.ok(system.includes('不打分、不判胜负、不排名'), '总结请求仍允许评分或排名');
+        // 即使模型夹带旧评分字段，实际引擎返回的结果也只能保留讨论总结。
         return JSON.stringify({ winner: '正方', proScore: 82, conScore: 78,
-          reason: '正方回答了核心问题', unanswered: ['反方一个问题没有答完'],
+          verdict: { winner: '正方', proScore: 82, conScore: 78 }, openQuestions: ['仍需明确成本口径'],
           consensus: ['双方都关心成本'], disagreements: ['长期收益'], suggestions: [],
-          summary: '本场双方围绕成本交锋。', motion: { motion: '实行四天工作制', pro: '应该实行', con: '不应该实行' } });
+          summary: '本场双方围绕成本交锋。' });
       }
       if (system.includes('正式辩论中扮演')) {
         seen.actorPrompts.push(system);
@@ -103,8 +107,9 @@ try {
     assert.ok(speeches.every((x) => completed.get(x.id)?.length <= config.maxChars));
     assert.ok(events.some((x) => x.type === 'message' && x.message.kind === 'reply' && x.message.private));
     assert.ok(events.some((x) => x.type === 'message' && x.message.kind === 'reply' && !x.message.private));
-    assert.ok(!seen.judgePrompt.includes('私下问一句'));
-    assert.ok(seen.judgePrompt.includes('请解释成本'));
+    assert.ok(!seen.summaryPrompt.includes('私下问一句'));
+    assert.ok(seen.summaryPrompt.includes('请解释成本'));
+    assert.equal(seen.summaryCalls, 1, '赛后应只整理一次总结');
     // 不读心：导演安排谁，只看得到谁自己的心思；别人的心思看不到，只能从公开记录去猜
     const names = config.participants.map((p) => p.persona.name);
     assert.ok(seen.directorPrompts.some((d) => d.text.includes('内心-' + d.speaker)), '导演应该看得到下一位发言人自己的心思');
@@ -124,8 +129,7 @@ try {
     assert.ok(!seen.otherActor.some((x) => x.includes('私下问一句')), '其他辩手不应该看到私聊');
     assert.ok(seen.actorPrompts.some((x) => x.includes('性格是一种倾向')));
     const result = events.find((x) => x.type === 'result')?.result;
-    assert.equal(result?.verdict?.winner, '正方');
-    assert.equal(result?.verdict?.judge, config.participants.find((p) => p.side === 'host')?.persona.name ?? '中立裁判');
+    assert.deepEqual(result, {summary:'本场双方围绕成本交锋。',consensus:['双方都关心成本'],disagreements:['长期收益'],openQuestions:['仍需明确成本口径'],suggestions:[]}, '赛后结果夹带评分字段或丢失讨论总结');
     return speeches.map((x) => x.speakerId);
   }
 
@@ -143,7 +147,7 @@ try {
       const position = system.match(/"position":"(支持辩题|反对辩题|中立)"/)?.[1];
       return JSON.stringify({ say: ['先说第一段。', '再说第二段。'], inner: '', position });
     }
-    return JSON.stringify({ winner: '平局', proScore: 80, conScore: 80 });
+    return JSON.stringify({ summary: '双方提出了不同的工作安排。' });
   });
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('暂停回归检查超时')), 3000);
@@ -181,7 +185,7 @@ try {
     const system = messages[0].content;
     if (system.includes('正式辩论的导演')) return JSON.stringify({ gist: '回应质询' });
     if (system.includes('正式辩论中扮演')) return JSON.stringify({ say: ['这是一个公开论点。'], inner: '', position: system.match(/"position":"(支持辩题|反对辩题|中立)"/)?.[1] });
-    return JSON.stringify({ winner: '正方', proScore: 82, conScore: 76 });
+    return JSON.stringify({ summary: '双方讨论了公开论点。' });
   };
   const stageEvents = [], gateCalls = [];
   const immediate = createRationalEngine(stageChat);
@@ -211,7 +215,7 @@ try {
     } });
   });
   console.log('Pass：公开质询 targetId、即时门禁顺序、永不完成门禁的 4 秒上限和暂停扣时。');
-  console.log('独立辩论引擎：静态人物、轮次、随机开局、私聊隔离、字数限制、裁决均通过。');
+  console.log('独立辩论引擎：人物、轮次、随机开局、私聊隔离、字数限制与中立赛后总结均通过；没有模型评比或评分结果。');
 } finally {
   await server.close();
 }

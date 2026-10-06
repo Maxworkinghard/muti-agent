@@ -458,9 +458,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .side { font-style: normal; font-size: 10px; padding: 0 3px; color: var(--cream); border: 1px solid var(--ink); }
 .side-pro { background: var(--c-blue); } .side-con { background: var(--c-red); } .side-host { background: var(--c-yellow); color: var(--ink); }
 .line .who em.line-tag { font-style: normal; font-weight: normal; font-size: 10px; color: var(--ink); opacity: .7; }
-.verdict-score { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0; }
-.verdict-score .side { font-size: 12px; padding: 1px 6px; }
-.verdict-score strong { font-size: 15px; }
 .dot { display: inline-block; width: 7px; height: 7px; margin-right: 4px; background: #a99db5; vertical-align: 1px; }
 .member.st-speaking .dot { background: var(--c-red); animation: blink .5s steps(2) infinite; }
 .member.st-thinking .dot { background: var(--c-yellow); }

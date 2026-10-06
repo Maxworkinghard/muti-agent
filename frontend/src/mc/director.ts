@@ -24,7 +24,6 @@ const lerp=(a:Point,b:Point,t:number)=>a.map((n,i)=>n+(b[i]-n)*t) as Point;
 const ease=(n:number)=>n*n*(3-2*n);
 const angular=(a:number,b:number)=>Math.atan2(Math.sin(b-a),Math.cos(b-a));
 function phase(label:string){return /立论/.test(label)?0:/交锋|质询/.test(label)?1:2;}
-function winner(r:DiscussionResult){const w=r.verdict?.winner??'';return /^(pro|正方)$/i.test(w)?'pro':/^(con|反方)$/i.test(w)?'con':null;}
 function targetPoint(target:Target,a:Actor,s:DirectorState,room:Room):Point {if(typeof target==='object'){const other=s.actors[target.agent];return other?[other.position[0],other.position[1]+1.62-other.sit*.578,other.position[2]]:room.judge;}const podium=room.layout.podium.position;return target==='camera'?room.judge:target==='bell'?[podium[0]+.4,podium[1]+1.03,podium[2]-.02]:[podium[0],podium[1]+1.12,podium[2]];}
 function destination(a:Actor,action:Extract<Action,{kind:'walk'}>):Point{return action.to==='stand'?a.anchor.stand:a.anchor.seat;}
 function duration(a:Actor,action:Action,room:Room,reduced:boolean){if(action.kind==='signal')return 0;if(action.kind==='wait')return action.ms;if(reduced)return 0;return action.kind==='walk'?Math.max(180,distance(a.position,destination(a,action))/2.2*1000):action.kind==='crouch'?action.times*500:action.kind==='cheer'?1600:action.kind==='clap'?1400:action.kind==='flipScript'?500:300;}
@@ -91,8 +90,8 @@ export function step(previous:DirectorState,now:number,inputs:Input[],room:Room)
       if(input.agentId){const a=s.actors[input.agentId];if(a?.error){a.error=null;if(a.active)a.active.start+=s.now-a.errorAt;chat('recover-'+a.id+'-'+s.now,a.name+' 重新加入了','#FFFF55');}}else s.globalError=null;
     }else if(input.type==='result'){
       s.result=input.result;s.resultStage=0;s.pair=[];for(const m of Object.values(s.pending))finishMessage(m.id);
-      if(host)queue(host,{kind:'face',target:'bell'},{kind:'tapBell'},...(input.result.verdict?[{kind:'wait',ms:350},{kind:'tapBell'}] as Action[]:[]));
-      const w=winner(input.result),v=input.result.verdict;s.title=v?{text:w==='pro'?'正方胜':w==='con'?'反方胜':'平局',sub:`正方 ${v.proScore??'—'} : ${v.conScore??'—'} 反方`,color:w?teamColor(w):'#FFAA00',born:s.now}:null;
+      if(host)queue(host,{kind:'face',target:'bell'},{kind:'tapBell'});
+      s.title=null;s.lookSpeaker=null;
     }
   }
   if(s.session==='paused'||s.session==='stopped'||s.globalError)return {state:s,outputs};
@@ -150,25 +149,19 @@ export function step(previous:DirectorState,now:number,inputs:Input[],room:Room)
     if(m.kind==='react'||m.complete)finishMessage(m.id);
   }
   if(s.resultStage===0&&(!host||!host.active&&!host.queue.length)){
-    s.resultStage=1;const w=s.result?winner(s.result):null;
-    for(const a of Object.values(s.actors))if(a.side===w)queue(a,{kind:'standUp'},{kind:'walk',to:'stand'},{kind:'mic',on:true});
+    s.resultStage=1;
+    for(const a of Object.values(s.actors))queue(a,{kind:'mic',on:false});
   }else if(s.resultStage===1&&Object.values(s.actors).every(a=>!a.active&&!a.queue.length)){
-    s.resultStage=2;const w=s.result?winner(s.result):null;
-    // 结果的庆祝（第 12.6 节）：胜方举手跳两下、和队友击掌，大笑；负方站着鼓掌致意，先失落再释然；主持鼓掌。
+    s.resultStage=2;
+    // 赛后双方起立鼓掌致意，再各自归位；没有胜负、分数或获胜庆祝。
     for(const a of Object.values(s.actors)){
-      if(a.side==='host'){queue(a,{kind:'standUp'},{kind:'face',target:'camera'},{kind:'cheer'},{kind:'clap'},{kind:'sitDown'});continue;}
-      queue(a,{kind:'standUp'},{kind:'walk',to:'stand'});
-      if(a.side===w&&w)queue(a,{kind:'face',target:'camera'},{kind:'cheer'},{kind:'crouch',times:2},{kind:'clap'});
-      else queue(a,{kind:'face',target:'camera'},{kind:'clap'},{kind:'crouch',times:1});
-      queue(a,{kind:'walk',to:'seat'},{kind:'sitDown'});
+      if(a.side==='host'){queue(a,{kind:'face',target:'camera'},{kind:'clap'});continue;}
+      queue(a,{kind:'standUp'},{kind:'walk',to:'stand'},{kind:'face',target:'camera'},{kind:'clap'},{kind:'walk',to:'seat'},{kind:'sitDown'});
     }
   }else if(s.resultStage===2&&Object.values(s.actors).every(a=>!a.active&&!a.queue.length)){
     s.resultStage=3;s.boardResult=true;s.toast=s.now;outputs.sounds.push({event:'ui.toast.challenge_complete'});
-    if(s.result?.verdict){const v=s.result.verdict,w=winner(s.result);s.title={text:w==='pro'?'正方胜':w==='con'?'反方胜':'平局',sub:`正方 ${v.proScore??'—'} : ${v.conScore??'—'} 反方`,color:w?teamColor(w):'#FFAA00',born:s.now};
-      // 烟花从胜方头顶炸开（第 12.7 节），不挡辩题板上的比分。
-      if(!s.reduced&&w)for(const a of Object.values(s.actors))if(a.side===w)outputs.particles.push({actor:a.id,kind:'firework'});}
+    s.title={text:'本场辩论结束',sub:'讨论总结已生成',color:'#FFFFFF',born:s.now};
   }
-  if(!s.reduced&&s.resultStage>=1){const w=s.result?winner(s.result):null;for(const a of Object.values(s.actors))if(a.side===w&&s.now>=a.nextParticle){a.nextParticle=s.now+2500;outputs.particles.push({actor:a.id,kind:'glint'});}}
   return {state:s,outputs};
 }
 export function actionBar(s:DirectorState){return s.session==='waiting'?'说一句话，辩论就开始':s.session==='paused'?'可以先说你的想法，点「继续」接着讨论':s.session==='stopped'?'已停止':s.session==='finished'?'已结束 · 可以继续追问（点成员可以私下问）':'';}

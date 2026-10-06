@@ -22,7 +22,7 @@ export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atl
     if(b.id.endsWith('carpet')||b.id.endsWith('candle')||b.id==='bell')support(b,!!below);
     if(b.id==='flowering_azalea'||b.id==='azalea')support(b,!!below&&/moss_block|dirt|grass_block|clay/.test(below.id));
     if(b.id.endsWith('wall_banner'))support(b,solid(b.x+(b.props.facing==='east'?1:b.props.facing==='west'?-1:0),b.y,b.z+(b.props.facing==='south'?-1:b.props.facing==='north'?1:0)));
-    if(b.id==='spruce_door'){const other=cells.get(key(b.x,b.y+(b.props.half==='lower'?1:-1),b.z));support(b,other?.id===b.id&&other.props.half!==b.props.half&&(b.props.half==='upper'||!!below));}
+    if(b.id.endsWith('_door')){const other=cells.get(key(b.x,b.y+(b.props.half==='lower'?1:-1),b.z));support(b,other?.id===b.id&&other.props.half!==b.props.half&&(b.props.half==='upper'||!!below));}
     if(b.id.endsWith('fence')||b.id.endsWith('pane')){checks.connections++;for(const [d,dx,dz] of [['north',0,-1],['south',0,1],['west',-1,0],['east',1,0]] as const){const n=cells.get(key(b.x+dx,b.y,b.z+dz));const expected=fullBlock(n)||n?.id===b.id||!!(n?.id.endsWith('pane')&&b.id.endsWith('pane'));if(b.props[d]!==String(expected))errors.push('连接状态错误 '+b.id+' '+d);}}
   }
   // 写实物品的碰撞箱（桌子、讲台）；椅子是给人坐的，不算。

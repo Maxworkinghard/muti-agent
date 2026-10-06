@@ -1,4 +1,4 @@
-// 高清材质：只取礼堂用到的方块贴图，材质包有的用材质包，没有的把原版按最近邻放大到同样的像素密度；
+// 高清材质：取房间与天花板用到的方块贴图，缺少的用原版补齐。
 // 同时生成法线贴图（亮度做 Sobel）和粗糙度/金属度贴图（按材质类别查表），三张图位置一一对应。
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -10,11 +10,12 @@ const json = (b) => JSON.parse(new TextDecoder().decode(b));
 /** 粗糙度、金属度按贴图名归类：木 0.7、石 0.85、羊毛 0.95、金属 0.3、玻璃 0.05（第 11.3 节）。 */
 function material(name) {
   if (/glass/.test(name)) return { rough: 0.06, metal: 0 };
+  if (/sea_lantern/.test(name)) return { rough: 0.6, metal: 0 };
   if (/iron|chain|lantern|bell|anvil|gold_block|copper|lightning_rod/.test(name)) return { rough: 0.38, metal: 0.85 };
   if (/wool|carpet/.test(name)) return { rough: 0.96, metal: 0 };
   if (/planks|log|wood|door|trapdoor|barrel|bookshelf|lectern|ladder|fence|scaffold|shelf/.test(name)) return { rough: 0.72, metal: 0 };
   if (/leaves|azalea|grass|fern|flower|moss|vine/.test(name)) return { rough: 0.62, metal: 0 };
-  if (/terracotta|concrete/.test(name)) return { rough: 0.55, metal: 0 };
+  if (/terracotta|concrete/.test(name)) return { rough: 0.84, metal: 0 };
   return { rough: 0.86, metal: 0 };
 }
 
@@ -33,7 +34,7 @@ async function usedTextures(root, states, models) {
     used.add('block/redstone_lamp_on');
     // 运行时会切换状态的方块（灯笼等）两种状态都收。
     const variants = (b) => [b, ...(b.id === 'lantern' ? [{ ...b, props: { ...b.props, hanging: b.props.hanging === 'true' ? 'false' : 'true' } }] : [])];
-    for (const block of room.blocks) for (const b of variants(block)) for (const ref of model.blockModels({ states }, b)) {
+    for (const block of [...room.blocks,...room.ceiling]) for (const b of variants(block)) for (const ref of model.blockModels({ states }, b)) {
       const m = model.resolveModel(models, ref.model);
       for (const e of m.elements ?? []) for (const face of Object.values(e.faces)) used.add(model.resolveTexture(m, face.texture));
     }

@@ -132,7 +132,7 @@ export const SCENES: Record<string, SceneDef> = {
     ...ORIGINAL_SCENES.debate,
     id: 'debate-mc', name: '辩论室 · 我的世界', sourceSceneId: 'debate', mcStage: 'debate',
     previewImage: '/mc/preview-debate.jpg',
-    description: '《我的世界》里的辩论室：发言人按话筒开麦、舞台灯跟着照，主持按铃换轮，辩题屏亮出比分，情绪会冒粒子',
+    description: '《我的世界》里的辩论室：发言人按话筒开麦、舞台灯跟着照，主持按铃换轮，辩题屏展示讨论进度，情绪会冒粒子',
   },
   ...Object.fromEntries(['roundtable', 'debate', 'office'].map((sourceId) => {
     const source = ORIGINAL_SCENES[sourceId];

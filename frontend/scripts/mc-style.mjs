@@ -12,18 +12,21 @@ const vite=await createServer({root,configFile:false,logLevel:'error',server:{mi
 let used;
 try{
   const [{buildDebateRoom},{blockModels,resolveModel,resolveTexture}]=await Promise.all([vite.ssrLoadModule('/src/mc/rooms/debate.ts'),vite.ssrLoadModule('/src/mc/blockModel.ts')]);
-  used=new Set();for(const b of buildDebateRoom().blocks)for(const ref of blockModels(assets,b)){
+  const room=buildDebateRoom();used=new Set();for(const b of [...room.blocks,...room.ceiling])for(const ref of blockModels(assets,b)){
     const m=resolveModel(assets.models,ref.model);for(const e of m.elements??[])for(const f of Object.values(e.faces))used.add(resolveTexture(m,f.texture));
   }
 }finally{await vite.close();}
-const palette={cream:'#f5dfb0',creamEdge:'#ddc293',stone:'#74717c',stoneEdge:'#5c5866',wood:'#ad7547',woodLight:'#cc975b',woodEdge:'#805233',red:'#a74a59'};
+const palette={cream:'#e0e6e9',creamEdge:'#ccd5db',stone:'#929fa8',stoneEdge:'#84929c',wood:'#b8ac92',woodLight:'#c9bea6',woodEdge:'#958d7b',red:'#b95b63'};
 function draw(name){
   const p=new PNG({width:16,height:16});
   const rgb=s=>[...s.slice(1).match(/../g)].map(x=>parseInt(x,16));
   const rect=(x,y,w,h,color)=>{const col=rgb(color);for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++){if(xx<0||xx>15||yy<0||yy>15)continue;const i=(yy*16+xx)*4;p.data.set([...col,255],i);}};
   const edge=(color,light)=>{rect(0,0,16,1,light);rect(0,0,1,16,light);rect(0,15,16,1,color);rect(15,0,1,16,color);};
   if(/sandstone/.test(name)){rect(0,0,16,16,palette.cream);edge(palette.creamEdge,'#ffebc5');rect(3,5,6,1,'#f9e5bb');rect(10,11,3,1,'#eed7a8');}
-  else if(/gray_concrete/.test(name)){rect(0,0,16,16,palette.stone);edge(palette.stoneEdge,'#928995');rect(2,3,12,1,'#807b87');rect(2,11,12,1,'#6a6573');}
+  else if(/concrete|quartz|smooth_stone/.test(name)){
+    const light=/white|light_gray|quartz/.test(name);rect(0,0,16,16,light?palette.cream:palette.stone);
+    edge(light?palette.creamEdge:palette.stoneEdge,light?'#e9eef0':'#a4b0b8');
+  }
   else if(/red_wool/.test(name)){rect(0,0,16,16,palette.red);edge('#773944','#c66b76');rect(2,7,12,1,'#b25463');}
   else if(/bookshelf/.test(name)){
     rect(0,0,16,16,palette.woodEdge);rect(0,0,16,2,palette.woodLight);rect(0,7,16,2,palette.wood);rect(0,14,16,2,palette.woodLight);
@@ -40,7 +43,7 @@ function draw(name){
   }
   return p;
 }
-const selected=[...used].sort().filter(n=>/^block\/(birch_planks|spruce_planks|spruce_log(_top)?|(?:smooth_)?sandstone.*|(?:light_)?gray_concrete|bookshelf|chiseled_bookshelf.*|red_wool)$/.test(n));
+const selected=[...used].sort().filter(n=>/^block\/(birch_planks|spruce_planks|spruce_log(_top)?|(?:smooth_)?sandstone.*|white_concrete|(?:light_)?gray_concrete|quartz_block_.*|smooth_stone|bookshelf|chiseled_bookshelf.*|red_wool)$/.test(n));
 await fs.mkdir(out,{recursive:true});
 for(const name of selected){const tile=atlas.textures[name],p=draw(name);
   for(let y=-2;y<tile.height+2;y++)for(let x=-2;x<tile.width+2;x++){

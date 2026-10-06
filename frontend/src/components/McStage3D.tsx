@@ -26,11 +26,9 @@ import {Sounds} from '../mc/sound';
 import {StageCamera} from '../mc/camera';
 import {createDirector,step,teamColor,type DirectorState,type Input,type Session,type Outputs} from '../mc/director';
 import {Hud,identity} from '../mc/hud/Hud';
-export interface McStageProps {inspect?:string;inspectActor?:string;events?:readonly EngineEvent[];participants:Participant[];status:Record<string,{state:AgentState;action:string}>;round:{n:number;label:string};totalRounds:number;session:Session;messages:ChatMessage[];minds:Record<string,MindView>;focus:string|null;errors:Array<{id:string;agentId?:string;message:string}>;result:DiscussionResult|null;theme:string;muted:boolean;onFocus:(id:string|null)=>void;onLoaded:(error?:string)=>void;onStageDone:(kind:'round'|'speech',key:string)=>void;visible?:boolean;gallery?:boolean;onSnapshot?:(s:DirectorState,outputs:Outputs,stats:{fps:number;calls:number;loadedMs:number;quality:Quality})=>void}
-export interface McStageProps {material?:MaterialPack}
+export interface McStageProps {inspect?:string;inspectActor?:string;events?:readonly EngineEvent[];participants:Participant[];status:Record<string,{state:AgentState;action:string}>;round:{n:number;label:string};totalRounds:number;session:Session;messages:ChatMessage[];minds:Record<string,MindView>;focus:string|null;errors:Array<{id:string;agentId?:string;message:string}>;result:DiscussionResult|null;theme:string;muted:boolean;onFocus:(id:string|null)=>void;onLoaded:(error?:string)=>void;onStageDone:(kind:'round'|'speech',key:string)=>void;visible?:boolean;gallery?:boolean;onSnapshot?:(s:DirectorState,outputs:Outputs,stats:{fps:number;calls:number;loadedMs:number;quality:Quality})=>void;material?:MaterialPack}
 const QUALITY_KEY='mc-stage-quality';
 function storedQuality():Quality|null{try{const q=localStorage.getItem(QUALITY_KEY);return q==='high'||q==='medium'||q==='low'?q:null;}catch{return null;}}
-function winnerOf(r:DiscussionResult|null):'pro'|'con'|'tie'{const w=r?.verdict?.winner??'';return /^(pro|正方)/i.test(w)?'pro':/^(con|反方)/i.test(w)?'con':'tie';}
 export function McStage3D(props:McStageProps){
   const hostRef=useRef<HTMLDivElement>(null),latest=useRef(props);latest.current=props;
   const roomRef=useRef(buildDebateRoom()),stateRef=useRef(createDirector(props.participants,roomRef.current,props.theme,matchMedia('(prefers-reduced-motion: reduce)').matches));
@@ -100,14 +98,13 @@ export function McStage3D(props:McStageProps){
         const staticMesh=buildBlockMesh(room.blocks,assets,light,shading);scene.add(staticMesh);
         // 实体天花板：默认机位在门内，不再为了全景剖开屋顶。
         const ceiling=buildBlockMesh(room.ceiling,assets,light,shading);ceiling.name='room-ceiling';scene.add(ceiling);
-        // 六盏吊灯和主持两侧灯柱实时照人物、桌面和地板；其余壁灯提供传播后的间接光。
-        const lanterns=room.blocks.filter(b=>b.id==='lantern').sort((a,b)=>b.y-a.y||Math.hypot(a.x+.5-room.host[0],a.z+.5-room.host[2])-Math.hypot(b.x+.5-room.host[0],b.z+.5-room.host[2])).slice(0,8);
-        const lanternLights=lanterns.map(b=>{const l=new THREE.PointLight('#ffe0b5',b.y>=4?8:6,12,2);l.name=`lantern-${b.x}-${b.y}-${b.z}`;l.position.set(b.x+.5,b.y+(b.props.hanging==='true'?.35:.3),b.z+.5);scene.add(l);return l;});
+        // 八组嵌入式灯具承担主照明，位置由房间布局提供，避免模型和光源脱节。
+        const lanternLights=room.lights.map((fixture,i)=>{const l=new THREE.PointLight('#ffe3c2',fixture.intensity,fixture.distance,2);l.name=`ceiling-light-${i}`;l.position.set(...fixture.position);scene.add(l);return l;});
         const entities=createEntities(assets,room);scene.add(entities.root);
         const critters=createCritters(assets,stateRef.current.now);scene.add(critters.root);
         const cast=latest.current.participants.map(p=>({id:p.agentId,anchor:p.seatIndex,side:(p.side??'host') as 'pro'|'con'|'host',name:p.persona.name,identity:identity(p,latest.current.participants)}));
         const stageProps=createDebateProps(room,cast,assets);scene.add(stageProps.root);
-        // 交互器件都是游戏方块（拉杆、钟、按钮），光来自太阳和灯笼，不再跟人走的聚光灯。
+        // 交互器件保持游戏形态，灯具照亮全屋，阳光辅助。
         const players=new Map<string,Player>();for(const p of latest.current.participants){const player=createPlayer(p,stageProps.createBook(assets),stageProps.contacts);scene.add(player.root);players.set(p.agentId,player);}
         // 预备评委本人和室内机位的材质，第一次进入自由视角时直接使用已就绪的模型。
         freeView=new FreeView(room,renderer.domElement,[room.judge[0],1,room.judge[2]],assets,()=>Object.values(stateRef.current.actors).map(a=>({x:a.position[0],y:a.anchor.stand[1],z:a.position[2],radius:.4,height:a.sit>.5?1.65:1.875})));
@@ -156,8 +153,7 @@ export function McStage3D(props:McStageProps){
           if(qualityRef.current!=='low'&&(envProgress<0||Math.abs(progress-envProgress)>.12)){envProgress=progress;captureEnvironment();}
           if(!frozen){staticMesh.traverse(o=>o.userData.animate?.(s.now));entities.update(s);critters.setMusicPlaying(sounds.musicActive);for(const c of critters.critters)c.update(s,dt);}
           const sit:Record<number,number>={};for(const a of Object.values(s.actors)){const index=room.anchors.indexOf(a.anchor);if(index>=0)sit[index]=a.sit;}
-          const v=s.result?.verdict;
-          const propState:PropState={now:s.now,mics:s.mics,stages:s.stages,stage:s.stage,bellAt:s.bellAt,pageAt:s.pageAt,buttonAt:s.buttonAt,sit,theme:s.boardTheme,label:s.boardLabel,round:s.boardRound,total,proNames,conNames,result:s.boardResult&&s.result?{pro:v?.proScore,con:v?.conScore,winner:winnerOf(s.result)}:null,reduced:s.reduced};
+          const propState:PropState={now:s.now,mics:s.mics,stages:s.stages,stage:s.stage,bellAt:s.bellAt,pageAt:s.pageAt,buttonAt:s.buttonAt,sit,theme:s.boardTheme,label:s.boardLabel,round:s.boardRound,total,proNames,conNames,finished:s.boardResult,reduced:s.reduced};
           stageProps.update(propState);
           players.forEach((p,id)=>{const a=s.actors[id];if(a){p.update(a,s,room,light);p.root.visible=viewRef.current!==id&&!galleryRef.current;}});
           propBatches.update();

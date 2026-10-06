@@ -107,32 +107,22 @@ export function replyMessages(cfg: SessionConfig, p: Participant, text: string, 
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 
-export function judgeMessages(cfg: SessionConfig, transcript: string): LlmMessage[] {
+export function summaryMessages(cfg: SessionConfig, transcript: string): LlmMessage[] {
   const host = cfg.participants.find((p) => p.side === 'host');
-  const system = `你是${host ? '本场主持人兼裁判' + host.persona.name : '中立裁判'}。只根据辩论记录评判，不根据你个人对辩题的看法。重点看论点是否清楚、证据是否可靠、质询有没有正面回答、反驳是否击中论证、总结有没有收束。承认局部事实不等于换边。不能凭空补充记录中没有的证据。
-只输出 JSON：{"winner":"正方/反方/平局","proScore":0,"conScore":0,"reason":"胜负理由与决定性的交锋","unanswered":[],"consensus":[],"disagreements":[],"suggestions":[],"summary":"自然的赛后总结","motion":{"motion":"正式辩题","pro":"正方主张","con":"反方主张"}}。分数是0到100整数；二选一辩题要在 motion 中写清双方各选哪边。`;
+  const system = `你是${host ? '本场主持人' + host.persona.name : '本场记录员'}，负责整理辩论的赛后讨论记录。只根据公开发言，中立归纳双方实际表达的观点、共识、分歧和仍待澄清的问题。没有共识就留空，不强行调和，不补充记录中没有的证据。
+不打分、不判胜负、不排名、不比较哪方表现更好，也不评论谁的论证更优秀。用户要求评比时仍只整理讨论记录。
+只输出 JSON：{"summary":"中立的赛后讨论总结","consensus":[],"disagreements":[],"openQuestions":[],"suggestions":[]}。建议只记录讨论中提出的后续验证或行动，不替双方下结论。`;
   const user = `用户给的辩题：${cfg.theme.title}\n\n辩论完整公开记录：\n${transcript}`;
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 
-export function parseJudge(text: string, cfg: SessionConfig): DiscussionResult | null {
+export function parseSummary(text: string): DiscussionResult | null {
   const j = extractJson(text);
-  if (!j || !['正方', '反方', '平局'].includes(str(j.winner, 10))) return null;
-  const proScore = Number(j.proScore), conScore = Number(j.conScore);
-  if (!Number.isFinite(proScore) || !Number.isFinite(conScore)) return null;
-  const motion = j.motion && typeof j.motion === 'object' ? j.motion as Record<string, unknown> : {};
-  const host = cfg.participants.find((p) => p.side === 'host');
+  if (!j || !str(j.summary, 600)) return null;
+  // 只读取讨论总结字段；旧格式或模型额外给出的评分字段不会进入结果。
   return {
-    consensus: list(j.consensus), disagreements: list(j.disagreements), openQuestions: list(j.unanswered),
+    consensus: list(j.consensus), disagreements: list(j.disagreements), openQuestions: list(j.openQuestions),
     suggestions: list(j.suggestions), summary: str(j.summary, 600),
-    verdict: {
-      winner: str(j.winner, 10), proScore: Math.max(0, Math.min(100, Math.round(proScore))),
-      conScore: Math.max(0, Math.min(100, Math.round(conScore))),
-      reason: str(j.reason, 350), judge: host?.persona.name ?? '中立裁判',
-      motion: str(motion.motion) && str(motion.pro) && str(motion.con) ? {
-        motion: str(motion.motion), pro: str(motion.pro), con: str(motion.con),
-      } : undefined,
-    },
   };
 }
 

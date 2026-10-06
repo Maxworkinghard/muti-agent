@@ -14,7 +14,7 @@ export interface PropLayout {
 }
 /** fit 是全景必须横向完整装下的点（两队最外侧的人、椅子和名字牌），窗口变窄时镜头会放宽视角。 */
 /** windows 是西墙（下午迎着太阳）的窗洞，中档用它们画假光柱；floor 是窗下地面的高度。 */
-export interface Room {blocks:Block[];ceiling:Block[];anchors:ActorAnchor[];host:Point;camera:Point;cameraTarget:Point;fit:Point[];judge:Point;judgeTarget:Point;layout:PropLayout;banners:Array<{position:Point;side:'pro'|'con';yaw:number}>;windows:Array<{y0:number;y1:number;z0:number;z1:number;floor:number}>;/** 青绿格纹地垫：铺在方块地面上面一层，颜色对齐 2D 场景（方块地面仍然管光照）。 */floor:Array<{y:number;x0:number;x1:number;z0:number;z1:number}>;/** 室内净空间；相机和行走共用，扩建时不再各自硬编码墙的位置。 */bounds:{min:Point;max:Point}}
+export interface Room {blocks:Block[];ceiling:Block[];anchors:ActorAnchor[];host:Point;camera:Point;cameraTarget:Point;fit:Point[];judge:Point;judgeTarget:Point;layout:PropLayout;banners:Array<{position:Point;side:'pro'|'con';yaw:number}>;windows:Array<{y0:number;y1:number;z0:number;z1:number;floor:number}>;/** 地面饰面，方块地面仍负责碰撞和光照。 */floor:Array<{y:number;x0:number;x1:number;z0:number;z1:number}>;/** 灯具中心与实时光源共用位置。 */lights:Array<{position:Point;length:number;intensity:number;distance:number}>;/** 室内净空间；相机和行走共用，扩建时不再各自硬编码墙的位置。 */bounds:{min:Point;max:Point}}
 /** 碰撞箱（带朝向的长方体：中心、半边长、绕竖轴的转角），给房间检查用：人站、坐的位置和镜头视线都不能被它们挡住。 */
 export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;yaw:number}> {
   const boxes:Array<{id:string;center:Point;half:Point;yaw:number}>=[];
@@ -25,8 +25,8 @@ export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;ya
 /**
  * 辩论室（第 12.15 节，用户已确认）：不再是 22×24 的礼堂，照 2D 参照图 scene-debate.png 做的一间
  * 约 20×18 米的辩论室（12.16 二轮：用户仍觉挤，房间、桌距、座距再放宽）——没有高舞台和观众席，地面全平（脚踩 y=1）；
- * 北墙正中大辩题板、两侧队旗（左蓝右红）、再往外风景画和彩色书架；两张队色长桌八字朝南张开；
- * 中央讲台带话筒、脚下一圈圆形描线、两侧各一盆绿植；侧墙开西窗（下午的太阳）、红长凳和壁灯；
+ * 第 12.18 节改为现代辩论室：浅灰墙、平整吊顶、嵌入式长条灯、金属框桌台和电子辩题屏。
+ * 两队长桌八字朝南张开，主持台、书架、绿植和队旗沿用原布局；
  * 南侧中央是门和门廊，评委席是门边一张小桌（“你”坐这里，也是自由视角的出发点）。
  * 天花板位于 y=6；默认机位在门内，所有常用视角保留实体天花板。
  * 镜像：世界坐标按 22-x、方块格子按 21-x（房间中心是 x=11）。
@@ -43,24 +43,25 @@ const SEAT_K=[1,0,-1];
 export function buildDebateRoom():Room {
   const b=new Builder();
   // 地板（y=0）和门外的门廊平台。
-  b.fill(0,21,0,0,0,19,'birch_planks');
-  b.fill(9,12,0,0,20,21,'spruce_planks');
+  b.fill(0,21,0,0,0,19,'spruce_planks',{axis:'x'});
+  b.fill(9,12,0,0,20,21,'spruce_planks',{axis:'x'});
   b.fill(9,12,0,0,21,21,'spruce_stairs',{facing:'north'});
-  // 墙三段（第 12.5 节）：y=1 石板灰墙裙，y=2–4 奶油墙面，y=5 顶木。
+  // 浅灰墙与白色吊顶，收掉深木梁和黄墙。
   for(let y=1;y<=5;y++){
-    const id=y===1?'gray_concrete':y<5?'smooth_sandstone':'spruce_log';
+    const id=(y===1||y===5)?'light_gray_concrete':'white_concrete';
     b.fill(0,21,y,y,0,0,id,{axis:'x'}).fill(0,21,y,y,19,19,id,{axis:'x'}).fill(0,0,y,y,1,18,id,{axis:'z'}).fill(21,21,y,y,1,18,id,{axis:'z'});
   }
-  // 石板灰柱：四角和墙的中段（参照图里的竖灰条）。
-  for(const x of [0,21])for(const z of [0,9,19])b.fill(x,x,1,5,z,z,'gray_concrete');
-  for(const z of [0,19])for(const x of [5,16])b.fill(x,x,1,5,z,z,'gray_concrete');
+  // 细致的浅灰柱带，电子屏背后是一块灰色设备墙。
+  for(const x of [0,21])for(const z of [0,9,19])b.fill(x,x,1,5,z,z,'light_gray_concrete');
+  b.fill(4,17,1,5,0,0,'dark_oak_planks',{axis:'z'});
+  for(const x of [5,16])b.fill(x,x,1,5,19,19,'light_gray_concrete');
   // 四周完整的屋顶围边；默认机位在门内，不再剖开屋顶。
-  b.fill(0,21,6,6,0,0,'spruce_planks').fill(0,21,6,6,19,19,'spruce_planks').fill(0,0,6,6,1,18,'spruce_planks').fill(21,21,6,6,1,18,'spruce_planks');
+  b.fill(0,21,6,6,0,0,'smooth_quartz').fill(0,21,6,6,19,19,'smooth_quartz').fill(0,0,6,6,1,18,'smooth_quartz').fill(21,21,6,6,1,18,'smooth_quartz');
   // 窗户：两侧墙各两扇（西墙迎着下午的太阳，光柱从这里进来）。
   const windows:Room['windows']=[];
   for(const x of [0,21])for(const z of [3,11]){b.fill(x,x,2,3,z,z+2,'glass_pane');if(!x)windows.push({y0:2,y1:4,z0:z,z1:z+3,floor:1});}
   // 南墙中央的双开门，后方中央通道贯通到讲台。
-  for(const x of [10,11])for(const y of [1,2])b.put(x,y,19,'spruce_door',{facing:'north',half:y===1?'lower':'upper',hinge:x===10?'left':'right'});
+  for(const x of [10,11])for(const y of [1,2])b.put(x,y,19,'iron_door',{facing:'north',half:y===1?'lower':'upper',hinge:x===10?'left':'right'});
   // 北墙两角的书架（彩色书脊，bookshelf 混 chiseled_bookshelf），猫趴在西边这列顶上。
   for(const x0 of [1,18])for(let x=x0;x<=x0+1;x++)for(let y=1;y<=3;y++)b.put(x,y,1,(x+y)%3?'bookshelf':'chiseled_bookshelf');
   // 队旗挂北墙、辩题板两侧（左蓝右红）。
@@ -68,26 +69,27 @@ export function buildDebateRoom():Room {
   // 讲台两侧各一盆绿植；绿植沿墙一圈（第 12.5 节摆设密度）。
   b.put(6,1,1,'potted_azalea_bush',{});b.put(15,1,1,'potted_azalea_bush',{});
   for(const x of [1,20])for(const z of [3,9,16])b.put(x,1,z,'potted_fern',{});
-  // 红长凳（楼梯 + 红地毯）：两侧墙靠南各一排，南墙门口两边各一排（第 12.15 节）。
-  for(const z of [12,13]){b.put(1,1,z,'spruce_stairs',{facing:'east'}).put(1,2,z,'red_carpet');b.put(20,1,z,'spruce_stairs',{facing:'west'}).put(20,2,z,'red_carpet');}
-  for(const x of [2,3,4,17,18,19]){b.put(x,1,18,'spruce_stairs',{facing:'north'}).put(x,2,18,'red_carpet');}
-  // 壁灯：侧墙栅栏挑灯、辩题板两边各一盏、南墙长凳上方各一盏（暖光成排，不挂画面上沿禁区，12.12 第 7 条）。
-  for(const x of [1,20])for(const z of [7,14])b.put(x,3,z,'spruce_fence').put(x,2,z,'lantern',{hanging:'true'});
-  for(const x of [3,18])b.put(x,3,1,'spruce_fence').put(x,2,1,'lantern',{hanging:'true'});
-  for(const x of [5,16])b.put(x,3,18,'spruce_fence').put(x,2,18,'lantern',{hanging:'true'});
-  // 吊灯照两队和后方过道；木吊杆接在实体天花板下，灯具是房间主光（12.17）。
-  for(const x of [5,16])for(const z of [4,9,14])b.put(x,5,z,'spruce_fence').put(x,4,z,'lantern',{hanging:'true'});
-  // 主持两侧的落地灯柱照人和讲稿，灯与支架都低于辩题板下沿。
-  for(const x of [8,13])b.put(x,1,1,'spruce_fence').put(x,2,1,'lantern');
-  // 两队桌后的落地灯笼（给座位补光）。
-  for(const x of [1,20])b.put(x,1,10,'lantern');
+  // 浅灰等候凳，家具依旧靠墙，中央过道保持畅通。
+  for(const z of [12,13]){b.put(1,1,z,'quartz_stairs',{facing:'east'}).put(1,2,z,'light_gray_carpet');b.put(20,1,z,'quartz_stairs',{facing:'west'}).put(20,2,z,'light_gray_carpet');}
+  for(const x of [2,3,4,17,18,19])b.put(x,1,18,'quartz_stairs',{facing:'north'}).put(x,2,18,'light_gray_carpet');
+  // 海晶灯嵌在实体吊顶内，形成六条 1×3 米长灯和主持两侧两条短灯。
+  // 方块发光传播和实时光源对应同一套灯位，阳光仍只作辅助。
+  const ceiling=new Builder().fill(1,20,6,6,1,18,'smooth_quartz'),lights:Room['lights']=[];
+  for(const x of [5,16])for(const z of [4,9,14]){
+    ceiling.fill(x,x,6,6,z-1,z+1,'sea_lantern');
+      lights.push({position:[x+.5,5.84,z+.5],length:3,intensity:11,distance:16});
+  }
+  for(const x of [9,12]){
+    ceiling.fill(x,x,6,6,1,2,'sea_lantern');
+    lights.push({position:[x+.5,5.84,2],length:2,intensity:8,distance:14});
+  }
   const anchors:ActorAnchor[]=[];
   for(const side of ['pro','con'] as const){
     SEAT_K.forEach((k,i)=>{const z=[5,7,9][i];anchors.push({seat:teamPoint(side,k,0,0,1.5),stand:teamPoint(side,k,.18,0,1),homeYaw:teamYaw(side),mic:side+'-'+z,chair:'chair-'+side+'-'+z});});
   }
   // 主持台后移（12.16 用户反馈）：与选手桌拉开距离，门口到讲台的通道更完整。
   const host:Point=[11,1,1.55];anchors.push({seat:host,stand:host,homeYaw:0,mic:'host'});
-  const layout:PropLayout={tables:[],chairs:[],desk:[],podium:{position:[11,1,2.3],yaw:0},board:{position:[11,4.65,1.07],width:10.4,height:2.4},phaseLamps:[[10.2,3.12,1.075],[11,3.12,1.075],[11.8,3.12,1.075]]};
+  const layout:PropLayout={tables:[],chairs:[],desk:[],podium:{position:[11,1,2.3],yaw:0},board:{position:[11,4.65,1.07],width:13,height:2.4},phaseLamps:[[10.2,3.12,1.075],[11,3.12,1.075],[11.8,3.12,1.075]]};
   for(const side of ['pro','con'] as const){const base=side==='con'?3:0,yaw=teamYaw(side);
     // 桌子按游戏人物的比例（第 12.12 节「桌子」）：桌面高 0.95、厚 0.14、深 1，坐着时前臂正好平放。
     layout.tables.push({id:side+'-table',side,center:teamPoint(side,0,1.02,0,1),length:TABLE_LENGTH,depth:1,height:.95,skirtYaw:yaw});
@@ -100,6 +102,6 @@ export function buildDebateRoom():Room {
   layout.chairs.push({id:'chair-judge-0',side:'judge',position:[17.8,1,16.6],yaw:Math.PI,slide:0});
   // 全景要装下的点：两队远端和近端座位身后的椅背和人（含名字牌的余量）。
   const fit:Point[]=[];for(const side of ['pro','con'] as const)for(const k of [1,-1])for(const y of [1,3.2])fit.push(teamPoint(side,k,-.35,k<0?-.25:0,y));
-  return {blocks:b.connect(),ceiling:new Builder().fill(1,20,6,6,1,18,'birch_planks').connect(),bounds:{min:[1,1,1],max:[21,6,19]},anchors,host,camera:[11,4.3,18],cameraTarget:[11,2.8,5.4],fit,judge:[17.8,2.55,16.6],judgeTarget:[11,2.5,5],layout,windows,banners:[{position:[3.5,4,1.06],side:'pro',yaw:Math.PI},{position:[18.5,4,1.06],side:'con',yaw:Math.PI}],
+  return {blocks:b.connect(),ceiling:ceiling.connect(),lights,bounds:{min:[1,1,1],max:[21,6,19]},anchors,host,camera:[11,4.3,18],cameraTarget:[11,2.8,5.4],fit,judge:[17.8,2.55,16.6],judgeTarget:[11,2.5,5],layout,windows,banners:[{position:[3.5,4,1.06],side:'pro',yaw:Math.PI},{position:[18.5,4,1.06],side:'con',yaw:Math.PI}],
     floor:[{y:1.011,x0:1,x1:21,z0:1,z1:19}]};
 }

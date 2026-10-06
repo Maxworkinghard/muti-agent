@@ -103,7 +103,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   const minCount = isDebate ? 2 : 2;
   const debateOk = !isDebate || (sideCount('pro') >= 1 && sideCount('con') >= 1);
   const canStart = order.length >= minCount && debateOk;
-  /** 这档赛制一共几次发言：主持开场一次，每一轮正反方每人一次（最后还有裁判判定） */
+  /** 这档赛制一共几次发言：主持开场一次，每一轮正反方每人一次（最后整理讨论总结） */
   const speeches = (rounds: number) => sideCount('host') + rounds * (sideCount('pro') + sideCount('con'));
 
   const start = () => {
@@ -229,7 +229,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
               <li key={i}><i>{i + 1}</i>{roundLabel('rational', i + 1, format.rounds)}</li>
             ))}
           </ol>
-          <p className="hint">主持开场宣布辩题和双方持方 → 两方交替立论 → 交锋轮里双方互相质询、被问的一方必须正面作答 → 反方先、正方最后总结陈词 → 主持人（没有主持时由中立裁判）判定胜负并打分。</p>
+          <p className="hint">主持开场宣布辩题和双方持方 → 两方交替立论 → 交锋轮里双方互相质询、被问的一方必须正面作答 → 反方先、正方最后总结陈词 → 赛后整理双方观点、共识和待澄清问题。</p>
         </section>
       )}
 
