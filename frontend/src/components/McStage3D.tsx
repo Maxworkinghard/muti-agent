@@ -114,7 +114,7 @@ export function McStage3D(props:McStageProps){
         const propIndirect=createPropIndirectLight(light,assets.lightTexture);propIndirect.bind(stageProps.root);players.forEach(p=>propIndirect.bind(p.root));
         const particles=createParticles(assets);scene.add(particles.points);const sounds=new Sounds(assets.manifest);let nextMusicNote=0;
         // 环境反射：在舞台中间拍一张立方体贴图（天色变化较大时重拍）。
-        const pmrem=new THREE.PMREMGenerator(renderer),cubeTarget=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType}),cubeCamera=new THREE.CubeCamera(.1,60,cubeTarget);cubeCamera.position.set(9,2.8,8.5);
+        const pmrem=new THREE.PMREMGenerator(renderer),cubeTarget=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType}),cubeCamera=new THREE.CubeCamera(.1,60,cubeTarget);cubeCamera.position.set(11,2.8,10);
         let envTexture:THREE.Texture|null=null,envProgress=-1;
         const captureEnvironment=()=>{const hidden=[stageProps.root,propBatches.root,particles.points,shafts.mesh,dust.points,...[...players.values()].map(p=>p.root)].filter(o=>o.visible);hidden.forEach(o=>o.visible=false);cubeCamera.update(renderer,scene);hidden.forEach(o=>o.visible=true);envTexture?.dispose();envTexture=pmrem.fromCubemap(cubeTarget.texture).texture;stageProps.setEnvironment(envTexture,.12);players.forEach(p=>{p.material.envMap=envTexture;p.material.envMapIntensity=.12;p.material.needsUpdate=true;});};
         // 光柱、浮尘和云（第 11.4 节）：高档算体积光，中档用假光柱面片；浮尘高、中档都有。
@@ -162,7 +162,7 @@ export function McStage3D(props:McStageProps){
           players.forEach((p,id)=>{const a=s.actors[id];if(a){p.update(a,s,room,light);p.root.visible=viewRef.current!==id&&!galleryRef.current;}});
           propBatches.update();
           outputs.particles.forEach(p=>{const player=players.get(p.actor);if(player)particles.spawn(player.eye,p.kind,s.now);});
-          if(!frozen&&sounds.musicActive&&s.now>=nextMusicNote){const juke=room.bounds.max[0]-3.5;particles.spawn(new THREE.Vector3(juke,2.08,2.8),'note',s.now);nextMusicNote=s.now+2400;}
+          if(!frozen&&sounds.musicActive&&s.now>=nextMusicNote){const juke=room.bounds.max[0]-2.5;particles.spawn(new THREE.Vector3(juke,2.08,2.8),'note',s.now);nextMusicNote=s.now+2400;}
           particles.update(s.now);
           if(cam.view!==viewRef.current){const priorView=cam.view;cam.select(viewRef.current);
             if(viewRef.current==='free')spectator.enter(cam.camera,false);else spectator.exit();

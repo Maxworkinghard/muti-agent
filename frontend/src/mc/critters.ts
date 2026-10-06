@@ -31,13 +31,13 @@ export function createCritters(assets:Assets,now:number):{root:THREE.Group;critt
   for(const s of [-1,1])for(const z of [-.32,.3])catBody.add(animalBox(2,4,2,0,16,fur,s*.09,.125,z));
   root.add(cat);
   // —— 唱片机 + 栖木 + 鹦鹉：北墙东角书架前 ——
-  const jukebox=boxMesh(.9,.86,.9,keep(new THREE.MeshStandardMaterial({color:'#6b4a37',roughness:.9})),13.5,1.43,2.8);
-  const jukeboxTop=boxMesh(.7,.06,.7,keep(new THREE.MeshStandardMaterial({color:'#2c2c30',roughness:.85})),13.5,1.9,2.8);
+  const jukebox=boxMesh(.9,.86,.9,keep(new THREE.MeshStandardMaterial({color:'#6b4a37',roughness:.9})),18.5,1.43,2.8);
+  const jukeboxTop=boxMesh(.7,.06,.7,keep(new THREE.MeshStandardMaterial({color:'#2c2c30',roughness:.85})),18.5,1.9,2.8);
   root.add(jukebox,jukeboxTop);
-  const perch=boxMesh(1.6,.09,.09,keep(new THREE.MeshStandardMaterial({color:'#8a5b34',roughness:.9})),13.5,2.35,2.8);
+  const perch=boxMesh(1.6,.09,.09,keep(new THREE.MeshStandardMaterial({color:'#8a5b34',roughness:.9})),18.5,2.35,2.8);
   root.add(perch);
-  for(const x of [12.9,14.1])root.add(boxMesh(.09,1.35,.09,perch.material,x,1.675,2.8));
-  const parrot=new THREE.Group();parrot.position.set(13.5,2.395,2.8);parrot.rotation.y=Math.PI;
+  for(const x of [17.9,19.1])root.add(boxMesh(.09,1.35,.09,perch.material,x,1.675,2.8));
+  const parrot=new THREE.Group();parrot.position.set(18.5,2.395,2.8);parrot.rotation.y=Math.PI;
   const parrotBody=new THREE.Group();parrot.add(parrotBody);
   parrotBody.add(animalBox(3,6,3,2,8,bird,0,.29,0),animalBox(2,3,2,2,0,bird,0,.52,.03));
   parrotBody.add(animalBox(1,2,1,11,0,bird,0,.48,.12));

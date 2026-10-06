@@ -5,7 +5,7 @@ import {Sky} from 'three/examples/jsm/objects/Sky.js';
  * 下午三点太阳在西边 45° 高，西窗的光斑已经落到舞台上；接近傍晚六点时贴着地平线，光柱横着穿过礼堂。
  */
 export interface Environment {sun:THREE.DirectionalLight;hemi:THREE.HemisphereLight;sky:Sky;/** 0～1 的天光系数，给游戏光照网格的天光用 */daylight:number;/** 太阳的高度角（弧度） */elevation:number;direction:THREE.Vector3;update(progress:number,dt:number):boolean;setShadow(size:number):void;dispose():void}
-const center=new THREE.Vector3(9,2,8.5);
+const center=new THREE.Vector3(11,2,10);
 export function sunAt(progress:number){
   const ticks=9000+Math.min(1,Math.max(0,progress))*2800;
   const elevation=THREE.MathUtils.degToRad(90-Math.abs(ticks-6000)*90/6000);

@@ -90,7 +90,7 @@ export function createFakeShafts(windows:Array<{y0:number;y1:number;z0:number;z1
 export function createDust(rig:LightRig,count=900){
   const geometry=new THREE.BufferGeometry(),position=new Float32Array(count*3),seed=new Float32Array(count*4);
   let s=1234567;const rand=()=>{s=(s*16807)%2147483647;return (s-1)/2147483646;};
-  for(let i=0;i<count;i++){position.set([1.5+rand()*16,2.1+rand()*2.8,1.3+rand()*14],i*3);seed.set([rand(),rand(),rand(),rand()],i*4);}
+  for(let i=0;i<count;i++){position.set([1.5+rand()*19,2.1+rand()*2.8,1.3+rand()*17],i*3);seed.set([rand(),rand(),rand(),rand()],i*4);}
   geometry.setAttribute('position',new THREE.BufferAttribute(position,3));geometry.setAttribute('aSeed',new THREE.BufferAttribute(seed,4));
   const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
     uniforms:{uTime:{value:0},uSunShadow:{value:null},uSunMatrix:{value:new THREE.Matrix4()},uSunColor:{value:new THREE.Vector3()},uScale:{value:600},

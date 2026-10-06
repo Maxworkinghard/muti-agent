@@ -8,11 +8,11 @@ export function createClouds(texture:THREE.Texture){
   texture.magFilter=THREE.NearestFilter;texture.minFilter=THREE.NearestFilter;texture.generateMipmaps=false;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.needsUpdate=true;
   const geometry=new THREE.PlaneGeometry(TILE*2,TILE*2);geometry.rotateX(Math.PI/2);
   const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false,
-    uniforms:{map:{value:texture},offset:{value:0},color:{value:new THREE.Color(1,1,1)},center:{value:new THREE.Vector2(9,8)}},
+    uniforms:{map:{value:texture},offset:{value:0},color:{value:new THREE.Color(1,1,1)},center:{value:new THREE.Vector2(11,10)}},
     vertexShader:'varying vec2 vXZ;void main(){vec4 w=modelMatrix*vec4(position,1.0);vXZ=w.xz;gl_Position=projectionMatrix*viewMatrix*w;}',
     fragmentShader:`uniform sampler2D map;uniform float offset;uniform vec3 color;uniform vec2 center;varying vec2 vXZ;
       void main(){vec2 uv=(vXZ-vec2(offset,0.0))/${TILE.toFixed(1)};if(texture2D(map,uv).a<.5)discard;float fade=1.0-smoothstep(900.0,${(TILE*.9).toFixed(1)},length(vXZ-center));gl_FragColor=vec4(color,.82*fade);}`});
-  const mesh=new THREE.Mesh(geometry,material);mesh.position.set(9,HEIGHT,8);mesh.frustumCulled=false;mesh.renderOrder=-1;mesh.name='clouds';
+  const mesh=new THREE.Mesh(geometry,material);mesh.position.set(11,HEIGHT,10);mesh.frustumCulled=false;mesh.renderOrder=-1;mesh.name='clouds';
   const warm=new THREE.Color(),white=new THREE.Color(1,1,1);
   return {mesh,
     /** dt 秒；sun 是太阳光的颜色，daylight 是 0～1 的天光系数。 */
