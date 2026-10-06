@@ -73,14 +73,10 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
     if (picked[p.id]) setPicked({ ...picked, [p.id]: { ...picked[p.id], personalityId: id } });
   };
 
-  const cycleSide = (id: string) => {
-    const sides: Side[] = ['pro', 'con', 'host'];
-    const cur = picked[id].side ?? 'pro';
-    for (let k = 1; k <= 3; k++) {
-      const s = sides[(sides.indexOf(cur) + k) % 3];
-      const limit = s === 'host' ? 1 : 3;
-      if (s === cur || sideCount(s) < limit) { setPicked({ ...picked, [id]: { ...picked[id], side: s } }); return; }
-    }
+  const setSide = (id: string, side: Side) => {
+    const pk = picked[id];
+    if (!pk || (pk.side !== side && sideCount(side) >= (side === 'host' ? 1 : 3))) return;
+    setPicked({ ...picked, [id]: { ...pk, side } });
   };
 
   const minCount = isDebate ? 2 : 2;
@@ -131,7 +127,9 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
       <section className="panel cast-head">
         <h2><b>04</b> 选择人物 <small>{scene.name} · 已选 {order.length}/{maxSeats}
           {isDebate && `（正方 ${sideCount('pro')}/3 · 反方 ${sideCount('con')}/3 · 主持 ${sideCount('host')}/1）`}</small></h2>
-        <span className="hint">{notice || '想加新人物？到右上角「图鉴」里导入'}</span>
+        <span className="hint">{notice || (isDebate
+          ? '先点「入座」，再用「阵营」选择正方、反方或主持。正反方各最多 3 人，主持最多 1 人。'
+          : '想加新人物？到右上角「图鉴」里导入')}</span>
       </section>
 
       <div className="persona-grid">
@@ -168,7 +166,17 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
               <p className="pc-behavior">▸ {per.behavior}　“{per.style}”</p>
               <div className="pc-actions">
                 <button className={'px-btn ' + (pk ? 'danger' : 'primary')} onClick={() => toggle(p)}>{pk ? '移出' : '入座'}</button>
-                {pk && isDebate && <button className={'px-btn side-' + pk.side} onClick={() => cycleSide(p.id)}>{sideLabel[pk.side!]} ⇄</button>}
+                {pk && isDebate && (
+                  <label className="pc-select pc-side-select">
+                    阵营
+                    <select aria-label={`${p.name}的阵营`} value={pk.side} onChange={(e) => setSide(p.id, e.target.value as Side)}>
+                      {(['pro', 'con', 'host'] as const).map((side) => {
+                        const full = pk.side !== side && sideCount(side) >= (side === 'host' ? 1 : 3);
+                        return <option key={side} value={side} disabled={full}>{sideLabel[side]}{full ? '（已满）' : ''}</option>;
+                      })}
+                    </select>
+                  </label>
+                )}
                 {pk && isProduct && <button className={'px-btn' + (lead === p.id ? ' lead' : '')} onClick={() => setLead(p.id)}>{lead === p.id ? '★ 负责人' : '设为负责人'}</button>}
               </div>
             </article>
