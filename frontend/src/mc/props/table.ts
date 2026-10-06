@@ -19,8 +19,8 @@ export function createTable(t:Room['layout']['tables'][number],m:PropMaterials){
   g.add(mesh(rbox(L+.08,.1,D+.08,.008),m.wood,0,H-.05,0));
   g.add(mesh(rbox(L-.16,.4,.06,.006),m.stone,0,H-.34,D/2-.03));
   const label=t.side==='pro'?'正方':t.side==='con'?'反方':'评委';
-  const panel=textCanvas(1024,192,c=>{c.fillStyle='#9d9b96';c.fillRect(0,0,1024,192);
-    c.fillStyle=cloth.color.getStyle();c.fillRect(0,0,1024,18);
+  const panel=textCanvas(1024,192,c=>{c.fillStyle='#b3a78f';c.fillRect(0,0,1024,192);
+    c.fillStyle=cloth.color.getStyle();c.fillRect(0,0,1024,12);
     c.font=`700 104px ${FONT}`;c.textAlign='center';c.textBaseline='middle';c.fillText(label,512,110);});
   const panelMaterial=new THREE.MeshStandardMaterial({map:panel,roughness:.88});m.owned.push(panel,panelMaterial);
   g.add(mesh(new THREE.PlaneGeometry(L-.2,.36),panelMaterial,0,H-.32,D/2+.003,false));

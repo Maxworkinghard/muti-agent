@@ -18,17 +18,17 @@ export function createBoard(layout:Room['layout'],m:PropMaterials,keep:Keep){
   const fit=(text:string,max:number,size:number,weight=700,min=30)=>{let n=size;c2.font=`${weight} ${n}px ${FONT}`;while(n>min&&c2.measureText(text).width>max){n-=2;c2.font=`${weight} ${n}px ${FONT}`;}return n;};
   const draw=(s:PropState)=>{
     const next=JSON.stringify([s.theme,s.stages,s.stage,s.label,s.round,s.proNames,s.conNames,s.finished]);if(next===key)return;key=next;
-    const W=canvas.width,H=canvas.height,bar=90,header=116;c2.fillStyle='#e7eef3';c2.fillRect(0,0,W,H);
-    c2.fillStyle='#273d4c';c2.fillRect(0,0,W,header);
-    c2.textAlign='center';c2.textBaseline='middle';c2.fillStyle='#edf4f8';
+    const W=canvas.width,H=canvas.height,bar=90,header=116;c2.fillStyle='#f4ead8';c2.fillRect(0,0,W,H);
+    c2.fillStyle='#3d423a';c2.fillRect(0,0,W,header);
+    c2.textAlign='center';c2.textBaseline='middle';c2.fillStyle='#f5efdf';
     const title='辩题：'+(s.theme||'待定');
     c2.font=`700 104px ${FONT}`;
     if(c2.measureText(title).width<=W-160){fit(title,W-160,104);c2.fillText(title,W/2,header/2);}
     else{const chars=Array.from(title),cut=Math.ceil(chars.length/2),lines=[chars.slice(0,cut).join(''),chars.slice(cut).join('')];const size=Math.min(...lines.map(l=>fit(l,W-160,48)));c2.font=`700 ${size}px ${FONT}`;lines.forEach((l,i)=>c2.fillText(l,W/2,header/2+(i-.5)*(size+6)));}
     const contentHeight=H-bar-header,mid=header+contentHeight/2;
-    for(const [side,x,color,names] of [['正方',W/4,'#3f78b6',s.proNames],['反方',W*3/4,'#b95b63',s.conNames]] as const){c2.fillStyle=color;c2.font=`700 86px ${FONT}`;c2.fillText(side,x,mid-contentHeight*.27);c2.fillRect(x-90,mid-5,180,5);c2.fillStyle='#263947';const line=names.length?names.join(' · '):'—';fit(line,W/2-160,84,600);c2.fillText(line,x,mid+contentHeight*.24);}
-    c2.fillStyle='#c7d3dc';c2.fillRect(W/2-1,header+32,2,H-bar-header-64);
-    c2.fillStyle='#d3dee5';c2.fillRect(0,H-bar,W,bar);
+    for(const [side,x,color,names] of [['正方',W/4,'#59798d',s.proNames],['反方',W*3/4,'#a16d68',s.conNames]] as const){c2.fillStyle=color;c2.font=`700 86px ${FONT}`;c2.fillText(side,x,mid-contentHeight*.27);c2.fillRect(x-90,mid-5,180,5);c2.fillStyle='#413b30';const line=names.length?names.join(' · '):'—';fit(line,W/2-160,84,600);c2.fillText(line,x,mid+contentHeight*.24);}
+    c2.fillStyle='#d5c6a9';c2.fillRect(W/2-1,header+32,2,H-bar-header-64);
+    c2.fillStyle='#e4d5b8';c2.fillRect(0,H-bar,W,bar);
     const stageName=s.finished?'本场辩论结束':s.round?`第 ${s.round} 轮 · ${s.label}`:'等待开场';c2.textAlign='left';c2.fillStyle='#263947';fit(stageName,880,48,700);c2.fillText(stageName,64,H-bar/2);
     ['立论','交锋','总结'].forEach((n,i)=>{const x=W-810+i*270,y=H-bar/2,current=!s.finished&&s.stage===i,done=s.stages[i]&&!current;c2.beginPath();c2.arc(x,y,20,0,Math.PI*2);c2.fillStyle=current?'#1b8c7b':done?'#3f78b6':'#a6b6c2';c2.fill();c2.font=`${current?700:500} 60px ${FONT}`;c2.fillStyle=current?'#263947':done?'#3f78b6':'#647c8f';c2.fillText(n,x+36,y+2);});
     texture.needsUpdate=true;

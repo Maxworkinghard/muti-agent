@@ -10,6 +10,7 @@ import {createPodium} from './podium';
 import {createBell} from './bell';
 import {createBoard} from './board';
 import {createTableDecor,createWallArt} from './decor';
+import {wideFloor} from './surfaceTextures';
 /**
  * 台上的物件：像素风的暖木桌椅和绿植书堆（配色对齐 2D 场景），交互器件全是我的世界原味——
  * 桌上扳拉杆开麦、红石灯亮，主持按讲台按钮换阶段、拍桌铃、翻讲稿（第 0.2 节：先表达信息，物理上说得通）。
@@ -31,21 +32,26 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
   const m=createMaterials(),owned:Array<THREE.Material|THREE.Texture>=[];
   const keep=<T extends THREE.Material|THREE.Texture>(x:T)=>{owned.push(x);return x;};
   const layout=room.layout,byAnchor=new Map(cast.map(p=>[p.anchor,p]));
-  // 嵌入式灯具的灰色边框和乳白扩散罩，贴在海晶灯的底面。
+  // 顶灯只填暗部；两盏铜框灯笼与各自主光的位置完全一致。
   for(const fixture of room.lights){
-    const [x,,z]=fixture.position;
+    const [x,y,z]=fixture.position;
+    if(fixture.kind==='lantern'){
+      // 点光代表扩散罩整面出光，近处框架不再把它当一个裸灯泡遮成巨大硬影。
+      root.add(mesh(rbox(.025,6-y-.3,.025,.002),m.brassDark,x,(6+y+.3)/2,z,false));
+      for(const sy of [-1,1])root.add(mesh(rbox(.46,.035,.46,.005),m.brass,x,y+sy*.27,z,false));
+      for(const sx of [-1,1])for(const sz of [-1,1])root.add(mesh(rbox(.025,.52,.025,.003),m.brassDark,x+sx*.205,y,z+sz*.205,false));
+      root.add(mesh(rbox(.33,.46,.33,.006),m.flame,x,y,z,false));
+      continue;
+    }
     root.add(mesh(rbox(1.04,.035,fixture.length+.04,.004),m.woodDark,x,5.982,z,false));
     root.add(mesh(rbox(.92,.014,fixture.length-.08,.003),m.flame,x,5.957,z,false));
   }
-  // 灰色大块地面饰面，低对比接缝保持空间清爽。
+  // 宽暖木板沿房间纵向铺设，整面纹理只用一次。
   if(room.floor.length){
-    const tile=document.createElement('canvas');tile.width=tile.height=64;const tc=tile.getContext('2d')!;
-    tc.fillStyle='#8a6f4c';tc.fillRect(0,0,64,64);tc.fillStyle='#95784f';tc.fillRect(2,2,30,30);
-    tc.fillStyle='#7d6444';tc.fillRect(0,0,64,1);tc.fillRect(0,0,1,64);
-    const tex=keep(new THREE.CanvasTexture(tile));tex.magFilter=THREE.NearestFilter;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.colorSpace=THREE.SRGBColorSpace;
-    const mat=keep(new THREE.MeshStandardMaterial({map:tex,roughness:.95}));
-    for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0;tex.repeat.set(w/3,d/3);const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);
-      const quad=mesh(g,mat,(f.x0+f.x1)/2,f.y,(f.z0+f.z1)/2,false);quad.name='floor-cloth';root.add(quad);}
+    for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0,tex=keep(wideFloor(w,d));
+      const mat=new THREE.MeshStandardMaterial({name:'wood-floor',map:tex,bumpMap:tex,bumpScale:.006,roughness:.64});m.owned.push(mat);
+      const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);
+      const quad=mesh(g,mat,(f.x0+f.x1)/2,f.y,(f.z0+f.z1)/2,false);quad.name='wide-wood-floor';root.add(quad);}
     // 主持台的细圆形定位线。
     const mark=document.createElement('canvas');mark.width=mark.height=256;const mc=mark.getContext('2d')!;
     mc.strokeStyle='#a8946e';mc.lineWidth=3;mc.beginPath();mc.arc(128,128,86,0,Math.PI*2);mc.stroke();
@@ -67,6 +73,7 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
     for(const [w,d,x,z] of [[.04,bz1-bz0,bx0,(bz0+bz1)/2],[.04,bz1-bz0,bx1,(bz0+bz1)/2],[bx1-bx0,.04,(bx0+bx1)/2,bz0],[bx1-bx0,.04,(bx0+bx1)/2,bz1]] as const){
       const strip=new THREE.PlaneGeometry(w,d);strip.rotateX(-Math.PI/2);root.add(mesh(strip,lineMat,x,pod[1]+.013,z,false));}
   }
+  root.userData.surfaces={wood:{roughness:m.wood.roughness,metalness:m.wood.metalness,grain:!!m.wood.map},cloth:{roughness:m.clothJudge.roughness,metalness:m.clothJudge.metalness,weave:!!m.clothJudge.map},copper:{roughness:m.brass.roughness,metalness:m.brass.metalness},floor:{pattern:'wide-staggered-planks',boardWidth:.85,minLength:3.8,repeat:1}};
   // 桌子和椅子。
   for(const t of layout.tables)root.add(createTable(t,m));
   const chairs:Array<{group:THREE.Group;home:THREE.Vector3;back:THREE.Vector3;slide:number;actor?:number}>=[],dynamic=new Set<THREE.Object3D>();
@@ -116,7 +123,7 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
       drawBoard(s);
     },
     setEnvironment(map,intensity=.9){m.env(map,intensity);},
-    setReflections(){/* 像素风全是平色材质，没有透射面需要切换 */},
+    setReflections(){/* 无透射面；反光由环境贴图与各材质粗糙度控制。 */},
     createBook(assets){return createHandBook(items??assets,bookMaterial);},
     dispose(){root.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});for(const x of [...m.owned,...owned])x.dispose();}};
   // 拉杆从朝人一侧（0.62）扳到另一侧（-0.62），跟着亮度走，动作像游戏里的一样干脆。

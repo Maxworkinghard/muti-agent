@@ -7,6 +7,7 @@
     "mc:import": "node scripts/mc-import.mjs",
     "mc:style": "node scripts/mc-style.mjs",
     "test:mc-room": "node scripts/check-mc-room.mjs",
+    "test:mc-look": "node scripts/check-mc-look.mjs",
     "test:mc-stage": "node scripts/check-mc-stage.mjs",
     "test:mc-physics": "node scripts/check-mc-physics.mjs",
     "test:mc-spectator": "node scripts/check-mc-spectator.mjs",

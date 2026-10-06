@@ -12,7 +12,7 @@ export function inspectionCamera(kind:string,room:Room,index:number){
   if(kind==='podium'){target.set(p[0],p[1]+.9,p[2]-.2);position.set(p[0]+1.25,p[1]+1.6,p[2]+2.1);fov=44;}
   if(kind==='bell'){target.set(p[0]+.38,p[1]+.98,p[2]-.02);position.set(p[0]+.5,p[1]+1.28,p[2]+.7);fov=32;}
   if(kind==='board'){const s=room.layout.board;target.set(...s.position);position.copy(target).add(new THREE.Vector3(.2,-.2,10));fov=30;}
-  if(kind==='front'){target.set(p[0],3.2,p[2]);position.set(p[0],4.4,p[2]+8.8);fov=43;}
+  if(kind==='front'){target.set(p[0],3.2,p[2]);position.set(p[0],4.4,p[2]+12);fov=50;}
   if(kind==='judge'){const t=room.layout.tables.find(t=>t.side==='judge')!;target.set(t.center[0],t.center[1]+t.height,t.center[2]);position.set(t.center[0]+1.3,t.center[1]+1.8,t.center[2]+2.4);fov=55;}
   return {pos:position.toArray() as [number,number,number],target:target.toArray() as [number,number,number],fov};
 }

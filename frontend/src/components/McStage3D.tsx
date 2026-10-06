@@ -20,6 +20,7 @@ import {batchMovingParts} from '../mc/props/batching';
 import {createPropIndirectLight} from '../mc/props/indirectLight';
 import {inspectionCamera} from '../mc/props/inspection';
 import {createPost,type Quality} from '../mc/post';
+import {QUALITY_KEY,savedQuality,nextAutoQuality} from '../mc/quality';
 import {createDust,createFakeShafts,type LightRig} from '../mc/volumetric';
 import {createClouds} from '../mc/clouds';
 import {Sounds} from '../mc/sound';
@@ -27,8 +28,7 @@ import {StageCamera} from '../mc/camera';
 import {createDirector,step,teamColor,type DirectorState,type Input,type Session,type Outputs} from '../mc/director';
 import {Hud,identity} from '../mc/hud/Hud';
 export interface McStageProps {inspect?:string;inspectActor?:string;events?:readonly EngineEvent[];participants:Participant[];status:Record<string,{state:AgentState;action:string}>;round:{n:number;label:string};totalRounds:number;session:Session;messages:ChatMessage[];minds:Record<string,MindView>;focus:string|null;errors:Array<{id:string;agentId?:string;message:string}>;result:DiscussionResult|null;theme:string;muted:boolean;onFocus:(id:string|null)=>void;onLoaded:(error?:string)=>void;onStageDone:(kind:'round'|'speech',key:string)=>void;visible?:boolean;gallery?:boolean;onSnapshot?:(s:DirectorState,outputs:Outputs,stats:{fps:number;calls:number;loadedMs:number;quality:Quality})=>void;material?:MaterialPack}
-const QUALITY_KEY='mc-stage-quality';
-function storedQuality():Quality|null{try{const q=localStorage.getItem(QUALITY_KEY);return q==='high'||q==='medium'||q==='low'?q:null;}catch{return null;}}
+function storedQuality():Quality|null{try{return savedQuality(localStorage);}catch{return null;}}
 export function McStage3D(props:McStageProps){
   const hostRef=useRef<HTMLDivElement>(null),latest=useRef(props);latest.current=props;
   const roomRef=useRef(buildDebateRoom()),stateRef=useRef(createDirector(props.participants,roomRef.current,props.theme,matchMedia('(prefers-reduced-motion: reduce)').matches));
@@ -94,12 +94,14 @@ export function McStage3D(props:McStageProps){
         // 屋顶同样挡天光；先初始化天色，不能把室内当作露天的满亮天光。
         env.update(0,0);
         const light=propagate([...room.blocks,...room.ceiling]);updateLightTable(assets.lightTexture,env.daylight);
-        const shading:BlockShading={lightMap:assets.lightTexture,indirect:{value:.55},direct:{value:1}};
+        const shading:BlockShading={lightMap:assets.lightTexture,indirect:{value:.26},direct:{value:1}};
         const staticMesh=buildBlockMesh(room.blocks,assets,light,shading);scene.add(staticMesh);
         // 实体天花板：默认机位在门内，不再为了全景剖开屋顶。
         const ceiling=buildBlockMesh(room.ceiling,assets,light,shading);ceiling.name='room-ceiling';scene.add(ceiling);
-        // 八组嵌入式灯具承担主照明，位置由房间布局提供，避免模型和光源脱节。
-        const lanternLights=room.lights.map((fixture,i)=>{const l=new THREE.PointLight('#ffe3c2',fixture.intensity,fixture.distance,2);l.name=`ceiling-light-${i}`;l.position.set(...fixture.position);scene.add(l);return l;});
+        // 仅两盏主灯笼投影，桌面是视觉重心；低强度顶灯填暗部。
+        const lanternLights=room.lights.map((fixture,i)=>{const l=new THREE.PointLight(fixture.kind==='lantern'?'#ffe0b2':'#ffe9d0',fixture.intensity,fixture.distance,2);l.name=`${fixture.kind}-light-${i}`;l.position.set(...fixture.position);
+          l.castShadow=fixture.shadow;l.shadow.camera.near=.2;l.shadow.camera.far=fixture.distance;l.shadow.mapSize.set(1024,1024);l.shadow.bias=-.0002;l.shadow.normalBias=.025;l.shadow.radius=2.5;l.shadow.intensity=.72;l.shadow.autoUpdate=false;l.shadow.needsUpdate=true;
+          scene.add(l);return l;});
         const entities=createEntities(assets,room);scene.add(entities.root);
         const critters=createCritters(assets,stateRef.current.now);scene.add(critters.root);
         const cast=latest.current.participants.map(p=>({id:p.agentId,anchor:p.seatIndex,side:(p.side??'host') as 'pro'|'con'|'host',name:p.persona.name,identity:identity(p,latest.current.participants)}));
@@ -115,7 +117,7 @@ export function McStage3D(props:McStageProps){
         // 环境反射：在舞台中间拍一张立方体贴图（天色变化较大时重拍）。
         const pmrem=new THREE.PMREMGenerator(renderer),cubeTarget=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType}),cubeCamera=new THREE.CubeCamera(.1,60,cubeTarget);cubeCamera.position.set(11,2.8,10);
         let envTexture:THREE.Texture|null=null,envProgress=-1;
-        const captureEnvironment=()=>{const hidden=[stageProps.root,propBatches.root,particles.points,shafts.mesh,dust.points,...[...players.values()].map(p=>p.root)].filter(o=>o.visible);hidden.forEach(o=>o.visible=false);cubeCamera.update(renderer,scene);hidden.forEach(o=>o.visible=true);envTexture?.dispose();envTexture=pmrem.fromCubemap(cubeTarget.texture).texture;stageProps.setEnvironment(envTexture,.12);players.forEach(p=>{p.material.envMap=envTexture;p.material.envMapIntensity=.12;p.material.needsUpdate=true;});};
+        const captureEnvironment=()=>{const hidden=[stageProps.root,propBatches.root,particles.points,shafts.mesh,dust.points,...[...players.values()].map(p=>p.root)].filter(o=>o.visible);hidden.forEach(o=>o.visible=false);cubeCamera.update(renderer,scene);hidden.forEach(o=>o.visible=true);envTexture?.dispose();envTexture=pmrem.fromCubemap(cubeTarget.texture).texture;stageProps.setEnvironment(envTexture,.32);players.forEach(p=>{p.material.envMap=envTexture;p.material.envMapIntensity=.12;p.material.needsUpdate=true;});};
         // 光柱、浮尘和云（第 11.4 节）：高档算体积光，中档用假光柱面片；浮尘高、中档都有。
         const rig:LightRig={sun:env.sun,sunDirection:env.direction,spots:[]};
         const shafts=createFakeShafts(room.windows),dust=createDust(rig),clouds=createClouds(assets.textures.get('environment/clouds.png')!);scene.add(shafts.mesh,dust.points,clouds.mesh);
@@ -124,7 +126,9 @@ export function McStage3D(props:McStageProps){
         if(import.meta.env.DEV)scene.traverse(o=>{if(!(o instanceof THREE.Mesh))return;let before=0;const prior=o.onBeforeRender;o.onBeforeRender=function(...args){prior.apply(this,args);before=renderer.info.render.calls;if(firstDraw<0)firstDraw=before;};o.onAfterRender=(_r,_s,_c,_g,mat)=>{let owner:THREE.Object3D|null=o;while(owner?.parent&&owner.parent!==scene)owner=owner.parent;const key=(owner?.name||'world')+':'+mat.type;draws.set(key,(draws.get(key)??0)+renderer.info.render.calls-before);};});
         if(import.meta.env.DEV)(window as unknown as {__mcStage:unknown}).__mcStage={scene,renderer,post,env,camera:cam.camera,stageCamera:cam,players,props:stageProps,room,assets,get freeView(){return freeView;}};
         let appliedQuality:Quality|null=null;
-        const applyQuality=(q:Quality)=>{if(q===appliedQuality)return;shafts.mesh.visible=q==='medium';dust.points.visible=q!=='low';const shadowsChanged=(appliedQuality==='low')!==(q==='low');appliedQuality=q;post.setQuality(q);renderer.setPixelRatio(q==='high'?Math.min(devicePixelRatio,2):1);renderer.transmissionResolutionScale=.5;stageProps.setReflections(q!=='low');stageProps.setEnvironment(q==='low'?null:envTexture,q==='low'?0:.12);players.forEach(p=>{p.material.envMap=q==='low'?null:envTexture;p.material.needsUpdate=true;});env.setShadow(q==='high'?4096:2048);if(shadowsChanged)scene.traverse(o=>{if(o instanceof THREE.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])m.needsUpdate=true;});resize();};
+        const applyQuality=(q:Quality)=>{if(q===appliedQuality)return;shafts.mesh.visible=q==='medium';dust.points.visible=q!=='low';const shadowsChanged=(appliedQuality==='low')!==(q==='low');appliedQuality=q;post.setQuality(q);renderer.setPixelRatio(q==='high'?Math.min(devicePixelRatio,2):1);renderer.transmissionResolutionScale=.5;stageProps.setReflections(q!=='low');stageProps.setEnvironment(q==='low'?null:envTexture,q==='low'?0:.32);players.forEach(p=>{p.material.envMap=q==='low'?null:envTexture;p.material.needsUpdate=true;});env.setShadow(q==='high'?4096:2048);
+          lanternLights.forEach((l,i)=>{l.castShadow=room.lights[i].shadow&&q!=='low';const size=q==='high'?1024:512;if(l.shadow.mapSize.x!==size){l.shadow.mapSize.set(size,size);l.shadow.map?.dispose();l.shadow.map=null;}l.shadow.needsUpdate=true;});
+          if(shadowsChanged)scene.traverse(o=>{if(o instanceof THREE.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])m.needsUpdate=true;});resize();};
         const galleryBuilder=new Builder();const unique=[...new Map(room.blocks.map(b=>[b.id,b])).values()];unique.forEach((b,i)=>galleryBuilder.put(2+i%9*2,2,3+Math.floor(i/9)*3,b.id,b.props));const gallery=buildBlockMesh(galleryBuilder.connect(),assets,light,shading);gallery.visible=false;scene.add(gallery);
         const resize=()=>{const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);post.setSize(w,h);cam.camera.aspect=w/h;cam.camera.updateProjectionMatrix();};const observer=new ResizeObserver(resize);observer.observe(host);
         applyQuality(qualityRef.current);
@@ -196,13 +200,13 @@ export function McStage3D(props:McStageProps){
           post.outline.selectedObjects=s.focus&&players.has(s.focus)?[players.get(s.focus)!.root]:[];post.outline.visibleEdgeColor.set(teamColor(s.actors[s.focus??'']?.side??'host'));post.outline.hiddenEdgeColor.copy(post.outline.visibleEdgeColor);
           if(qualityRef.current!==appliedQuality)applyQuality(qualityRef.current);
           // 太阳阴影隔一帧重画一次：人动得慢，看不出差别，能省下一大块填充。
-          env.sun.shadow.autoUpdate=false;if(frames%2===0)env.sun.shadow.needsUpdate=true;
+          env.sun.shadow.autoUpdate=false;if(frames%2===0){env.sun.shadow.needsUpdate=true;lanternLights.forEach(l=>{if(l.castShadow)l.shadow.needsUpdate=true;});}
           renderer.shadowMap.needsUpdate=true;renderer.info.reset();draws.clear();firstDraw=-1;if(latest.current.visible!==false)post.render();calls=renderer.info.render.calls;frames++;if(time-measureAt>=1000){fps=frames*1000/(time-measureAt);frames=0;measureAt=time;}
-          // 自动选画质：加载后测 3 秒，高档低于 45 帧就降一档（用户自己选过就不动）。
+          // 自动调节最低到中档，保留灯具阴影与反射；低档只由用户明确选择。
           if(import.meta.env.DEV)renderer.domElement.dataset.freeCamera=JSON.stringify({view:viewRef.current,entered:spectator.entered,active:spectator.active,locked:spectator.locked,speed:spectator.speed,position:cam.camera.position.toArray(),quaternion:cam.camera.quaternion.toArray(),sceneTime:s.now});
-          if(!manualQuality.current&&!document.hidden&&latest.current.visible!==false&&time>warmUntil){if(!tuneFrom){tuneFrom=time;tuneFrames=0;}tuneFrames++;if(time-tuneFrom>3000){const measured=tuneFrames*1000/(time-tuneFrom);tuneFrom=0;if(measured<45&&qualityRef.current!=='low'){const next=qualityRef.current==='high'?'medium':'low';qualityRef.current=next;setQualityState(next);warmUntil=time+2500;}else manualQuality.current=true;}}
+          if(!manualQuality.current&&!document.hidden&&latest.current.visible!==false&&time>warmUntil){if(!tuneFrom){tuneFrom=time;tuneFrames=0;}tuneFrames++;if(time-tuneFrom>3000){const measured=tuneFrames*1000/(time-tuneFrom),next=nextAutoQuality(qualityRef.current,measured);tuneFrom=0;if(next){qualityRef.current=next;setQualityState(next);warmUntil=time+2500;}else manualQuality.current=true;}}
           renderer.domElement.dataset.audioPlaying=String(sounds.playing);renderer.domElement.dataset.audioMuted=String(latest.current.muted);renderer.domElement.dataset.fps=fps.toFixed(1);renderer.domElement.dataset.calls=String(calls);renderer.domElement.dataset.loadedMs=loadedMs.toFixed(0);renderer.domElement.dataset.clock=s.now.toFixed(0);renderer.domElement.dataset.quality=qualityRef.current;
-          if(import.meta.env.DEV){renderer.domElement.dataset.hidden=String(document.hidden);renderer.domElement.dataset.draws=JSON.stringify({shadow:firstDraw,objects:[...draws]});renderer.domElement.dataset.stageState=JSON.stringify({session:s.session,round:s.round,stage:s.stage,mics:s.mics,result:s.boardResult,actors:Object.values(s.actors).map(a=>({id:a.id,sit:a.sit,position:a.position,action:a.active?.action.kind,gap:players.get(a.id)?.contactGap,pose:players.get(a.id)?.mesh.skeleton.bones.map(b=>b.rotation.toArray().slice(0,3)),error:!!a.error})),lights:lanternLights.map(l=>({id:l.name,position:l.position.toArray(),intensity:l.intensity,color:l.color.getHexString(),distance:l.distance})),lighting:{sun:env.sun.intensity,ambient:env.hemi.intensity,daylight:env.daylight,exposure:renderer.toneMappingExposure}});}
+          if(import.meta.env.DEV){renderer.domElement.dataset.hidden=String(document.hidden);renderer.domElement.dataset.draws=JSON.stringify({shadow:firstDraw,objects:[...draws]});renderer.domElement.dataset.stageState=JSON.stringify({session:s.session,round:s.round,stage:s.stage,mics:s.mics,result:s.boardResult,actors:Object.values(s.actors).map(a=>({id:a.id,sit:a.sit,position:a.position,action:a.active?.action.kind,gap:players.get(a.id)?.contactGap,pose:players.get(a.id)?.mesh.skeleton.bones.map(b=>b.rotation.toArray().slice(0,3)),error:!!a.error})),lights:lanternLights.map(l=>({id:l.name,position:l.position.toArray(),intensity:l.intensity,color:l.color.getHexString(),distance:l.distance,castShadow:l.castShadow,shadowSize:l.shadow.mapSize.x,shadowReady:!!l.shadow.map})),surfaces:stageProps.root.userData.surfaces,material:assets!.credit,lighting:{sun:env.sun.intensity,ambient:env.hemi.intensity,daylight:env.daylight,exposure:renderer.toneMappingExposure}});}
           const hsig=JSON.stringify([s.session,s.bubbles,s.chat,s.title,s.toast,s.focus,s.globalError,Object.values(s.actors).map(a=>[a.id,a.error,a.mind,a.actionText])]);if(time-lastHud>100||hsig!==hudSignature){lastHud=time;hudSignature=hsig;setHud(s);}
           latest.current.onSnapshot?.(s,outputs,{fps,calls,loadedMs,quality:qualityRef.current});raf=requestAnimationFrame(frame);
         };

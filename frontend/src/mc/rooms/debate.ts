@@ -14,7 +14,7 @@ export interface PropLayout {
 }
 /** fit 是全景必须横向完整装下的点（两队最外侧的人、椅子和名字牌），窗口变窄时镜头会放宽视角。 */
 /** windows 是西墙（下午迎着太阳）的窗洞，中档用它们画假光柱；floor 是窗下地面的高度。 */
-export interface Room {blocks:Block[];ceiling:Block[];anchors:ActorAnchor[];host:Point;camera:Point;cameraTarget:Point;fit:Point[];judge:Point;judgeTarget:Point;layout:PropLayout;banners:Array<{position:Point;side:'pro'|'con';yaw:number}>;windows:Array<{y0:number;y1:number;z0:number;z1:number;floor:number}>;/** 地面饰面，方块地面仍负责碰撞和光照。 */floor:Array<{y:number;x0:number;x1:number;z0:number;z1:number}>;/** 灯具中心与实时光源共用位置。 */lights:Array<{position:Point;length:number;intensity:number;distance:number}>;/** 室内净空间；相机和行走共用，扩建时不再各自硬编码墙的位置。 */bounds:{min:Point;max:Point}}
+export interface Room {blocks:Block[];ceiling:Block[];anchors:ActorAnchor[];host:Point;camera:Point;cameraTarget:Point;fit:Point[];judge:Point;judgeTarget:Point;layout:PropLayout;banners:Array<{position:Point;side:'pro'|'con';yaw:number}>;windows:Array<{y0:number;y1:number;z0:number;z1:number;floor:number}>;/** 地面饰面，方块地面仍负责碰撞和光照。 */floor:Array<{y:number;x0:number;x1:number;z0:number;z1:number}>;/** 灯具中心与实时光源共用位置。 */lights:Array<{position:Point;length:number;intensity:number;distance:number;kind:'ceiling'|'lantern';shadow:boolean}>;/** 室内净空间；相机和行走共用，扩建时不再各自硬编码墙的位置。 */bounds:{min:Point;max:Point}}
 /** 碰撞箱（带朝向的长方体：中心、半边长、绕竖轴的转角），给房间检查用：人站、坐的位置和镜头视线都不能被它们挡住。 */
 export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;yaw:number}> {
   const boxes:Array<{id:string;center:Point;half:Point;yaw:number}>=[];
@@ -25,7 +25,7 @@ export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;ya
 /**
  * 辩论室（第 12.15 节，用户已确认）：不再是 22×24 的礼堂，照 2D 参照图 scene-debate.png 做的一间
  * 约 20×18 米的辩论室（12.16 二轮：用户仍觉挤，房间、桌距、座距再放宽）——没有高舞台和观众席，地面全平（脚踩 y=1）；
- * 第 12.18 节改为现代辩论室：浅灰墙、平整吊顶、嵌入式长条灯、金属框桌台和电子辩题屏。
+ * 第 12.20 节：奶油墙、琥珀木框和宽木地板；两盏主灯笼投影，顶灯辅助。
  * 两队长桌八字朝南张开，主持台、书架、绿植和队旗沿用原布局；
  * 南侧中央是门和门廊，评委席是门边一张小桌（“你”坐这里，也是自由视角的出发点）。
  * 天花板位于 y=6；默认机位在门内，所有常用视角保留实体天花板。
@@ -46,15 +46,15 @@ export function buildDebateRoom():Room {
   b.fill(0,21,0,0,0,19,'spruce_planks',{axis:'x'});
   b.fill(9,12,0,0,20,21,'spruce_planks',{axis:'x'});
   b.fill(9,12,0,0,21,21,'spruce_stairs',{facing:'north'});
-  // 浅灰墙与白色吊顶，收掉深木梁和黄墙。
+  // 奶油墙面、琥珀木框；房间与桌椅布局不变。
   for(let y=1;y<=5;y++){
-    const id=(y===1||y===5)?'light_gray_concrete':'white_concrete';
+    const id=(y===1||y===5)?'oak_planks':'smooth_sandstone';
     b.fill(0,21,y,y,0,0,id,{axis:'x'}).fill(0,21,y,y,19,19,id,{axis:'x'}).fill(0,0,y,y,1,18,id,{axis:'z'}).fill(21,21,y,y,1,18,id,{axis:'z'});
   }
-  // 细致的浅灰柱带，电子屏背后是一块灰色设备墙。
-  for(const x of [0,21])for(const z of [0,9,19])b.fill(x,x,1,5,z,z,'light_gray_concrete');
-  b.fill(4,17,1,5,0,0,'dark_oak_planks',{axis:'z'});
-  for(const x of [5,16])b.fill(x,x,1,5,19,19,'light_gray_concrete');
+  // 木框点出墙面的边界，北墙不再整面铺深木。
+  for(const x of [0,21])for(const z of [0,9,19])b.fill(x,x,1,5,z,z,'oak_planks');
+  for(const x of [4,17])b.fill(x,x,1,5,0,0,'oak_planks');
+  for(const x of [5,16])b.fill(x,x,1,5,19,19,'oak_planks');
   // 四周完整的屋顶围边；默认机位在门内，不再剖开屋顶。
   b.fill(0,21,6,6,0,0,'smooth_quartz').fill(0,21,6,6,19,19,'smooth_quartz').fill(0,0,6,6,1,18,'smooth_quartz').fill(21,21,6,6,1,18,'smooth_quartz');
   // 窗户：两侧墙各两扇（西墙迎着下午的太阳，光柱从这里进来）。
@@ -77,12 +77,14 @@ export function buildDebateRoom():Room {
   const ceiling=new Builder().fill(1,20,6,6,1,18,'smooth_quartz'),lights:Room['lights']=[];
   for(const x of [5,16])for(const z of [4,9,14]){
     ceiling.fill(x,x,6,6,z-1,z+1,'sea_lantern');
-      lights.push({position:[x+.5,5.84,z+.5],length:3,intensity:11,distance:16});
+    lights.push({position:[x+.5,5.84,z+.5],length:3,intensity:3,distance:11,kind:'ceiling',shadow:false});
   }
   for(const x of [9,12]){
     ceiling.fill(x,x,6,6,1,2,'sea_lantern');
-    lights.push({position:[x+.5,5.84,2],length:2,intensity:8,distance:14});
+    lights.push({position:[x+.5,5.84,2],length:2,intensity:6,distance:10,kind:'ceiling',shadow:false});
   }
+  // 两队主桌上方的铜框灯笼承担方向光与投影；其余灯只填暗部。
+  for(const x of [5.5,16.5])lights.push({position:[x,4.5,6.8],length:.55,intensity:26,distance:11,kind:'lantern',shadow:true});
   const anchors:ActorAnchor[]=[];
   for(const side of ['pro','con'] as const){
     SEAT_K.forEach((k,i)=>{const z=[5,7,9][i];anchors.push({seat:teamPoint(side,k,0,0,1.5),stand:teamPoint(side,k,.18,0,1),homeYaw:teamYaw(side),mic:side+'-'+z,chair:'chair-'+side+'-'+z});});

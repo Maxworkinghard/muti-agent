@@ -16,7 +16,7 @@ try{
     const m=resolveModel(assets.models,ref.model);for(const e of m.elements??[])for(const f of Object.values(e.faces))used.add(resolveTexture(m,f.texture));
   }
 }finally{await vite.close();}
-const palette={cream:'#e0e6e9',creamEdge:'#ccd5db',stone:'#929fa8',stoneEdge:'#84929c',wood:'#b8ac92',woodLight:'#c9bea6',woodEdge:'#958d7b',red:'#b95b63'};
+const palette={cream:'#f1e3c9',creamEdge:'#e0ceb0',stone:'#aca18d',stoneEdge:'#988c78',wood:'#b2844a',woodLight:'#c49a60',woodEdge:'#946c3b',red:'#a16d68'};
 function draw(name){
   const p=new PNG({width:16,height:16});
   const rgb=s=>[...s.slice(1).match(/../g)].map(x=>parseInt(x,16));
@@ -43,7 +43,7 @@ function draw(name){
   }
   return p;
 }
-const selected=[...used].sort().filter(n=>/^block\/(birch_planks|spruce_planks|spruce_log(_top)?|(?:smooth_)?sandstone.*|white_concrete|(?:light_)?gray_concrete|quartz_block_.*|smooth_stone|bookshelf|chiseled_bookshelf.*|red_wool)$/.test(n));
+const selected=[...used].sort().filter(n=>/^block\/((?:oak|birch|spruce)_planks|spruce_log(_top)?|(?:smooth_)?sandstone.*|white_concrete|(?:light_)?gray_concrete|quartz_block_.*|smooth_stone|bookshelf|chiseled_bookshelf.*|red_wool)$/.test(n));
 await fs.mkdir(out,{recursive:true});
 for(const name of selected){const tile=atlas.textures[name],p=draw(name);
   for(let y=-2;y<tile.height+2;y++)for(let x=-2;x<tile.width+2;x++){

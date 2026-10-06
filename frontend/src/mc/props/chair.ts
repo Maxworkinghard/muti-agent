@@ -7,8 +7,9 @@ export function createChair(c:Room['layout']['chairs'][number],m:PropMaterials){
   const g=new THREE.Group(),cushion=c.side==='pro'?m.clothPro:c.side==='con'?m.clothCon:m.clothJudge;
   g.add(mesh(rbox(.46,.05,.46,.006),m.woodDark,0,.475,0));
   for(const sx of [-1,1])for(const sz of [-1,1])g.add(mesh(rbox(.055,.45,.055,.004),m.woodDark,sx*.2,.25,sz*.2));
-  g.add(mesh(rbox(.42,.06,.42,.006),cushion,0,.53,0));
+  g.add(mesh(rbox(.42,.06,.42,.006),m.clothJudge,0,.53,0));
   g.add(mesh(rbox(.46,.6,.06,.006),m.woodDark,0,.8,-.21));
-  g.add(mesh(rbox(.4,.52,.045,.006),cushion,0,.82,-.17));
+  g.add(mesh(rbox(.4,.52,.045,.006),m.clothJudge,0,.82,-.17));
+  g.add(mesh(rbox(.4,.045,.008,.003),cushion,0,1.025,-.143));
   g.position.set(...c.position);g.rotation.y=c.yaw;return g;
 }

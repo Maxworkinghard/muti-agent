@@ -12,11 +12,11 @@ export function createEntities(assets:Assets,room:Room){
   const root=new THREE.Group(),banners:THREE.Mesh[]=[],owned:Array<THREE.Texture|THREE.Material>=[];
   for(const b of room.banners){
     const canvas=document.createElement('canvas'),density=assets.credit?4:1;canvas.width=canvas.height=64*density;const c=canvas.getContext('2d')!;c.imageSmoothingEnabled=false;
-    const layers=[['banner_base',b.side==='pro'?'#3C44AA':'#B02E26'],['gradient_up',b.side==='pro'?'#3AB3DA':'#F38BAA'],['curly_border','#F9FFFE'],['rhombus','#F9FFFE'],['circle',b.side==='pro'?'#3C44AA':'#B02E26']];
+    const layers=[['banner_base',b.side==='pro'?'#59798d':'#a16d68'],['gradient_up',b.side==='pro'?'#86a0a5':'#bf9180'],['curly_border','#f1e4cc'],['rhombus','#f1e4cc'],['circle',b.side==='pro'?'#59798d':'#a16d68']];
     for(const [name,color] of layers){const temp=document.createElement('canvas');temp.width=temp.height=canvas.width;const tc=temp.getContext('2d')!;tc.drawImage(assets.textures.get('entity/banner/'+name+'.png')!.image as CanvasImageSource,0,0,temp.width,temp.height);tc.globalCompositeOperation='source-in';tc.fillStyle=color;tc.fillRect(0,0,temp.width,temp.height);c.drawImage(temp,0,0);}
     const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;owned.push(t);
     const material=new THREE.MeshStandardMaterial({map:t,alphaTest:.1,side:THREE.DoubleSide,roughness:.95,envMapIntensity:0});owned.push(material);
-    const flag=texturedBox([20,40,1],[0,-1.25,0],material,[0,0],[64,64]);flag.position.set(...b.position);flag.rotation.y=b.yaw;root.add(flag);banners.push(flag);
+    const flag=texturedBox([20,40,1],[0,-1.25,0],material,[0,0],[64,64]);flag.scale.setScalar(.55);flag.position.set(...b.position);flag.rotation.y=b.yaw;root.add(flag);banners.push(flag);
   }
   return {root,update(s:DirectorState){for(const flag of banners)flag.rotation.x=s.reduced?0:Math.sin(s.now/5000*Math.PI*2)*.055;},dispose(){owned.forEach(o=>o.dispose());root.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});}};
 }

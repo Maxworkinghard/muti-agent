@@ -64,7 +64,7 @@ export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera
   // 景深同样读场景深度，不再自己画一遍深度。
   bokeh.materialBokeh.defines.DEPTH_PACKING=0;bokeh.materialBokeh.needsUpdate=true;(bokeh.uniforms as Record<string,THREE.IUniform>).tDepth.value=depth;
   bokeh.render=(r,writeBuffer,readBuffer)=>{const u=bokeh.uniforms as Record<string,THREE.IUniform>;u.tColor.value=readBuffer.texture;u.nearClip.value=camera.near;u.farClip.value=camera.far;r.setRenderTarget(bokeh.renderToScreen?null:writeBuffer);if(!bokeh.renderToScreen)r.clear();(bokeh as unknown as {_fsQuad:{render(r:THREE.WebGLRenderer):void}})._fsQuad.render(r);};
-  const bloom=new UnrealBloomPass(new THREE.Vector2(512,512),.1,.35,1.3);
+  const bloom=new UnrealBloomPass(new THREE.Vector2(512,512),.055,.35,1.3);
   const outline=new OutlinePass(new THREE.Vector2(1,1),scene,camera);outline.edgeStrength=4;outline.edgeGlow=.6;outline.edgeThickness=1;
   const output=new OutputPass(),lut=new LUTPass({lut:warmLut(),intensity:1});
   const smaa=new SMAAPass();
