@@ -70,19 +70,133 @@ function classroom():Room {
   r.camera=[cx,4.8,23.4];r.cameraTarget=[cx,2.6,6];return finish(r);
 }
 function office():Room {
-  const r=shell('office',30,28),cx=16;
-  const map=(p:{x:number;y:number}):Point=>[2+p.x*.26,1.5,2+p.y*.21];
-  for(const [i,p] of SCENES.office.seats.entries()){
-    const a=map(p);seat(r,anchor(a[0],a[2],Math.PI,i),i);
-    table(r,'work-desk-'+i,a[0],a[2]-.95,1.7,1,.9);
+  // 30x28 空间，还原 2D 原图的空间组织和青绿色配色
+  const b=new Builder(),c=new Builder(),w=30,d=28,cx=16;
+  
+  // 地面：青绿色
+  b.fill(0,w+1,0,0,0,d+1,'cyan_terracotta');
+  
+  // 墙面：灰白色系
+  for(let y=1;y<6;y++){
+    const id=y===1?'smooth_stone':(y===5?'smooth_quartz':'light_gray_concrete');
+    b.fill(0,w+1,y,y,0,0,id).fill(0,w+1,y,y,d+1,d+1,id);
+    b.fill(0,0,y,y,1,d,id).fill(w+1,w+1,y,y,1,d,id);
   }
-  table(r,'exchange-table',cx,13,2.4,1.5,.85);
-  table(r,'meeting-table',5.4,6,3.4,3.4,.9,'round');
+  
+  // 装饰性低矮隔断（不阻挡行走路径）
+  // 左上会议区标识
+  for(const [x,z] of [[3,3],[7,3],[3,10],[7,10]])
+    b.put(x,1,z,'potted_bamboo');
+
+  // 右上工作区标识
+  for(const [x,z] of [[24,3],[28,3],[24,8],[28,8]])
+    b.put(x,1,z,'potted_bamboo');
+  
+  
+  // 天花板：在座位上方留出开口，避免镜头遮挡
+  c.fill(1,w,6,6,1,d,'smooth_quartz');
+  for(const [x,z] of [[13,6],[15,6],[17,6],[25,5],[27,5],[26,6],[5,12],[5,15],[24,15],[13,24],[15,24],[18,24],[20,24]])
+    c.fill(x-1,x+1,6,6,z-1,z+1,'air');
+  
+  // 窗户
+  const windows:Room['windows']=[];
+  for(const x of [0,w+1])for(const z of [6,12,18,24]){
+    b.fill(x,x,4,5,z,z+1,'glass_pane');
+    if(x===0)windows.push({y0:4,y1:6,z0:z,z1:z+2,floor:1});
+  }
+  
+  // 照明
+  const lights:Room['lights']=[];
+  for(const x of [6,16,26])for(const z of [6,14,22]){
+    c.fill(x,x,6,6,z,z,'sea_lantern');
+    lights.push({position:[x+.5,5.84,z+.5],length:1.8,intensity:6,distance:13,kind:'ceiling',shadow:false});
+  }
+  
+  // 门
+  const door=Math.floor(cx);
+  for(const x of [door-1,door])for(const y of [1,2])
+    b.put(x,y,d+1,'iron_door',{facing:'north',half:y===1?'lower':'upper',hinge:x===door-1?'left':'right'});
+  
+  // 装饰
+  for(const [x,z] of [[3,3],[7,3],[24,3],[28,3],[3,25],[28,25]])
+    b.put(x,1,z,'potted_fern');
+  
+  const r:Room={
+    kind:'office',title:'办公室',blocks:b.connect(),ceiling:c.connect(),anchors:[],host:[cx,1,2.4],
+    layout:{tables:[],chairs:[],desk:[],podium:{position:[cx,1,2.4],yaw:0},
+      board:{position:[cx,4.5,1.08],width:11,height:2},phaseLamps:[]},
+    camera:[cx,4.5,14],cameraTarget:[cx,2,12],fit:[],
+    judge:[cx,2.6,d-1.4],judgeTarget:[cx,2.2,d*.4],
+    lights,banners:[],windows,floor:[{y:1.011,x0:1,x1:w+1,z0:1,z1:d+1}],
+    bounds:{min:[1,1,1],max:[w+1,6,d+1]},seatedSpeech:true
+  };
+  
+  // 13 个座位按原图分布，椅子在桌子后面（yaw=Math.PI/2 表示面向北，所以座位在桌子南侧）
+  // 中上长桌 (3人) seats[8,0,1]
+  table(r,'center-top-desk',15,5,5,1.8,.9);
+  seat(r,anchor(13,6.5,Math.PI/2,8),8);
+  seat(r,anchor(15,6.5,Math.PI/2,0),0);
+  seat(r,anchor(17,6.5,Math.PI/2,1),1);
+  
+  // 右上小间 (3人) seats[9,10,3]
+  table(r,'right-top-desk-1',25,4.5,1.8,1,.9);
+  seat(r,anchor(25,5.8,Math.PI/2,9),9);
+  table(r,'right-top-desk-2',27,4.5,1.8,1,.9);
+  seat(r,anchor(27,5.8,Math.PI/2,10),10);
+  table(r,'right-top-desk-3',26,7.5,1.8,1,.9);
+  seat(r,anchor(26,6.5,Math.PI/2,3),3);
+  
+  // 左中工位 (2人面对面) seats[2,6]
+  table(r,'left-mid-desk',5.5,14,1.8,3,.9);
+  seat(r,anchor(5.5,12.0,Math.PI,2),2);
+  seat(r,anchor(5.5,16.0,0,6),6);
+  
+  // 右中工位 (1人) seats[7]
+  table(r,'right-mid-desk-1',24,14,1.8,1.2,.9);
+  seat(r,anchor(24,15.3,Math.PI/2,7),7);
+  
+  // 下方工位 (4人) seats[11,4,5,12]
+  table(r,'bottom-desk-1',13,23,1.8,1,.9);
+  seat(r,anchor(13,24.3,Math.PI/2,11),11);
+  table(r,'bottom-desk-2',15.5,23,1.8,1,.9);
+  seat(r,anchor(15.5,24.3,Math.PI/2,4),4);
+  table(r,'bottom-desk-3',18,23,1.8,1,.9);
+  seat(r,anchor(18,24.3,Math.PI/2,5),5);
+  table(r,'bottom-desk-4',20.5,23,1.8,1,.9);
+  seat(r,anchor(20.5,24.3,Math.PI/2,12),12);
+  
+  // 中央交换台
+  table(r,'exchange-table',cx,14,2.4,1.5,.85);
+  
+  // 左上会议室圆桌
+  table(r,'meeting-table',5.5,6.5,3.2,3.2,.9,'round');
   const meeting:ActorAnchor[]=[];
-  for(let i=0;i<6;i++){const q=-Math.PI/2+i*Math.PI/3,x=5.4+2.8*Math.cos(q),z=6+2.8*Math.sin(q),a=anchor(x,z,Math.atan2(5.4-x,6-z),i);a.chair='meeting-chair-'+i;meeting.push(a);r.layout.chairs.push({id:a.chair,side:'judge',position:[x,1,z],yaw:a.homeYaw,slide:0});}
-  r.work={visits:r.anchors.map(a=>[a.seat[0]+.95,1,a.seat[2]+.5]),meeting,huddle:{center:[cx,1,13],rx:4.7,rz:3.5}};
-  for(const x of [9,23])r.lights.push({position:[x,4.5,12],length:.55,intensity:34,distance:18,kind:'lantern',shadow:true});
-  r.layout.board={position:[cx,4.5,1.08],width:11,height:2};r.camera=[cx,4.9,27.3];r.cameraTarget=[cx,2.2,9];r.seatedSpeech=true;return finish(r);
+  for(let i=0;i<6;i++){
+    const q=-Math.PI/2+i*Math.PI/3,x=5.5+2.6*Math.cos(q),z=6.5+2.6*Math.sin(q);
+    const a=anchor(x,z,Math.atan2(5.5-x,6.5-z),i);
+    a.chair='meeting-chair-'+i;meeting.push(a);
+    r.layout.chairs.push({id:a.chair,side:'judge',position:[x,1,z],yaw:a.homeYaw,slide:0});
+  }
+  
+  // 访客位置：手动为每个座位指定，确保避开桌子和墙壁
+  const visits:[number,number,number][]=[
+    [13.5,1,8],    // 座位0: 中上长桌，访客在座位后方通道
+    [17.5,1,8],    // 座位1: 同上
+    [7,1,13.5],    // 座位2: 左中工位面北，访客在左侧
+    [24.5,1,6.5],  // 座位3: 右上，访客在座位左侧
+    [15.5,1,25],   // 座位4: 下方工位，访客在座位后方
+    [18,1,25],     // 座位5: 同上
+    [7,1,15.5],    // 座位6: 左中工位面南，访客在左侧
+    [24,1,16.5],   // 座位7: 右中工位，访客在座位后方
+    [13,1,8],      // 座位8: 中上长桌左侧
+    [23.5,1,5.8],  // 座位9: 右上，访客在座位左侧
+    [28.5,1,5.8],  // 座位10: 右上，访客在座位右侧
+    [13,1,25],     // 座位11: 下方工位左侧
+    [20.5,1,25],   // 座位12: 下方工位右侧
+  ];
+  r.work={visits,meeting,huddle:{center:[cx,1,14],rx:4.5,rz:3.2}};
+  
+  return finish(r);
 }
 function podcast():Room {
   const r=shell('podcast',14,14);

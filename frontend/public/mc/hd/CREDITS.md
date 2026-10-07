@@ -2,9 +2,12 @@
 
 - 材质包：Faithful 64x（https://faithfulpack.net），从官方 Modrinth 页面下载
 - 许可：Faithful 许可（署名、附官网链接和许可原文、不得商用），原文见同目录 LICENSE.txt
-- 用到的贴图（33 张来自材质包）：
+- 用到的贴图（38 张来自材质包）：
+  - block/bamboo_singleleaf
+  - block/bamboo_stalk
   - block/bookshelf
   - block/brown_wool
+  - block/cyan_terracotta
   - block/dandelion
   - block/dirt
   - block/dirt_path_side
@@ -18,6 +21,7 @@
   - block/grass_block_top
   - block/iron_door_bottom
   - block/iron_door_top
+  - block/light_gray_concrete
   - block/light_gray_wool
   - block/oak_leaves
   - block/oak_log
@@ -34,6 +38,7 @@
   - block/redstone_lamp_on
   - block/sandstone_top
   - block/sea_lantern
+  - block/smooth_stone
   - block/spruce_planks
   - block/white_wool
 - 旗帜：entity/banner/banner_base.png、entity/banner/gradient_up.png、entity/banner/curly_border.png、entity/banner/rhombus.png、entity/banner/circle.png

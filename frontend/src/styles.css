@@ -202,6 +202,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .stage-cam-bar { position: absolute; top: 10px; right: 10px; z-index: 13; display: flex; gap: 8px; }
 .stage-cam-toggle { border: 2px solid var(--ink); background: #fff9e9; color: var(--ink); padding: 4px 9px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
 .stage-cam-toggle:hover { background: var(--c-yellow); }
+.stage-controls { left: 82px; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
+.stage-controls label { display: flex; align-items: center; gap: 4px; padding: 2px 5px; border: 1px solid var(--ink); background: #fff9e9; color: var(--ink); font-size: 11px; }
+.stage-controls select { max-width: 145px; min-width: 0; padding: 3px 2px; border: 1px solid var(--ink-2); background: var(--cream); color: var(--ink); font: inherit; }
+.stage-controls select:focus-visible { outline: 2px solid var(--c-yellow); outline-offset: 1px; }
+.stage-render-info { flex-basis: 100%; text-align: right; font-size: 10px; color: #fff9e9; text-shadow: 0 1px 3px #24202c; pointer-events: none; }
+.stage-loading-status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 14; padding: 8px 12px; background: var(--cream); color: var(--ink); font-size: 12px; pointer-events: none; }
 /* 跟拍中：红点像录制指示灯一样闪；关掉后是空心圈 */
 .stage-cam-toggle .rec { font-style: normal; color: #d8443c; animation: blink 1.2s steps(2) infinite; }
 /* 三维舞台铺满整块区域：镜头按实际画面比例取景，不用像底图那样按 3:2 留黑边 */

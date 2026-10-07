@@ -58,7 +58,7 @@ export function stepScene(previous:DirectorState,now:number,inputs:Input[],room:
       const a=s.actors[input.agentId];if(!a)continue;let goal:Point|undefined,sit=false,meeting:ActorAnchor|undefined;
       if(input.to==='desk'){goal=[...a.anchor.seat];sit=true;}
       else if(input.to==='huddle'){const ids=Object.keys(s.actors).sort((a,b)=>Number(b===s.leadId)-Number(a===s.leadId)),q=-Math.PI/2+Math.PI*2*ids.indexOf(a.id)/Math.max(1,ids.length),h=room.work.huddle;goal=[h.center[0]+h.rx*Math.cos(q),1,h.center[2]+h.rz*Math.sin(q)];}
-      else if(input.to==='meeting'){meeting=room.work.meeting.find(p=>!Object.entries(s.away).some(([id,v])=>id!==a.id&&v.sit&&distance(v.point,p.seat)<.1));if(meeting){goal=[...meeting.seat];sit=true;}else{const extra=Object.values(s.away).filter(a=>!a.sit).length;goal=[3.3+extra*.9,1,10.3];}}
+      else if(input.to==='meeting'){meeting=room.work.meeting.find(p=>!Object.entries(s.away).some(([id,v])=>id!==a.id&&v.sit&&distance(v.point,p.seat)<.1));if(meeting){goal=[...meeting.seat];sit=true;}else{const extra=Object.values(s.away).filter(a=>!a.sit).length;goal=[5+extra*.9,1,11];}}
       else{const other=s.actors[input.to];if(other)goal=room.work.visits[index(other)];}
       if(goal&&go(a,goal,sit)){const center=input.to==='huddle'?room.work.huddle.center:meeting?room.layout.tables.find(t=>t.id==='meeting-table')!.center:s.actors[input.to]?.position,yaw=center?Math.atan2(center[0]-goal[0],center[2]-goal[2]):a.anchor.homeYaw;if(input.to==='desk')delete s.away[a.id];else s.away[a.id]={point:[...goal],sit,yaw};}
     }else if(input.type==='error'){

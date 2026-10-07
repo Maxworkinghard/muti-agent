@@ -1,6 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Facing, MindView, Participant, PersonaVisual, Seat, SessionConfig, TaskEvent,
+  AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Facing, MindView, SessionConfig, TaskEvent,
 } from '../types';
 import { placeAway, spotOf, walkMs, type Away } from '../data/stageRules';
 import type { StageCue, StageViewMode } from './SceneStage3D';
@@ -8,25 +8,17 @@ import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
 import { nextConversationVariation } from '../data/conversationVariation';
 import { engineFor } from '../engines/registry';
-import { playReady, playSeat, playVoice, SoundToggle, useMuted, warmAudio } from '../sound';
+import { SoundToggle, warmAudio } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
 import { OfficeBubbles, type OfficeSpeech } from './OfficeBubbles';
 import { centroid, facingToward, type StagePoint, type StageView } from './stageFacing';
 import { poseFromAgent } from './pixelActorMotion';
-import { createBgm, playThinking, type Bgm } from './stageFx';
+import { playThinking } from './stageFx';
 import { createStageGate } from '../mc/stageGate';
+import { STATE_LABEL, withFace, type ErrorItem, type Flight, type SessionPhase, type Status } from './discussionUtils';
+import { useChatter, useEntrance, useLandingSitting, useSeatPositions, useWalkAnimations } from './discussionHooks';
+import { Line, MindPanel, PersonaStrip, ResultCard } from './discussionComponents';
 
-interface Status { state: AgentState; action: string }
-interface Flight { id: string; fromSeat: number; toSeat: number; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
-interface ErrorItem { id: string; agentId?: string; message: string; retry?: () => void }
-
-const STATE_LABEL: Record<AgentState, string> = { idle: '待机', thinking: '思考', speaking: '发言', working: '工作', done: '完成' };
-/** 入场时每个人落座的间隔 */
-const SEAT_GAP = 750;
-/** 心情会换掉的表情；人物自己的配饰（眼镜、围巾……）保留，心情平静时保留他自己原本的表情 */
-const FACE_EXTRAS = new Set(['brows', 'sleepy', 'happy', 'grin', 'blush', 'sweat']);
-const withFace = (v: PersonaVisual, mind?: MindView): PersonaVisual =>
-  mind?.face.length ? { ...v, extras: [...(v.extras ?? []).filter((e) => !FACE_EXTRAS.has(e)), ...mind.face] } : v;
 const SceneStage3D = lazy(() => import('./SceneStage3D').then((module) => ({ default: module.SceneStage3D })));
 const PixelStage3D = lazy(() => import('./PixelStage3D').then((module) => ({ default: module.PixelStage3D })));
 const McStage3D = lazy(() => import('./McStage3D').then((module) => ({ default: module.McStage3D })));
@@ -39,7 +31,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [round, setRound] = useState({ n: 0, label: '准备中' });
-  const [session, setSession] = useState<'waiting' | 'running' | 'paused' | 'finished' | 'stopped'>('waiting');
+  const [session, setSession] = useState<SessionPhase>('waiting');
   const [result, setResult] = useState<DiscussionResult | null>(null);
   const [mcTheme, setMcTheme] = useState(config.theme.title);
   const [tasks, setTasks] = useState<TaskEvent[]>([]);
@@ -48,9 +40,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   // awayRef 和后端 work.ts 一样按事件顺序推算位置，同一批里连着几条走动也不会拿到旧值
   const [away, setAway] = useState<Record<string, Away>>({});
   const awayRef = useRef<Record<string, Away>>({});
-  const [walking, setWalking] = useState<Set<string>>(new Set());
-  const walks = useRef(new Map<string, Animation>());
-  const walkStarts = useRef(new Map<string, { left: string; top: string; ms: number }>());
   const [focus, setFocus] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
@@ -61,7 +50,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   // 新建的 3D 房间默认站进屋里、镜头跟拍；切到俯视或接手镜头时提示文案跟着改
   const [camMode, setCamMode] = useState<StageViewMode>('inside');
   const [followCam, setFollowCam] = useState(true);
-  const [projectedSeats, setProjectedSeats] = useState<typeof scene.seats>([]);
   // 相机朝向和座位的世界坐标：三维里人物据此转身，二维用不到（保持原来的正面）
   const [stageView, setStageView] = useState<StageView | null>(null);
   const threeActive = Boolean(scene.model3d || scene.mcStage) && view3D && threeReady;
@@ -77,76 +65,16 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   }, [mcActive]);
   const pixelActive = threeActive && scene.pixelStage === 'debate';
   const worldActive = threeActive && !pixelActive && !mcActive;
-  const stageSeat = (index: number) => (threeActive ? projectedSeats[index] : undefined) ?? scene.seats[index];
   // 正面坐姿的二维场景：人物全身坐在底图的椅子上，大小按舞台宽度等比缩放
   const sitCast = !threeActive && scene.posture === 'sit';
   // 办公室这类标了 stations 的二维场景：工作模式里人会离开工位走动；三维里位置由镜头每帧写入，大家留在座位上
   const walkCast = !threeActive && Boolean(scene.stations);
-  const walkEnabled = useRef(walkCast);
-  walkEnabled.current = walkCast;
   const actorWidth = scene.actorWidth ?? 0.15;
-  // 三维里镜头一直在动，人物位置每帧都变：直接写到座位元素上，不走 React 状态（否则整页每帧重渲染）。
-  // React 状态只低频同步，给气泡翻到下方、传递动画这些用。
   const innerRef = useRef<HTMLDivElement>(null);
   const seatEls = useRef(new Map<number, HTMLElement>());
-  useLayoutEffect(() => {
-    if (!walkCast) {
-      walkStarts.current.clear();
-      if (walks.current.size) {
-        for (const animation of walks.current.values()) { animation.onfinish = null; animation.cancel(); }
-        walks.current.clear();
-        setWalking(new Set());
-      }
-      return;
-    }
-    for (const [id, from] of walkStarts.current) {
-      const participant = config.participants.find((p) => p.agentId === id);
-      const el = participant && seatEls.current.get(participant.seatIndex);
-      if (!el) continue;
-      const previous = walks.current.get(id);
-      if (previous) { previous.onfinish = null; previous.cancel(); }
-      // 走多久按距离算（stageRules.walkMs），和后端等人走到再开口用的是同一个数
-      const animation = el.animate([{ left: from.left, top: from.top }, { left: el.style.left, top: el.style.top }], {
-        duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : from.ms, easing: 'linear',
-      });
-      walks.current.set(id, animation);
-      if (session === 'paused') animation.pause();
-      animation.onfinish = () => {
-        walks.current.delete(id);
-        setWalking((w) => { const next = new Set(w); next.delete(id); return next; });
-      };
-    }
-    walkStarts.current.clear();
-  }, [away, walkCast]);
-  useEffect(() => {
-    for (const animation of walks.current.values()) {
-      if (session === 'paused') animation.pause();
-      else if (session === 'stopped') animation.cancel();
-      else animation.play();
-    }
-    if (session === 'stopped') setWalking(new Set());
-  }, [session]);
-  useEffect(() => () => { for (const animation of walks.current.values()) animation.cancel(); }, []);
-  const seatPos = useRef<Seat[]>([]);
-  const syncTimer = useRef(0);
-  const placeSeats = useCallback(() => {
-    for (const [index, el] of seatEls.current) {
-      const seat = seatPos.current[index];
-      if (!seat) continue;
-      el.style.left = seat.x + '%';
-      el.style.top = seat.y + '%';
-      el.style.setProperty('--s', String(seat.scale ?? 1));
-    }
-  }, []);
-  const onSeatPositions = useCallback((positions: Seat[]) => {
-    seatPos.current = positions;
-    placeSeats();
-    if (!syncTimer.current) {
-      syncTimer.current = window.setTimeout(() => { syncTimer.current = 0; setProjectedSeats(seatPos.current); }, 150);
-    }
-  }, [placeSeats]);
-  useEffect(() => () => clearTimeout(syncTimer.current), []);
-  useLayoutEffect(() => { if (threeActive) placeSeats(); });
+  const { walking, setWalking, walkStarts, walkEnabled } = useWalkAnimations({ walkCast, session, away, participants: config.participants, seatEls });
+  const { projectedSeats, onSeatPositions } = useSeatPositions({ threeActive, seatEls });
+  const stageSeat = (index: number) => (threeActive ? projectedSeats[index] : undefined) ?? scene.seats[index];
   // 三维里大家围坐的那一点：每个人转身看向它，而不是一直正对镜头。
   // 二维场景没有世界坐标，facingOf 一律返回 S，保持原来的正面朝向。
   const conversationCenter = useMemo<StagePoint | null>(() => {
@@ -194,78 +122,24 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [minds, setMinds] = useState<Record<string, MindView>>({});
   const pixelCast = useMemo(() => config.participants.map((p) => ({
     id: p.agentId,
+    name: p.persona.name,
     seatIndex: p.seatIndex,
     host: p.side === 'host',
     visual: withFace(p.persona.visual, minds[p.agentId]),
     pose: poseFromAgent(status[p.agentId]?.state, p.side === 'host'),
   })), [config.participants, minds, status]);
   const [labels, setLabels] = useState<Record<number, string>>({});
-  // 已经落座的人数；进入讨论页时大家依次入座
-  const [seated, setSeated] = useState(0);
-  const allSeated = seated >= config.participants.length;
   const logRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (allSeated) { const t = window.setTimeout(playReady, 300); return () => clearTimeout(t); }
-    const t = window.setTimeout(() => { playSeat(seated); setSeated(seated + 1); }, seated === 0 ? 400 : SEAT_GAP);
-    return () => clearTimeout(t);
-  }, [seated, allSeated]);
-  const skipIntro = () => setSeated(config.participants.length);
-  const entering = !allSeated && seated > 0 ? config.participants[seated - 1] : null;
   // 娱乐模式：入场时放背景音乐，讨论开始后压低音量；静音跟顶部音效开关走
   const showEntrance = config.mode === 'entertainment';
-  const muted = useMuted();
-  const bgmRef = useRef<Bgm | null>(null);
-  useEffect(() => {
-    if (!showEntrance) return;
-    const bgm = createBgm();
-    bgmRef.current = bgm;
-    const t = window.setTimeout(() => bgm.start(), 200);
-    return () => { clearTimeout(t); bgm.stop(); bgmRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => { bgmRef.current?.setMuted(muted); }, [muted]);
-  // 只有刚落座的人带落地动画；动画播完就去掉，之后状态切换不会再从天上掉一次
-  const [landing, setLanding] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    if (seated === 0) return;
-    const ids = config.participants.slice(0, seated).map((p) => p.agentId);
-    setLanding((s) => new Set([...s, ...ids.filter((id) => !s.has(id))]));
-    const t = window.setTimeout(() => setLanding(new Set()), 1000);
-    return () => clearTimeout(t);
-  }, [seated]);
-  // 发言结束的人播放一次坐下（缩回座位）动画
-  const prevState = useRef<Record<string, AgentState>>({});
-  const [sitting, setSitting] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    const ended = Object.entries(status)
-      .filter(([id, s]) => prevState.current[id] === 'speaking' && s.state !== 'speaking')
-      .map(([id]) => id);
-    prevState.current = Object.fromEntries(Object.entries(status).map(([id, s]) => [id, s.state]));
-    if (!ended.length) return;
-    setSitting((s) => new Set([...s, ...ended]));
-    window.setTimeout(() => setSitting((s) => new Set([...s].filter((id) => !ended.includes(id)))), 400);
-  }, [status]);
+  const { seated, allSeated, skipIntro, muted, bgmRef } = useEntrance({ count: config.participants.length, showEntrance });
+  const { landing, sitting } = useLandingSitting({ seated, status, participants: config.participants });
+  const entering = !allSeated && seated > 0 ? config.participants[seated - 1] : null;
 
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
   const seatOf = (id: string) => scene.seats[byId[id]?.seatIndex ?? 0];
 
-  // 说话音效：每条发言一出字就叽咕一声（包括每轮第一个人）；流式输出时每长出一段再叽咕一下，同一条至少隔 350ms
-  const voiceAt = useRef<Record<string, number>>({});
-  const voiceLen = useRef<Record<string, number>>({});
-  const chatter = (agentId: string, id: string, text: string) => {
-    if (scene.mcStage) return;
-    if (!byId[agentId] || !text) return; // 空气泡先不响，等第一段文字出来再响
-    const now = Date.now();
-    const first = voiceLen.current[id] === undefined;
-    const grown = text.length - (voiceLen.current[id] ?? 0);
-    if (!first && grown < 12) return;
-    if (!first && now - (voiceAt.current[id] ?? 0) < 350) return;
-    voiceAt.current[id] = now;
-    voiceLen.current[id] = text.length;
-    playVoice(agentId, Math.max(3, Math.min(8, Math.ceil(Math.max(grown, 12) / 8))));
-  };
-  const speakerOf = useRef<Record<string, string>>({});
+  const { chatter, speakerOf } = useChatter({ mcStage: Boolean(scene.mcStage), byId });
 
   // 用户发完第一句（对项目的理解）后才启动引擎
   const startWith = (brief: string) => {
@@ -454,8 +328,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             aria-label={view3D ? '切换到 2D 场景' : '切换到 3D 场景'}
             title={view3D ? '切换到 2D 场景' : '切换到 3D 场景'}
           >{view3D ? '◧ 2D' : '◈ 3D'}</button>}
+          {view3D && scene.model3d && !threeReady && !threeError && <span className="stage-view-hint" role="status">正在加载 3D 场景…</span>}
           {threeActive && !mcActive && <span className="stage-view-hint">{pixelActive ? '拖动转头 · 滚轮拉近'
             : camMode === 'free' ? 'WASD 移动 · 空格/Ctrl 升降 · Shift 加速 · 点击画面锁定鼠标转向（或拖动） · 滚轮调速 · Esc 退出'
+            : camMode === 'walk' ? 'WASD 行走 · Shift 加速 · 点击画面转向（或拖动） · Esc 退出'
+            : camMode === 'actor' ? '角色眼睛的位置 · 拖动转头 · 切换视角返回观战'
             : camMode === 'overview' ? '拖动旋转 · 滚轮缩放'
             : followCam ? '镜头跟着说话的人 · 拖动画面可自己看' : '拖动转头 · 滚轮推拉 · 点「跟拍」交还镜头'}</span>}
           {threeError && <span className="stage-model-error" role="status">{threeError}</span>}
@@ -674,94 +551,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           </button>
         )}
       </footer>
-    </div>
-  );
-}
-
-function Line({ m, byId }: { m: ChatMessage; byId: Record<string, Participant> }) {
-  if (m.kind === 'notice') return <div className="line notice"><p>⚠ {m.text}</p></div>;
-  if (m.kind === 'react') {
-    const p = byId[m.speakerId];
-    return p ? <div className="line react" style={{ ['--ac' as string]: p.color }}><b>{p.persona.name}</b><span>{m.text}</span></div> : null;
-  }
-  if (m.speakerId === 'user') {
-    const to = m.targetId ? byId[m.targetId]?.persona.name : '全体';
-    return (
-      <div className={'line user' + (m.private ? ' private' : '')}>
-        <div className="who">你 → {to}{m.private && <i>私聊</i>}</div><p>{m.text}</p>
-      </div>
-    );
-  }
-  const p = byId[m.speakerId];
-  if (!p) return null;
-  return (
-    <div className={'line ' + m.kind + (m.doc ? ' doc' : '') + (m.private ? ' private' : '') + (m.cut ? ' cut' : '')} style={{ ['--ac' as string]: p.color }}>
-      <span className="l-avatar"><PixelAvatar v={p.persona.visual} size={28} /></span>
-      <div>
-        <div className="who">
-          {p.persona.name}{m.targetId && m.targetId !== 'user' && byId[m.targetId] && <> → {byId[m.targetId].persona.name}</>}{m.tag && <em className="line-tag">{m.tag}</em>}{m.cut && <em className="line-tag">被打断</em>}
-          {m.kind === 'reply' && <i>{m.private ? '私下回复你' : '回复你'}</i>}
-        </div>
-        {m.quote && <div className="quote">↪ {m.quote.name}：{m.quote.text}</div>}
-        <p>{m.text}</p>
-      </div>
-    </div>
-  );
-}
-
-/** 点开某个人时看到的内心：情绪、态度、打算、心里话、对谁有意见 */
-function MindPanel({ mind }: { mind: MindView }) {
-  return (
-    <div className="mind-panel">
-      <div className="mood-bars">
-        {mind.mood.map((x) => (
-          <span key={x.key} className="mood-bar" style={{ ['--mc' as string]: x.color }}>
-            {x.key}<i><b style={{ width: x.value * 10 + '%' }} /></i>{Math.round(x.value)}
-          </span>
-        ))}
-      </div>
-      <dl>
-        <dt>心情</dt><dd>{mind.emoji} {mind.label}</dd>
-        {mind.style && <><dt>说话</dt><dd>{mind.style}</dd></>}
-        {mind.stance && <><dt>态度</dt><dd>{mind.stance}</dd></>}
-        {mind.plan && <><dt>打算</dt><dd>{mind.plan}</dd></>}
-        {mind.inner && <><dt>心里</dt><dd>{mind.inner}</dd></>}
-        {mind.toward.length > 0 && (
-          <><dt>对人</dt><dd>{mind.toward.map((t) => (
-            <span key={t.id} className={'rel ' + (t.value > 0 ? 'good' : 'bad')}>{t.name} {t.value > 0 ? '+' : ''}{t.value}</span>
-          ))}</dd></>
-        )}
-        {mind.whisper && <><dt>你说过</dt><dd className="whisper">“{mind.whisper}”</dd></>}
-      </dl>
-    </div>
-  );
-}
-
-function PersonaStrip({ p, status }: { p: Participant; status?: Status }) {
-  const per = p.persona.personalities.find((x) => x.id === p.personalityId);
-  return (
-    <div className="persona-strip" style={{ ['--ac' as string]: p.color }}>
-      <PixelAvatar v={p.persona.visual} size={36} />
-      <div>
-        <b>{p.persona.identity}</b>
-        <small>性格：{per?.label} · 知识：{p.persona.knowledge.join('/')} · 当前：{status?.action ?? '就座'}</small>
-      </div>
-    </div>
-  );
-}
-
-function ResultCard({ r, live }: { r: DiscussionResult; live?: boolean }) {
-  const sec: Array<[string, string[] | undefined, string]> = [
-    ['共识', r.consensus, 'green'], ['分歧', r.disagreements, 'orange'],
-    ['待验证', r.openQuestions, 'blue'], ['建议', r.suggestions, 'purple'], ['交付物', r.deliverables, 'yellow'],
-  ];
-  return (
-    <div className="result">
-      <div className="round-sep">讨论结果</div>
-      {r.summary && <div className="res res-blue"><b>{live ? '这场聊下来' : '讨论总结'}</b><p className="summary-text">{r.summary}</p></div>}
-      {sec.filter(([, v]) => v?.length).map(([k, v, c]) => (
-        <div key={k} className={'res res-' + c}><b>{k}</b><ul>{v!.map((x) => <li key={x}>{x}</li>)}</ul></div>
-      ))}
     </div>
   );
 }

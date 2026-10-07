@@ -1,6 +1,10 @@
 export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
-/** 原场景 ID 保持不变；新增三维场景以 -3d 结尾，用户场景以 custom- 开头。 */
-export type SceneId = string;
+/** 内置场景 ID */
+export type BuiltinSceneId =
+  | 'roundtable' | 'debate' | 'office' | 'classroom' | 'meadow' | 'podcast'
+  | 'roundtable-mc' | 'debate-mc' | 'office-mc' | 'classroom-mc' | 'meadow-mc' | 'podcast-mc';
+/** 场景 ID：内置场景用固定值，用户场景以 custom- 开头 */
+export type SceneId = BuiltinSceneId | `custom-${string}` | (string & {});
 export type McSceneKind = 'debate' | 'roundtable' | 'office' | 'classroom' | 'meadow' | 'podcast';
 export type Side = 'pro' | 'con' | 'host';
 /** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
@@ -108,6 +112,17 @@ export interface ModeDef {
   importLabel: string;
 }
 
+/** 引擎可调参数的已知字段（各引擎 config.ts 的默认值会覆盖这里） */
+export interface EngineOptions {
+  /** 每次发言的字数上限 */
+  maxChars?: number;
+  /** 工作模式：节奏倍速（1 = 正常） */
+  pace?: number;
+  /** 工作模式：同时干活的最大人数（1-8） */
+  parallel?: number;
+  [key: string]: unknown;
+}
+
 /** 前端交给引擎的会话配置 */
 export interface Participant {
   agentId: string;
@@ -134,7 +149,7 @@ export interface SessionConfig {
   maxChars?: number;
   participants: Participant[];
   /** 引擎可调参数，默认值在各引擎文件夹的 config.ts 里 */
-  engineOptions: Record<string, unknown>;
+  engineOptions: EngineOptions;
   createdAt: string;
 }
 
@@ -249,5 +264,5 @@ export interface EngineModule {
   /** 负责人或小组，方便排查 */
   owner: string;
   create: EngineFactory;
-  defaults: Record<string, unknown>;
+  defaults: EngineOptions;
 }

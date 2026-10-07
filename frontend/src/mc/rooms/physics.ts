@@ -37,7 +37,9 @@ export class RoomPhysics {
   /** 工位走访在真实墙、桌椅之间找路径，不能从桌子和隔断里穿过去。 */
   path(from:[number,number,number],to:[number,number,number]):[number,number,number][] {
     const step=.5,{min,max}=this.room.bounds,cols=Math.ceil((max[0]-min[0])/step),rows=Math.ceil((max[2]-min[2])/step);
-    const ignored=new Set(this.room.layout.chairs.filter(c=>[from,to].some(p=>Math.hypot(p[0]-c.position[0],p[2]-c.position[2])<.7)).map(c=>c.id));
+    // 办公室场景需要更大的忽略半径，因为座位可能沿着走访路径排列
+    const ignoreRadius=this.room.kind==='office'?5:0.7;
+    const ignored=new Set(this.room.layout.chairs.filter(c=>[from,to].some(p=>Math.hypot(p[0]-c.position[0],p[2]-c.position[2])<ignoreRadius)).map(c=>c.id));
     const valid=(x:number,z:number)=>x>min[0]+.35&&x<max[0]-.35&&z>min[2]+.35&&z<max[2]-.35&&!this.colliders.some(c=>!ignored.has(c.id)&&c.center.y+c.half.y>1.03&&c.center.y-c.half.y<2.85&&this.horizontal(c,x,z,.31));
     const id=(x:number,z:number)=>z*cols+x,point=(n:number):[number,number,number]=>[min[0]+(n%cols+.5)*step,1,min[2]+(Math.floor(n/cols)+.5)*step];
     const cell=(p:number[])=>{const x=Math.floor((p[0]-min[0])/step),z=Math.floor((p[2]-min[2])/step);let chosen=-1,best=Infinity;
@@ -48,7 +50,7 @@ export class RoomPhysics {
     if(start<0||goal<0)return [];
     const heuristic=(n:number)=>{const p=point(n);return Math.hypot(p[0]-to[0],p[2]-to[2]);};
     let found=false;
-    for(let guard=0;open.size&&guard<cols*rows;guard++){
+    for(let guard=0;open.size&&guard<cols*rows*3;guard++){
       let current=-1,best=Infinity;for(const n of open){const score=cost.get(n)!+heuristic(n);if(score<best){best=score;current=n;}}
       if(current===goal){found=true;break;}open.delete(current);const x=current%cols,z=Math.floor(current/cols);
       for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){

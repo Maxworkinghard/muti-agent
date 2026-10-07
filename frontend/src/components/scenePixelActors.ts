@@ -9,6 +9,7 @@ import { centroid, facingToward, type StageView } from './stageFacing';
 
 export interface SceneCastMember {
   id: string;
+  name?: string;
   seatIndex: number;
   host: boolean;
   visual: PersonaVisual;

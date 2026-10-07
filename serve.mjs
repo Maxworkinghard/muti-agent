@@ -80,6 +80,45 @@ if (accessPassword.length < 16) {
 }
 const expectedAuth = Buffer.from('roundtable:' + accessPassword);
 
+// ---------------------------------------------------------------- Rate limiting
+
+/** 每个 IP 的认证失败记录：连续失败次数和锁定到期时间 */
+const authFailures = new Map();
+const MAX_AUTH_FAILURES = 5;
+const LOCKOUT_MS = 5 * 60_000; // 锁定 5 分钟
+const WINDOW_MS = 60_000; // 1 分钟窗口内的失败计数
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const rec = authFailures.get(ip);
+  if (!rec) return true;
+  if (rec.lockedUntil && now < rec.lockedUntil) return false;
+  if (now - rec.firstFail > WINDOW_MS) { authFailures.delete(ip); return true; }
+  return true;
+}
+
+function recordAuthFailure(ip) {
+  const now = Date.now();
+  let rec = authFailures.get(ip);
+  if (!rec || now - rec.firstFail > WINDOW_MS) {
+    rec = { count: 0, firstFail: now, lockedUntil: 0 };
+  }
+  rec.count++;
+  if (rec.count >= MAX_AUTH_FAILURES) {
+    rec.lockedUntil = now + LOCKOUT_MS;
+    console.warn(`[安全] IP ${ip} 认证失败 ${rec.count} 次，锁定 ${LOCKOUT_MS / 60_000} 分钟`);
+  }
+  authFailures.set(ip, rec);
+}
+
+// 定期清理过期记录，避免内存泄漏
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, rec] of authFailures) {
+    if (now - rec.firstFail > WINDOW_MS && (!rec.lockedUntil || now > rec.lockedUntil)) authFailures.delete(ip);
+  }
+}, 60_000).unref();
+
 function authorized(req) {
   const auth = req.headers.authorization;
   if (typeof auth !== 'string' || !auth.startsWith('Basic ') || auth.length > 512) return false;
@@ -155,8 +194,22 @@ function serveFile(req, res, file, info) {
 // ---------------------------------------------------------------- 主服务
 
 const server = createServer((req, res) => {
-  // 发布入口统一保护页面和 API；浏览器完成一次 Basic 登录后，同源请求会沿用凭据。
-  if (!authorized(req)) {
+  // Rate limiting：防止暴力破解密码
+  // 从代理头获取真实 IP，避免代理后所有用户共享同一 IP 导致误锁
+  const forwarded = req.headers['x-forwarded-for'];
+  const clientIp = (forwarded ? forwarded.split(',')[0].trim() : null)
+    || req.headers['x-real-ip']
+    || req.socket.remoteAddress
+    || 'unknown';
+  // 先检查密码，正确密码始终允许通过（即使在锁定期）
+  const wasAuthorized = authorized(req);
+  if (!wasAuthorized) {
+    // 密码错误才检查限流，避免锁定知道正确密码的用户
+    if (!checkRateLimit(clientIp)) {
+      res.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '300' });
+      return res.end('尝试次数过多，请稍后再试');
+    }
+    recordAuthFailure(clientIp);
     res.writeHead(401, {
       'WWW-Authenticate': 'Basic realm="Roundtable", charset="UTF-8"',
       'Content-Type': 'text/plain; charset=utf-8',
@@ -164,6 +217,8 @@ const server = createServer((req, res) => {
     });
     return res.end('需要访问密码');
   }
+  // 认证成功，清零该 IP 的失败记录
+  authFailures.delete(clientIp);
   if (!sameOrigin(req)) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('跨站请求被拒绝');

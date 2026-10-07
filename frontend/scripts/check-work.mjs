@@ -25,12 +25,10 @@ try {
   ]);
   const cast = LIBRARY_PERSONAS.filter((p) => p.modes?.includes('product'));
   assert.equal(cast.length, 13, '工作人物库应有 13 人');
-  for (const id of ['office', 'office-3d']) {
-    assert.equal(SCENES[id].maxSeats, 13);
-    assert.equal(SCENES[id].seats.length, 13);
-    assert.equal(SCENES[id].stations.visits.length, 13);
-    if (id.endsWith('3d')) assert.equal(SCENES[id].modelSeats.length, 13);
-  }
+  const officeScene = SCENES['office'];
+  assert.equal(officeScene.maxSeats, 13);
+  assert.equal(officeScene.seats.length, 13);
+  assert.equal(officeScene.stations.visits.length, 13);
   const participants = cast.map((persona, i) => ({ agentId: persona.id, seatIndex: i,
     color: persona.visual.color, personalityId: persona.defaultPersonalityId, persona, isLead: i === 0 }));
   const cfg = { mode: 'product', sceneId: 'office', theme: { title: '共享购物清单', brief: '设计家庭共享购物清单' },

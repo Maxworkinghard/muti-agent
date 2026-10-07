@@ -31,16 +31,21 @@ export class StageFreeCamera {
   private right = new Vector3();
   private movement = new Vector3();
   private probe = new Vector3();
+  private collisionProbe = new Vector3();
+  private mode: 'walk' | 'free' = 'free';
+  private eyeHeight: number;
 
   constructor(private canvas: HTMLCanvasElement, private space: {
     bounds: Box3;
     floorY: number;
     ceilingY: number;
     cell: number;
+    eyeHeight?: number;
     /** 这一点所在格子里有没有东西 */
     occupied: (p: Vector3) => boolean;
   }) {
     this.radius = space.cell * 1.5;
+    this.eyeHeight = space.eyeHeight ?? (space.ceilingY - space.floorY) * 0.6;
     canvas.tabIndex = 0;
     canvas.addEventListener('pointerdown', this.down);
     canvas.addEventListener('wheel', this.wheel, { passive: false });
@@ -57,14 +62,20 @@ export class StageFreeCamera {
   }
 
   /** 从当前镜头的站位接手；站位悬在房间外（比如无人机全景机位）或卡在家具里就换成屋内的备用站位 */
-  enter(camera: PerspectiveCamera) {
+  enter(camera: PerspectiveCamera, mode: 'walk' | 'free' = 'free') {
+    this.mode = mode;
     this.pos.copy(camera.position);
+    if (mode === 'walk') this.pos.y = this.space.floorY + this.eyeHeight;
     const { bounds, floorY, ceilingY } = this.space;
     const inset = this.radius * 2;
     const insideBox = this.pos.x > bounds.min.x + inset && this.pos.x < bounds.max.x - inset
       && this.pos.z > bounds.min.z + inset && this.pos.z < bounds.max.z - inset
       && this.pos.y > floorY + this.radius && this.pos.y < ceilingY - this.radius;
-    if (!insideBox || this.blockedAt(this.pos)) this.pos.set(...vantageOf(this.space));
+    if (!insideBox || this.blockedAt(this.pos)) {
+      const spawn = this.findSpawn();
+      if (!spawn) { this.exit(); return false; }
+      this.pos.copy(spawn);
+    }
     camera.getWorldDirection(this.forward);
     this.yaw = Math.atan2(this.forward.x, this.forward.z);
     this.pitch = Math.asin(MathUtils.clamp(this.forward.y, -1, 1));
@@ -75,6 +86,22 @@ export class StageFreeCamera {
     this.keys.clear();
     this.activate();
     this.capture();
+    this.update(0, camera);
+    return true;
+  }
+
+  /** 找离接手位置最近的空处；不把行走镜头直接落在桌椅里。 */
+  private findSpawn() {
+    const { bounds, floorY, ceilingY } = this.space;
+    const y = this.mode === 'walk' ? floorY + this.eyeHeight : MathUtils.clamp(this.pos.y, floorY + this.radius * 2, ceilingY - this.radius * 2);
+    const inset = this.radius * 3;
+    const candidates: Vector3[] = [];
+    for (let x = 0; x <= 12; x++) for (let z = 0; z <= 12; z++) {
+      const p = new Vector3(MathUtils.lerp(bounds.min.x + inset, bounds.max.x - inset, x / 12), y, MathUtils.lerp(bounds.min.z + inset, bounds.max.z - inset, z / 12));
+      if (!this.blockedAt(p)) candidates.push(p);
+    }
+    candidates.sort((a, b) => a.distanceToSquared(this.pos) - b.distanceToSquared(this.pos));
+    return candidates[0] ?? null;
   }
 
   exit() {
@@ -134,7 +161,7 @@ export class StageFreeCamera {
     this.activate();
     this.dragAt = [e.clientX, e.clientY];
     this.canvas.setPointerCapture(e.pointerId);
-    if (e.button === 0) this.capture();
+    if (e.button === 0) { this.captureFailed = false; this.capture(); }
   };
 
   private up = () => { this.dragAt = null; };
@@ -193,9 +220,9 @@ export class StageFreeCamera {
 
   /** 镜头中心（带探点半径）能不能停在这一点 */
   private blockedAt(p: Vector3) {
-    if (this.space.occupied(p)) return true;
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      if (this.space.occupied(this.probe.set(p.x + dx * this.radius, p.y, p.z + dz * this.radius))) return true;
+    const heights = this.mode === 'walk' ? [p.y, p.y - this.eyeHeight * 0.5, p.y - this.eyeHeight + this.radius] : [p.y];
+    for (const y of heights) for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      if (this.space.occupied(this.collisionProbe.set(p.x + dx * this.radius, y, p.z + dz * this.radius))) return true;
     }
     return false;
   }
@@ -210,7 +237,8 @@ export class StageFreeCamera {
       this.movement.set(0, 0, 0);
       this.movement.addScaledVector(this.forward, key('KeyW') - key('KeyS'));
       this.movement.addScaledVector(this.right, key('KeyD') - key('KeyA'));
-      this.movement.y += key('Space') + key('KeyE') - Math.max(key('ControlLeft'), key('ControlRight'), key('KeyQ'));
+      if (this.mode === 'walk') this.movement.y = 0;
+      else this.movement.y += key('Space') + key('KeyE') - Math.max(key('ControlLeft'), key('ControlRight'), key('KeyQ'));
       if (this.movement.lengthSq() > 0) {
         this.movement.normalize().multiplyScalar(this.speed * (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 3 : 1) * Math.min(0.05, Math.max(0, dt)));
         const step = this.space.cell * 0.5;
@@ -220,14 +248,16 @@ export class StageFreeCamera {
           const next = this.probe.copy(this.pos).add(slice);
           if (!this.blockedAt(next)) { this.pos.copy(next); continue; }
           for (const axis of ['x', 'z', 'y'] as const) {
+            if (Math.abs(slice[axis]) < 1e-10) continue;
             next.copy(this.pos);
             next[axis] += slice[axis];
-            if (!this.blockedAt(next)) { this.pos.copy(next); break; }
+            if (!this.blockedAt(next)) this.pos.copy(next);
           }
         }
         this.clamp();
       }
     }
+    if (this.mode === 'walk') this.pos.y = this.space.floorY + this.eyeHeight;
     camera.position.copy(this.pos);
     camera.lookAt(this.movement.copy(this.pos).add(this.forward));
   }
@@ -258,11 +288,4 @@ export class StageFreeCamera {
     document.removeEventListener('pointerlockchange', this.lockChange);
     document.removeEventListener('pointerlockerror', this.lockError);
   }
-}
-
-/** 没有跟拍机位可接手时的备用站位：房间一头、眼睛高度，朝中心看 */
-function vantageOf(space: { bounds: Box3; floorY: number }): [number, number, number] {
-  const center = space.bounds.getCenter(new Vector3());
-  const size = space.bounds.getSize(new Vector3());
-  return [center.x, space.floorY + size.y * 0.4, center.z + size.z * 0.4];
 }
