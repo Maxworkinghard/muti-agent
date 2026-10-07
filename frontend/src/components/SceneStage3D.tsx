@@ -10,6 +10,7 @@ import type { SceneDef, Seat } from '../types';
 import type { StageView } from './stageFacing';
 import { ScenePixelActors, type SceneCastMember } from './scenePixelActors';
 import { Occupancy } from './stageOccupancy';
+import { StageFreeCamera } from './stageFreeCamera';
 
 /**
  * Rendering constants chosen by sweeping light intensity, saturation and tone curve
@@ -88,7 +89,7 @@ const AVATAR_SHARE: Record<string, number> = { roundtable: 0.163, debate: 0.091,
 const SCALE_RANGE = { min: 0.55, max: 7, overviewMin: 0.8 } as const;
 const UP = new Vector3(0, 1, 0);
 
-export type StageViewMode = 'inside' | 'overview';
+export type StageViewMode = 'inside' | 'overview' | 'free';
 
 /** 外面告诉舞台现在该拍谁：座位下标为 null 时拍全景 */
 export interface StageCue {
@@ -186,6 +187,12 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
   const refreshViewRef = useRef<(() => void) | null>(null);
   /** 跟拍开关：关掉时从当前画面原地接手，打开时从当前画面平滑转回跟拍机位 */
   const setFollowRef = useRef<((on: boolean) => void) | null>(null);
+  /** 自由视角镜头：进出与「跟拍」一样从当前画面无缝接手 */
+  const freeCamRef = useRef<StageFreeCamera | null>(null);
+  const freeWasFollowingRef = useRef(false);
+  const toggleFreeRef = useRef<(() => void) | null>(null);
+  /** 上一次的相机模式：modeRef 在渲染时已经是新值，这里自己记 */
+  const prevModeRef = useRef<StageViewMode>('inside');
 
   useEffect(() => {
     const host = hostRef.current;
@@ -204,13 +211,13 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
     // made the rooms read washed out, so render them straight through.
     renderer.toneMapping = NoToneMapping;
     renderer.toneMappingExposure = tuning.exposure;
-    renderer.shadowMap.enabled = scene.id === 'debate-meshy';
+    renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = PCFSoftShadowMap;
     // 房间和灯都不动，只有镜头在动：阴影图只在墙面显隐变化时重画
     renderer.shadowMap.autoUpdate = false;
     // 背景色跟着天花板走：万一还有缝，露出来的是屋里的暖色，而不是一块黑
     renderer.setClearColor(CEILING_COLOR);
-    renderer.domElement.setAttribute('aria-label', scene.name + '，镜头跟着说话的人走；拖动可自己转头看，滚轮推拉，可切到俯视');
+    renderer.domElement.setAttribute('aria-label', scene.name + '，镜头跟着说话的人走；拖动可自己转头看，滚轮推拉，可切到俯视或自由视角');
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.setAttribute('role', 'img');
     host.appendChild(renderer.domElement);
@@ -280,6 +287,8 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
     let avatarHeight = 0;
     let floorY = 0;
     let ceilingY = 0;
+    /** 自由视角镜头：模型和占位网格就绪后第一次进入时创建 */
+    let freeCam: StageFreeCamera | null = null;
 
     // 镜头弹簧：现在的位置 / 看的点 / 视场角，各自的速度，以及要去的机位
     const rig = {
@@ -606,19 +615,19 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
       camera.updateMatrixWorld();
       const center = bounds.getCenter(new Vector3());
       // 跟拍升到屋顶以上拍全景时，补的顶和吊顶会挡住视线：镜头在屋顶以上就隐藏，降回屋里再显示
-      if (modeRef.current === 'inside') {
+      if (modeRef.current !== 'overview') {
         const roof = camera.position.y < bounds.max.y;
         if (ceiling && ceiling.visible !== roof) ceiling.visible = roof;
         for (const part of ceilingPartsRef.current) part.visible = roof;
       }
-      // 从外部俯视时切掉靠镜头的墙；室内仍是四面完整的房间。
+      // 从外部俯视时切掉靠镜头的墙；室内和自由视角仍是四面完整的房间。
       let wallsChanged = false;
       for (const wall of walls) {
         const toward = wall.side === 'left' ? center.x - camera.position.x
           : wall.side === 'right' ? camera.position.x - center.x
           : wall.side === 'back' ? center.z - camera.position.z
           : camera.position.z - center.z;
-        const visible = modeRef.current === 'inside' || toward <= 0;
+        const visible = modeRef.current !== 'overview' || toward <= 0;
         if (wall.mesh.visible !== visible) { wall.mesh.visible = visible; wallsChanged = true; }
       }
       if (wallsChanged) renderer.shadowMap.needsUpdate = true;
@@ -633,7 +642,7 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
         if (depth < avatarHeight * 0.8) return { x: -100, y: -100 };
         const ndc = point.project(camera);
         // 镜头升到屋顶以上（无人机全景）时和俯视一样，人物当地图标记看，不能小到认不出
-        const scale = modeRef.current === 'inside'
+        const scale = modeRef.current !== 'overview'
           ? clamp(host.clientHeight * avatarHeight / (2 * depth * Math.tan(walk.fov * Math.PI / 360) * 36), camera.position.y < bounds!.max.y ? SCALE_RANGE.min : SCALE_RANGE.overviewMin, SCALE_RANGE.max)
           : clamp(host.clientHeight * avatarHeight * orbit.zoom / ((orbit.top - orbit.bottom) * 36), SCALE_RANGE.overviewMin, SCALE_RANGE.max);
         return { x: +((ndc.x + 1) * 50).toFixed(2), y: +((1 - ndc.y) * 50).toFixed(2), scale: +scale.toFixed(3) };
@@ -733,6 +742,28 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
       setFollow(true);
     };
     setFollowRef.current = (on) => (on ? resume() : takeOver());
+
+    /** 自由视角：从当前画面接手镜头飞着看；Esc 退出后交还给跟拍（原来在跟拍的话） */
+    const toggleFree = () => {
+      if (modeRef.current === 'free') { setMode('inside'); return; }
+      if (!ready || !occupancy || !bounds) return;
+      freeWasFollowingRef.current = followRef.current;
+      takeOver();
+      if (!freeCam) {
+        freeCam = new StageFreeCamera(renderer.domElement, {
+          bounds,
+          floorY,
+          ceilingY,
+          cell: occupancy.cellSize,
+          occupied: (point) => occupancy!.occupied(point),
+        });
+        freeCam.onExit = () => { if (modeRef.current === 'free') setMode('inside'); };
+        freeCamRef.current = freeCam;
+      }
+      freeCam.enter(walk);
+      setMode('free');
+    };
+    toggleFreeRef.current = toggleFree;
 
     const resize = () => {
       const width = Math.max(1, host.clientWidth);
@@ -850,6 +881,13 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
       bounds = new Box3().setFromObject(model);
       const center = bounds.getCenter(new Vector3());
       const size = bounds.getSize(new Vector3());
+      // 阴影相机按各房间自己的外框取景：四个房间大小不一，固定的 ±1.3 只框得住精模
+      const reach = Math.max(size.x, size.z) * 0.75;
+      Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.5, far: 12 });
+      sun.shadow.camera.updateProjectionMatrix();
+      sun.position.set(center.x - 2, center.y + 4, center.z + 3);
+      sun.target.position.copy(center);
+      world.add(sun.target);
       // 这套模型只有四面墙、顶上敞着，从屋里抬头会直接看到背景色。
       // 照墙面的配色补一层顶，把房间封上。顶要铺得比房间大一圈——墙顶是斜的，
       // 只盖房间本身的话，墙矮的那几段上方会漏出一条黑缝。
@@ -926,9 +964,10 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
       frame = requestAnimationFrame(tick);
       if (document.hidden) { lastTick = now; return; }
       if (ready && modeRef.current === 'inside' && followRef.current) driveCamera(now);
+      if (ready && modeRef.current === 'free') freeCamRef.current?.update(Math.min(1 / 30, Math.max(0, (now - lastTick) / 1000)), walk);
       lastTick = now;
       if (modeRef.current === 'overview') controls.update();
-      if (ready && modeRef.current === 'inside') publishPositions(now);
+      if (ready && modeRef.current !== 'overview') publishPositions(now);
       else flushView(now);
       if (ready) actorLayer?.update(actorsRef.current, seats, activeCamera(), now, reduceMotion);
       renderer.render(world, activeCamera());
@@ -941,6 +980,9 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.dispose();
+      freeCam?.dispose();
+      freeCamRef.current = null;
+      toggleFreeRef.current = null;
       sun.shadow.map?.dispose();
       controlsRef.current = null;
       refreshViewRef.current = null;
@@ -967,9 +1009,19 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
   // 切视角时把当前模式告诉外面，提示文案跟着改
   useEffect(() => {
     modeRef.current = mode;
-    if (ceilingRef.current) ceilingRef.current.visible = mode === 'inside';
-    for (const part of ceilingPartsRef.current) part.visible = mode === 'inside';
+    const indoor = mode !== 'overview';
+    if (ceilingRef.current) ceilingRef.current.visible = indoor;
+    for (const part of ceilingPartsRef.current) part.visible = indoor;
     if (controlsRef.current) controlsRef.current.enabled = mode === 'overview';
+    // 离开自由视角：停掉自由镜头；原来在跟拍的话，从当前画面平滑转回跟拍机位
+    if (prevModeRef.current === 'free' && mode !== 'free') {
+      freeCamRef.current?.exit();
+      if (freeWasFollowingRef.current) {
+        freeWasFollowingRef.current = false;
+        setFollowRef.current?.(true);
+      }
+    }
+    prevModeRef.current = mode;
     refreshViewRef.current?.();
     callbacks.current.onModeChange?.(mode);
   }, [mode]);
@@ -988,11 +1040,21 @@ export function SceneStage3D({ scene, cast, actors, cue, onLoaded, onSeatPositio
           onClick={(event) => { event.stopPropagation(); setFollowRef.current?.(!follow); }}
           title={follow ? '镜头正跟着说话的人走；点一下停在当前画面，自己拖动看' : '把镜头交还：重新跟着说话的人走'}
         >{follow ? <><i className="rec">●</i> 跟拍</> : '○ 跟拍'}</button>}
+        {mode !== 'free' && <button
+          className="stage-cam-toggle"
+          onClick={(event) => { event.stopPropagation(); toggleFreeRef.current?.(); }}
+          title={mode === 'inside' ? '从当前画面接手镜头，WASD 在房间里飞着看' : 'WASD 在房间里飞着看'}
+        >✥ 自由视角</button>}
+        {mode === 'free' && <button
+          className="stage-cam-toggle"
+          onClick={(event) => { event.stopPropagation(); setMode('inside'); }}
+          title="退出自由视角，回到跟拍"
+        >◎ 退出自由</button>}
         <button
           className="stage-cam-toggle"
-          onClick={(event) => { event.stopPropagation(); setMode(mode === 'inside' ? 'overview' : 'inside'); }}
-          title={mode === 'inside' ? '切到俯视，一眼看清整间房' : '站进屋里，镜头跟着说话的人走'}
-        >{mode === 'inside' ? '⊞ 俯视' : '◉ 进屋'}</button>
+          onClick={(event) => { event.stopPropagation(); setMode(mode === 'overview' ? 'inside' : 'overview'); }}
+          title={mode === 'overview' ? '站进屋里，镜头跟着说话的人走' : '切到俯视，一眼看清整间房'}
+        >{mode === 'overview' ? '◉ 进屋' : '⊞ 俯视'}</button>
       </div>
     </div>
   );

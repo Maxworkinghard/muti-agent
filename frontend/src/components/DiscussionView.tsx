@@ -3,7 +3,7 @@ import type {
   AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, Facing, MindView, Participant, PersonaVisual, Seat, SessionConfig, TaskEvent,
 } from '../types';
 import { placeAway, spotOf, walkMs, type Away } from '../data/stageRules';
-import type { StageCue } from './SceneStage3D';
+import type { StageCue, StageViewMode } from './SceneStage3D';
 import { sceneById } from '../data/scenes';
 import { modeById, roundLabel } from '../data/modes';
 import { nextConversationVariation } from '../data/conversationVariation';
@@ -59,7 +59,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [threeReady, setThreeReady] = useState(false);
   const [threeError, setThreeError] = useState('');
   // 新建的 3D 房间默认站进屋里、镜头跟拍；切到俯视或接手镜头时提示文案跟着改
-  const [camMode, setCamMode] = useState<'inside' | 'overview'>('inside');
+  const [camMode, setCamMode] = useState<StageViewMode>('inside');
   const [followCam, setFollowCam] = useState(true);
   const [projectedSeats, setProjectedSeats] = useState<typeof scene.seats>([]);
   // 相机朝向和座位的世界坐标：三维里人物据此转身，二维用不到（保持原来的正面）
@@ -454,6 +454,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             title={view3D ? '切换到 2D 场景' : '切换到 3D 场景'}
           >{view3D ? '◧ 2D' : '◈ 3D'}</button>}
           {threeActive && !mcActive && <span className="stage-view-hint">{pixelActive ? '拖动转头 · 滚轮拉近'
+            : camMode === 'free' ? 'WASD 移动 · 空格/Ctrl 升降 · Shift 加速 · 点击画面锁定鼠标转向（或拖动） · 滚轮调速 · Esc 退出'
             : camMode === 'overview' ? '拖动旋转 · 滚轮缩放'
             : followCam ? '镜头跟着说话的人 · 拖动画面可自己看' : '拖动转头 · 滚轮推拉 · 点「跟拍」交还镜头'}</span>}
           {threeError && <span className="stage-model-error" role="status">{threeError}</span>}
