@@ -23,18 +23,18 @@ function material(name) {
 async function usedTextures(root, states, models) {
   const vite = await createServer({ root, configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
-    const [{ buildDebateRoom }, model] = await Promise.all([
-      vite.ssrLoadModule('/src/mc/rooms/debate.ts'),
+    const [{ buildMcRoom, MC_SCENE_KINDS }, model] = await Promise.all([
+      vite.ssrLoadModule('/src/mc/rooms/scenes.ts'),
       vite.ssrLoadModule('/src/mc/blockModel.ts'),
     ]);
-    const room = buildDebateRoom();
+    const rooms = MC_SCENE_KINDS.map(buildMcRoom);
     const used = new Set();
     // 道具（红石灯）直接用游戏的灯贴图，不挂在房间方块上，手动加上。
     used.add('block/redstone_lamp');
     used.add('block/redstone_lamp_on');
     // 运行时会切换状态的方块（灯笼等）两种状态都收。
     const variants = (b) => [b, ...(b.id === 'lantern' ? [{ ...b, props: { ...b.props, hanging: b.props.hanging === 'true' ? 'false' : 'true' } }] : [])];
-    for (const block of [...room.blocks,...room.ceiling]) for (const b of variants(block)) for (const ref of model.blockModels({ states }, b)) {
+    for (const block of rooms.flatMap(room=>[...room.blocks,...room.ceiling])) for (const b of variants(block)) for (const ref of model.blockModels({ states }, b)) {
       const m = model.resolveModel(models, ref.model);
       for (const e of m.elements ?? []) for (const face of Object.values(e.faces)) used.add(model.resolveTexture(m, face.texture));
     }

@@ -6,7 +6,7 @@ export type Session='waiting'|'running'|'paused'|'finished'|'stopped';
 export type Target='camera'|'bell'|'lectern'|{agent:string};
 /** mic：按自己话筒底座的按钮；nextRound：主持按讲台上的「下一轮」；tapBell：拍讲台上的桌铃；flipScript：翻一页讲稿。 */
 interface BoardFrame {round:number;label:string;theme:string}
-export type Action= {kind:'standUp'|'sitDown'|'flipScript'|'swing'|'cheer'|'clap'}|{kind:'tapBell';board?:BoardFrame}|{kind:'walk';to:'stand'|'seat'}|{kind:'face';target:Target}|{kind:'mic';on:boolean}|{kind:'nextRound';stage:number;board?:BoardFrame}|{kind:'crouch';times:number}|{kind:'wait';ms:number}|{kind:'signal';gate:'round'|'speech';key:string;serial?:number};
+export type Action= {kind:'standUp'|'sitDown'|'flipScript'|'swing'|'cheer'|'clap'}|{kind:'tapBell';board?:BoardFrame}|{kind:'walk';to:'stand'|'seat'}|{kind:'walkTo';point:Point}|{kind:'face';target:Target}|{kind:'mic';on:boolean}|{kind:'nextRound';stage:number;board?:BoardFrame}|{kind:'crouch';times:number}|{kind:'wait';ms:number}|{kind:'signal';gate:'round'|'speech';key:string;serial?:number};
 export interface Active {action:Action;start:number;duration:number;from:Point;fromSit:number;fromYaw:number;applied?:boolean}
 export interface Actor {id:string;name:string;side:string;anchor:ActorAnchor;position:Point;sit:number;look:Target;lookUntil:number;yaw:number;status:AgentState;desired:AgentState;actionText:string;queue:Action[];active:Active|null;ready:boolean;speechSerial:number;preparedSerial:number;cut:boolean;error:string|null;errorAt:number;mind?:MindView;nextParticle:number}
 export interface Bubble {id:string;speakerId:string;header:string;text:string;born:number;expires:number;cut?:boolean;react?:boolean}

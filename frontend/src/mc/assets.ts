@@ -37,7 +37,7 @@ function tileMipmaps(texture:THREE.Texture,atlas:Atlas){
   }
   texture.mipmaps=mipmaps;texture.generateMipmaps=false;texture.needsUpdate=true;
 }
-export async function loadAssets(progress:(n:number,s:string)=>void,anisotropy=1,material?:MaterialPack):Promise<Assets>{
+export async function loadAssets(progress:(n:number,s:string)=>void,anisotropy=1,material?:MaterialPack,extraTextures:string[]=[]):Promise<Assets>{
   progress(.05,'读取方块');let manifest:Manifest;
   try{manifest=await getJson<Manifest>('manifest.json');}catch{throw new Error('还没导入游戏资源：在 frontend 目录运行 npm run mc:import');}
   // 高清材质可选：读不到就用原版，不报错（第 11.3 节）。
@@ -48,6 +48,7 @@ export async function loadAssets(progress:(n:number,s:string)=>void,anisotropy=1
   const [blocks,items,atlas,itemAtlas]=await Promise.all([getJson<{states:Assets['states'];models:Assets['models']}>(manifest.blocks),getJson<{items:Assets['items'];models:Assets['itemModels']}>(manifest.items),getJson<Atlas>(pack?pack.atlasIndex:manifest.atlasIndex),getJson<Atlas>(manifest.itemAtlasIndex)]);
   const loader=new THREE.TextureLoader();
   const used=['painting/sunset.png','painting/sea.png','entity/player/wide/steve.png','environment/clouds.png','entity/banner/banner_base.png','entity/banner/gradient_up.png','entity/banner/curly_border.png','entity/banner/rhombus.png','entity/banner/circle.png','entity/cat/cat_tabby.png','entity/parrot/parrot_red_blue.png','particle/angry.png','particle/glint.png','particle/drip_hang.png','particle/drip_fall.png','particle/note.png',...Array.from({length:8},(_,i)=>'particle/generic_'+i+'.png')];
+  used.push(...extraTextures.filter(p=>!used.includes(p)));
   const [atlasTexture,itemTexture,normalTexture,ormTexture,...images]=await Promise.all([texture(loader,pack?pack.atlas:manifest.atlas),texture(loader,manifest.itemAtlas),pack?.normal?texture(loader,pack.normal,false):Promise.resolve(null),pack?.orm?texture(loader,pack.orm,false):Promise.resolve(null),...used.map(p=>texture(loader,hd?.entities?.[p]??'textures/'+p))]);
   const textures=new Map(used.map((p,i)=>[p,images[i]]));progress(.55,'生成光照');
   for(const t of [atlasTexture,normalTexture,ormTexture]){if(!t)continue;tileMipmaps(t,atlas);t.minFilter=pack===hd&&hd?THREE.LinearMipmapLinearFilter:THREE.NearestMipmapNearestFilter;t.anisotropy=pack===hd&&hd?anisotropy:1;}

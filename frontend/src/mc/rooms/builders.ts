@@ -8,6 +8,9 @@ export class Builder {
     if(id.endsWith('trapdoor'))Object.assign(defaults,{facing:'north',half:'bottom',open:'false'});
     if(id.endsWith('door')&&!id.endsWith('trapdoor'))Object.assign(defaults,{facing:'east',half:'lower',hinge:'left',open:'false'});
     if(id.endsWith('log')||id.endsWith('wood')||id==='iron_chain')defaults.axis='y';
+    if(id==='grass_block')defaults.snowy='false';
+    if(id==='water')defaults.level='0';
+    if(id.endsWith('_leaves'))Object.assign(defaults,{distance:'7',persistent:'true',waterlogged:'false'});
     if(id==='lever')Object.assign(defaults,{face:'floor',facing:'east',powered:'false'});
     if(id==='redstone_lamp')defaults.lit='false';
     if(id==='lantern')defaults.hanging='false';

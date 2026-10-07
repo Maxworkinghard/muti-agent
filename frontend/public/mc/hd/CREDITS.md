@@ -2,17 +2,28 @@
 
 - 材质包：Faithful 64x（https://faithfulpack.net），从官方 Modrinth 页面下载
 - 许可：Faithful 许可（署名、附官网链接和许可原文、不得商用），原文见同目录 LICENSE.txt
-- 用到的贴图（21 张来自材质包）：
+- 用到的贴图（33 张来自材质包）：
   - block/bookshelf
+  - block/brown_wool
+  - block/dandelion
   - block/dirt
+  - block/dirt_path_side
+  - block/dirt_path_top
   - block/fern
   - block/flower_pot
   - block/glass
   - block/glass_pane_top
+  - block/grass_block_side
+  - block/grass_block_side_overlay
+  - block/grass_block_top
   - block/iron_door_bottom
   - block/iron_door_top
   - block/light_gray_wool
+  - block/oak_leaves
+  - block/oak_log
+  - block/oak_log_top
   - block/oak_planks
+  - block/orange_wool
   - block/potted_azalea_bush_plant
   - block/potted_azalea_bush_side
   - block/potted_azalea_bush_top
@@ -24,5 +35,6 @@
   - block/sandstone_top
   - block/sea_lantern
   - block/spruce_planks
+  - block/white_wool
 - 旗帜：entity/banner/banner_base.png、entity/banner/gradient_up.png、entity/banner/curly_border.png、entity/banner/rhombus.png、entity/banner/circle.png
 - 优先使用包里的 `_n`、`_s`；缺失的法线按亮度生成，粗糙度按材质类别生成（G：粗糙度，B：金属度）

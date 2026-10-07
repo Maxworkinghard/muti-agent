@@ -413,6 +413,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           style={sitCast ? { ['--aw' as string]: actorWidth } : undefined}>
           <img className="stage-bg" src={scene.image} alt={scene.name} draggable={false} />
           {(view3D || (scene.mcStage && mcLoadedRef.current)) && (scene.model3d || scene.mcStage) && <Suspense fallback={null}>{scene.mcStage ? <McStage3D
+            sceneKind={scene.mcStage}
             visible={view3D}
             events={mcEventsRef.current}
             participants={config.participants} status={status} round={round} totalRounds={config.maxRounds}
@@ -422,7 +423,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             onLoaded={(error) => {
               mcLoadedRef.current = !error;
               if (error) { setThreeError(error); setView3D(false); setThreeReady(false); }
-              else { setThreeError(''); setThreeReady(true); }
+              else { setThreeError(''); setThreeReady(true); if (scene.mcStage !== 'debate') skipIntro(); }
             }}
           /> : scene.pixelStage === 'debate' ? <PixelStage3D
             scene={scene}
@@ -508,7 +509,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             );
           })}
           {walkCast && <OfficeBubbles speeches={officeSpeeches} onFocus={(id) => setFocus(focus === id ? null : id)} />}
-          {flights.map((f) => {
+          {!mcActive && flights.map((f) => {
             const from = threeActive ? stageSeat(f.fromSeat) : f.from;
             const to = threeActive ? stageSeat(f.toSeat) : f.to;
             const via = threeActive ? { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 10 } : f.via ?? f.to;
@@ -523,8 +524,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               }}
             ><i /></span>;
           })}
-          {session === 'finished' && <div className="stage-banner">讨论结束 · 结果已写入工作区</div>}
-          {entering && (
+          {!mcActive && session === 'finished' && <div className="stage-banner">讨论结束 · 结果已写入工作区</div>}
+          {!mcActive && entering && (
             <div key={entering.agentId} className="intro-card" style={{ ['--ac' as string]: entering.color }}>
               <em>{String(seated).padStart(2, '0')}</em>
               <span className="pc-avatar"><PixelAvatar v={entering.persona.visual} size={44} /></span>
@@ -535,9 +536,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               </div>
             </div>
           )}
-          {!allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
-          {session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
-          {session === 'paused' && <div className="stage-banner wait">已暂停 · 可以先说你的想法，点「继续」接着讨论</div>}
+          {!mcActive && !allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
+          {!mcActive && session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
+          {!mcActive && session === 'paused' && <div className="stage-banner wait">已暂停 · 可以先说你的想法，点「继续」接着讨论</div>}
         </div>
       </section>
 

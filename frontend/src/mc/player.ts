@@ -70,12 +70,12 @@ export function createPlayer(p:Participant,card:THREE.Object3D|null,contacts?:Pr
     if(natural){if(idle.kind==='nod')headPitch+=Math.sin(k*Math.PI*3)*.13;if(idle.kind==='shakeHead')headYaw+=Math.sin(k*Math.PI*3)*.14;if(idle.kind==='glanceMate')headYaw+=k*.22*(seat%2?1:-1);if(idle.kind==='write'||idle.kind==='page')headPitch+=k*.12;}
     headYaw+=idleHead;
     bones[3].rotation.x=approach(bones[3].rotation.x,headPitch,dt*9);bones[3].rotation.y=approach(bones[3].rotation.y,headYaw,dt*9);
-    const walk=action?.kind==='walk'&&!s.reduced?Math.sin(t*7)*.55:0;
+    const walk=s.reduced?0:action?.kind==='walkTo'?Math.sin(poseNow/125)*.5:action?.kind==='walk'?Math.sin(t*7)*.55:0;
     // 坐姿用游戏的骑乘姿势；腿伸进桌子下面的空当。
     bones[6].rotation.set(-1.4137*a.sit-walk,Math.PI/10*a.sit,.0785*a.sit);bones[7].rotation.set(-1.4137*a.sit+walk,-Math.PI/10*a.sit,-.0785*a.sit);
     let rx=-Math.PI/5*a.sit+walk,ry=0,rz=0,lx=-Math.PI/5*a.sit-walk,ly=0,lz=0;
-    if(p.side!=='host'){rx=Math.min(rx,-.62);}
-    if(a.desired==='thinking'&&p.side!=='host'){pose.writing=approach(pose.writing,1,dt*4);rx=-1.15;rz=-.2;lx=-1.23+(s.reduced?0:Math.sin(poseNow/260)*.045);ly=.5;lz=.5+(s.reduced?0:Math.sin(poseNow/170)*.04);}else pose.writing=approach(pose.writing,0,dt*4);
+    if(card&&p.side!=='host'){rx=Math.min(rx,-.62);}
+    if(card&&a.desired==='thinking'&&p.side!=='host'){pose.writing=approach(pose.writing,1,dt*4);rx=-1.15;rz=-.2;lx=-1.23+(s.reduced?0:Math.sin(poseNow/260)*.045);ly=.5;lz=.5+(s.reduced?0:Math.sin(poseNow/170)*.04);}else pose.writing=approach(pose.writing,0,dt*4);
     if(action&&['mic','nextRound','tapBell','flipScript'].includes(action.kind)){rx=-1.15-Math.sin(t*Math.PI)*.45;rz=-.08;}
     else if(action?.kind==='cheer'){
       // 欢呼动作（第 12.6 节）：双臂高举，身子里外各跳一下。

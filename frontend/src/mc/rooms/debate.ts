@@ -1,11 +1,12 @@
 import {Builder,type Point} from './builders';
 import type {Block} from '../blockModel';
+import type {McSceneKind} from '../../types';
 /** seat 是坐下时的身体基准点（脚底往上 0.578 才是坐姿的根），stand 是站起来时脚底的位置。 */
 export interface ActorAnchor {seat:Point;stand:Point;homeYaw:number;mic:string;chair?:string}
 /** 道具的摆放。尺寸单位是米，1 格 = 1 米；渲染和房间检查共用这一份。 */
 export interface PropLayout {
-  tables:Array<{id:string;side:'pro'|'con'|'judge';center:Point;length:number;depth:number;height:number;/** 桌沿布带朝向（弧度，0 朝 +z） */skirtYaw:number}>;
-  chairs:Array<{id:string;side:'pro'|'con'|'judge';position:Point;yaw:number;/** 起身时沿身后方向滑开的距离 */slide:number;actor?:number}>;
+  tables:Array<{id:string;side:'pro'|'con'|'judge';center:Point;length:number;depth:number;height:number;shape?:'round';/** 桌沿布带朝向（弧度，0 朝 +z） */skirtYaw:number}>;
+  chairs:Array<{id:string;side:'pro'|'con'|'judge';position:Point;yaw:number;style?:'stool'|'armchair';/** 起身时沿身后方向滑开的距离 */slide:number;actor?:number}>;
   desk:Array<{id:string;side:'pro'|'con'|'judge';actor?:number;mic?:Point;yaw:number}>;
   podium:{position:Point;yaw:number};
   /** 北墙上的辩题板和它下面的三盏阶段灯。 */
@@ -16,10 +17,14 @@ export interface PropLayout {
 /** windows 是西墙（下午迎着太阳）的窗洞，中档用它们画假光柱；floor 是窗下地面的高度。 */
 export interface Room {blocks:Block[];ceiling:Block[];anchors:ActorAnchor[];host:Point;camera:Point;cameraTarget:Point;fit:Point[];judge:Point;judgeTarget:Point;layout:PropLayout;banners:Array<{position:Point;side:'pro'|'con';yaw:number}>;windows:Array<{y0:number;y1:number;z0:number;z1:number;floor:number}>;/** 地面饰面，方块地面仍负责碰撞和光照。 */floor:Array<{y:number;x0:number;x1:number;z0:number;z1:number}>;/** 灯具中心与实时光源共用位置。 */lights:Array<{position:Point;length:number;intensity:number;distance:number;kind:'ceiling'|'lantern';shadow:boolean}>;/** 室内净空间；相机和行走共用，扩建时不再各自硬编码墙的位置。 */bounds:{min:Point;max:Point}}
 /** 碰撞箱（带朝向的长方体：中心、半边长、绕竖轴的转角），给房间检查用：人站、坐的位置和镜头视线都不能被它们挡住。 */
+export interface Room {
+  kind?:McSceneKind; title?:string; outdoor?:boolean; standingSeats?:number[]; seatedSpeech?:boolean;
+  work?:{visits:Point[];meeting:ActorAnchor[];huddle:{center:Point;rx:number;rz:number}};
+}
 export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;yaw:number}> {
   const boxes:Array<{id:string;center:Point;half:Point;yaw:number}>=[];
   for(const t of room.layout.tables)boxes.push({id:t.id,center:[t.center[0],t.center[1]+t.height/2,t.center[2]],half:[t.length/2,t.height/2,t.depth/2],yaw:t.skirtYaw});
-  const p=room.layout.podium.position;boxes.push({id:'podium',center:[p[0],p[1]+.59,p[2]],half:[.3,.59,.25],yaw:room.layout.podium.yaw});
+  if(!room.kind||room.kind==='debate'||room.kind==='classroom'){const p=room.layout.podium.position;boxes.push({id:'podium',center:[p[0],p[1]+.59,p[2]],half:[.3,.59,.25],yaw:room.layout.podium.yaw});}
   return boxes;
 }
 /**

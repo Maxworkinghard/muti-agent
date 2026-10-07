@@ -1,6 +1,7 @@
 export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
 /** 原场景 ID 保持不变；新增三维场景以 -3d 结尾，用户场景以 custom- 开头。 */
 export type SceneId = string;
+export type McSceneKind = 'debate' | 'roundtable' | 'office' | 'classroom' | 'meadow' | 'podcast';
 export type Side = 'pro' | 'con' | 'host';
 /** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
 export type Facing = 'S' | 'SE' | 'E' | 'NE' | 'N' | 'NW' | 'W' | 'SW';
@@ -71,8 +72,8 @@ export interface SceneDef {
   modelSeats?: Seat[];
   /** 用代码搭的像素房间。设了以后不再加载 model3d 的模型。 */
   pixelStage?: 'debate';
-  /** 用本机游戏素材搭建的辩论室。 */
-  mcStage?: 'debate';
+  /** 用已有游戏素材搭建的我的世界场景。 */
+  mcStage?: McSceneKind;
   description: string;
   recommendedMode: ModeId;
   maxSeats: number;

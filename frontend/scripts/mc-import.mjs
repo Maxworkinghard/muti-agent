@@ -70,7 +70,7 @@ try {
   await write('item-atlas.png',items.png);await writeJson('item-atlas.json',items.table);
   let textureCount=0; const texturePaths=[];
   const prefixes=['entity/bell/','entity/enchantment/','entity/banner/','entity/decorated_pot/','entity/cat/','entity/parrot/','entity/allay/','painting/','gui/sprites/tooltip/','gui/sprites/toast/','gui/sprites/widget/','particle/'];
-  const exact=['entity/player/wide/steve.png','misc/shadow.png','misc/enchanted_glint_item.png','environment/clouds.png','environment/celestial/sun.png','gui/book.png','colormap/grass.png','colormap/foliage.png'];
+  const exact=['block/water_still.png','entity/player/wide/steve.png','misc/shadow.png','misc/enchanted_glint_item.png','environment/clouds.png','environment/celestial/sun.png','gui/book.png','colormap/grass.png','colormap/foliage.png'];
   for(const n of names.filter(n=>n.startsWith('assets/minecraft/textures/'))) {
     const p=n.split('/textures/')[1];if(!(prefixes.some(v=>p.startsWith(v))||exact.includes(p))||!(p.endsWith('.png')||p.endsWith('.mcmeta')))continue;
     await write('textures/'+p,jar[n]);textureCount++;texturePaths.push(p);

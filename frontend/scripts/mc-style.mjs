@@ -11,8 +11,8 @@ const assets=JSON.parse(await fs.readFile(path.join(root,'public/mc/blocks.json'
 const vite=await createServer({root,configFile:false,logLevel:'error',server:{middlewareMode:true,hmr:false},appType:'custom'});
 let used;
 try{
-  const [{buildDebateRoom},{blockModels,resolveModel,resolveTexture}]=await Promise.all([vite.ssrLoadModule('/src/mc/rooms/debate.ts'),vite.ssrLoadModule('/src/mc/blockModel.ts')]);
-  const room=buildDebateRoom();used=new Set();for(const b of [...room.blocks,...room.ceiling])for(const ref of blockModels(assets,b)){
+  const [{buildMcRoom,MC_SCENE_KINDS},{blockModels,resolveModel,resolveTexture}]=await Promise.all([vite.ssrLoadModule('/src/mc/rooms/scenes.ts'),vite.ssrLoadModule('/src/mc/blockModel.ts')]);
+  used=new Set();for(const b of MC_SCENE_KINDS.flatMap(kind=>{const room=buildMcRoom(kind);return [...room.blocks,...room.ceiling];}))for(const ref of blockModels(assets,b)){
     const m=resolveModel(assets.models,ref.model);for(const e of m.elements??[])for(const f of Object.values(e.faces))used.add(resolveTexture(m,f.texture));
   }
 }finally{await vite.close();}

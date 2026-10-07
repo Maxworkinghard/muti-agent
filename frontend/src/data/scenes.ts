@@ -134,6 +134,11 @@ export const SCENES: Record<string, SceneDef> = {
     previewImage: '/mc/preview-debate.jpg',
     description: '《我的世界》里的辩论室：发言人按话筒开麦、舞台灯跟着照，主持按铃换轮，辩题屏展示讨论进度，情绪会冒粒子',
   },
+  ...Object.fromEntries((['roundtable','office','classroom','meadow','podcast'] as const).map(sourceId=>{
+    const source=ORIGINAL_SCENES[sourceId];
+    const descriptions={roundtable:'暖木圆桌与八把座椅，围坐交流，发言与情绪跟随原讨论引擎',office:'十三个独立工位、中央交换台和六席会议区，成员可以走访、站会和回到工位',classroom:'讲台、话题板与成排课桌，第一席在讲台，其余成员坐在前排',meadow:'林荫草地、野餐布、木桩座位和池塘，八人围坐交流',podcast:'双人扶手椅、话筒与暖色录音间，第一席主持、第二席嘉宾，坐着对谈'};
+    return [sourceId+'-mc',{...source,id:sourceId+'-mc',name:source.name+' · 我的世界',sourceSceneId:sourceId,mcStage:sourceId,previewImage:'/mc/preview-'+sourceId+'.jpg',description:descriptions[sourceId]} satisfies SceneDef];
+  })),
   ...Object.fromEntries(['roundtable', 'debate', 'office'].map((sourceId) => {
     const source = ORIGINAL_SCENES[sourceId];
     const id = `${sourceId}-3d`;
