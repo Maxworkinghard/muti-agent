@@ -22,9 +22,9 @@
 
 ![工作 · 办公室](docs/screens/04-office.png)
 
-场景图在 `frontend/public/scenes/`，六张分别是圆桌会议室、辩论室、办公室、中南大学教室、草地野餐、播客访谈间（正面视角，两人全身坐在扶手椅上访谈），也可以上传自己的图。例如中南大学教室：
+场景图在 `frontend/public/scenes/`，六张分别是圆桌会议室、辩论室、办公室、教室、草地野餐、播客访谈间（正面视角，两人全身坐在扶手椅上访谈），也可以上传自己的图。例如教室：
 
-![中南大学教室](frontend/public/scenes/scene-classroom.png)
+![教室](frontend/public/scenes/scene-classroom.png)
 
 加了 3D 场景之后，像素场景和各模式的默认场景都不变。在场景列表下方的「新增 3D 场景」中，还可单独选择「圆桌会议室 · 3D」「辩论室 · 3D」「办公室 · 3D」。仅主动选择这些新增场景时才加载三维模型，可拖动旋转、滚轮缩放，也能切回场景原图。人物继续使用现有的独立角色形象和状态动画，位置跟随视角；之前试生成的通用人物模型已撤下。模型来源、处理脚本和当前限制见 [`frontend/public/models/README.md`](frontend/public/models/README.md)。
 

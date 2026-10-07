@@ -4,7 +4,7 @@ import {Builder,type Point} from './builders';
 import {buildDebateRoom,type Room,type ActorAnchor} from './debate';
 
 export const MC_SCENE_KINDS:McSceneKind[]=['debate','roundtable','office','classroom','meadow','podcast'];
-export const MC_SCENE_NAMES:Record<McSceneKind,string>={debate:'辩论室',roundtable:'圆桌会议室',office:'办公室',classroom:'中南大学教室',meadow:'草地野餐',podcast:'播客访谈间'};
+export const MC_SCENE_NAMES:Record<McSceneKind,string>={debate:'辩论室',roundtable:'圆桌会议室',office:'办公室',classroom:'教室',meadow:'草地野餐',podcast:'播客访谈间'};
 const anchor=(x:number,z:number,yaw:number,i:number,standing=false):ActorAnchor=>({seat:[x,standing?1:1.5,z],stand:[x,1,z],homeYaw:yaw,mic:'seat-'+i,chair:standing?undefined:'chair-'+i});
 
 /** 共用暖色墙、木框和游戏灯具；每个场景单独提供布局与座位，不借用辩论室的队伍。 */

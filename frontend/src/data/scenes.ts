@@ -58,7 +58,7 @@ const ORIGINAL_SCENES: Record<string, SceneDef> = {
   },
   classroom: {
     id: 'classroom',
-    name: '中南大学教室',
+    name: '教室',
     image: '/scenes/scene-classroom.png',
     description: '第一个人站上讲台，其余人坐在前排听讲和发言',
     recommendedMode: 'rational',
