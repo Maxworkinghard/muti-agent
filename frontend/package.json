@@ -12,7 +12,6 @@
     "test:mc-stage": "node scripts/check-mc-stage.mjs",
     "test:mc-physics": "node scripts/check-mc-physics.mjs",
     "test:mc-spectator": "node scripts/check-mc-spectator.mjs",
-    "test:stage-render": "node scripts/check-stage-render.mjs",
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "build:server": "vite build --config vite.server.config.ts",
@@ -21,7 +20,6 @@
     "test:rational": "node scripts/check-rational.mjs",
     "test:debate-mind": "node scripts/check-debate-mind.mjs",
     "test:emotion": "node scripts/check-emotion.mjs",
-    "test:facing": "node scripts/check-facing.mjs",
     "preview": "vite preview",
     "sim": "node scripts/sim.mjs"
   },

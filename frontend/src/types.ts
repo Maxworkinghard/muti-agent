@@ -66,16 +66,10 @@ export interface SceneDef {
   id: SceneId;
   name: string;
   image: string;
-  /** Optional local GLB for the interactive discussion stage. */
-  model3d?: string;
   /** 新增三维场景的原图场景，用于 2D 回退和场景语义。 */
   sourceSceneId?: SceneId;
   /** 场景卡片预览，未设置时使用 image。 */
   previewImage?: string;
-  /** 三维模型包围盒内的 X/Z 百分比座位点，顺序对应 seats。 */
-  modelSeats?: Seat[];
-  /** 用代码搭的像素房间。设了以后不再加载 model3d 的模型。 */
-  pixelStage?: 'debate';
   /** 用已有游戏素材搭建的我的世界场景。 */
   mcStage?: McSceneKind;
   description: string;

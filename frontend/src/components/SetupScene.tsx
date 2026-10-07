@@ -72,7 +72,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
       <section className="panel">
         <h2><b>03</b> 选择场景 <small>像素场景和新增 3D 场景可分别选择</small></h2>
         <div className="scene-grid">
-          {scenes.filter((s) => !s.model3d && !s.mcStage).map((s) => (
+          {scenes.filter((s) => !s.mcStage).map((s) => (
             <button key={s.id} className={'scene-card' + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id })}>
               <img src={s.image} alt={s.name} />
               <div className="scene-meta">
@@ -95,15 +95,15 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
         </div>
         <h3 className="scene-section-title">新增 3D 场景</h3>
         <div className="scene-grid" aria-label="新增 3D 场景">
-          {scenes.filter((s) => s.model3d || s.mcStage).map((s) => (
-            <button key={s.id} disabled={Boolean(s.mcStage) && !mcReady} className={'scene-card scene-card-3d' + (s.mcStage && !mcReady ? ' mc-unavailable' : '') + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id, mode: s.mcStage ? s.recommendedMode : draft.mode })}>
+          {scenes.filter((s) => s.mcStage).map((s) => (
+            <button key={s.id} disabled={!mcReady} className={'scene-card scene-card-3d' + (!mcReady ? ' mc-unavailable' : '') + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id, mode: s.recommendedMode })}>
               <img src={s.previewImage ?? s.image} alt={s.name} loading="lazy" />
               <div className="scene-meta">
                 <strong>{s.name}</strong>
                 <span>{s.maxSeats} 席</span>
                 <i className="scene-3d-badge">3D</i>
               </div>
-              <small>{s.mcStage && !mcReady ? '需要先导入游戏资源（npm run mc:import）' : s.description}{s.mcStage === 'debate' && mcReady && '。选择后启用辩论模式，入座后可指定阵营。'}</small>
+              <small>{!mcReady ? '需要先导入游戏资源（npm run mc:import）' : s.description}{s.mcStage === 'debate' && mcReady && '。选择后启用辩论模式，入座后可指定阵营。'}</small>
             </button>
           ))}
         </div>

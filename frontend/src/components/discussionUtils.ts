@@ -1,7 +1,7 @@
 import type { AgentState, MindView, PersonaVisual } from '../types';
 
 export interface Status { state: AgentState; action: string }
-export interface Flight { id: string; fromSeat: number; toSeat: number; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
+export interface Flight { id: string; from: { x: number; y: number }; to: { x: number; y: number }; via?: { x: number; y: number }; color: string; title: string }
 export interface ErrorItem { id: string; agentId?: string; message: string; retry?: () => void }
 export type SessionPhase = 'waiting' | 'running' | 'paused' | 'finished' | 'stopped';
 

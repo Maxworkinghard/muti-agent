@@ -1,5 +1,4 @@
 import type { Facing, PersonaVisual } from '../types';
-import type { AvatarGesture, FaceFrame } from './pixelActorMotion';
 
 type Extra = NonNullable<PersonaVisual['extras']>[number];
 export type PixelRect = [number, number, number, number, string];
@@ -23,15 +22,13 @@ function shade(hex: string, k = 0.8) {
 export type AvatarPose = 'bust' | 'stand' | 'sit';
 
 /**
- * 16 宽像素小人。bust 是头和上身（二维默认），stand 是站立，sit 是坐姿（三维座位、二维正面坐姿的场景）。
+ * 16 宽像素小人。bust 是头和上身（二维默认），stand 是站立，sit 是坐姿（如二维正面坐姿的场景）。
  * facing：S 面朝观众，N 背对观众，E / W 侧身，其余是斜 45 度。
  * chair=false 时坐姿不画自带的木椅，坐在底图画好的椅子上。
  */
-export function buildPixelAvatar(v: PersonaVisual, options?: { standing?: boolean; facing?: Facing; pose?: AvatarPose; chair?: boolean; gesture?: AvatarGesture; frame?: FaceFrame }): { width: number; height: number; rects: PixelRect[] } {
+export function buildPixelAvatar(v: PersonaVisual, options?: { standing?: boolean; facing?: Facing; pose?: AvatarPose; chair?: boolean }): { width: number; height: number; rects: PixelRect[] } {
   const facing = options?.facing ?? 'S';
   const pose: AvatarPose = options?.pose ?? (options?.standing ? 'stand' : 'bust');
-  const gesture = options?.gesture;
-  const frame: FaceFrame = options?.frame ?? 0;
   const standing = pose === 'stand';
   const sitting = pose === 'sit';
   const height = sitting ? 22 : standing ? 24 : 16;
@@ -156,20 +153,16 @@ export function buildPixelAvatar(v: PersonaVisual, options?: { standing?: boolea
       if (side) { r(9, 4, 1, 1, O); r(10, 5, 1, 1, O); }
       else { r(xl - 2, 4, 1, 1, O); r(xl - 1, 5, 1, 1, O); r(xr + 2, 4, 1, 1, O); r(xr + 1, 5, 1, 1, O); }
     }
-    if (has('blush')) {
-      f.cheeks.forEach((x) => r(x, 8, 2, 1, '#ef9a8f'));
-      if (gesture && frame === 2) f.cheeks.forEach((x) => r(x, 9, 1, 1, '#f3b0a6'));
-    }
+    if (has('blush')) f.cheeks.forEach((x) => r(x, 8, 2, 1, '#ef9a8f'));
     const m = f.mouth;
     if (has('grin')) {
       if (side) { r(m - 1, 8, 1, 1, MOUTH); r(m, 9, 2, 1, MOUTH); }
       else { r(m - 2, 8, 1, 1, MOUTH); r(m - 1, 9, 4, 1, MOUTH); r(m + 3, 8, 1, 1, MOUTH); }
-    } else if (!(gesture === 'talk' && frame > 0)) r(m, 9, 2, 1, MOUTH);
+    } else r(m, 9, 2, 1, MOUTH);
   }
   if (has('sweat')) {
-    const drip = gesture ? frame : 0;
     r(13, 3, 1, 1, '#d6f0fb');
-    r(12, 4 + drip, 2, 2, '#7cc3e8');
+    r(12, 4, 2, 2, '#7cc3e8');
   }
 
   if (hs === 'hood' && f) {
@@ -182,71 +175,11 @@ export function buildPixelAvatar(v: PersonaVisual, options?: { standing?: boolea
     if (f) r(side ? 10 : 9 + dx, 12, 2, 2, accent);
   }
 
-  const talking = gesture === 'talk';
-  const raise = talking || gesture === 'think';
-  if (f && gesture && !talking) {
-    const [xl, xr] = f.eyes;
-    const shaped = has('glasses') || has('sleepy') || has('happy');
-    const coverEyes = () => {
-      if (has('glasses')) {
-        const lens = '#dcebf2';
-        if (side) r(10, 6, 2, 2, lens);
-        else { r(xl - 1, 6, 2, 2, lens); if (xr !== undefined) r(xr, 6, 2, 2, lens); }
-      } else if (side) r(10, 6, 1, 2, skin);
-      else f.eyes.forEach((x) => r(x, 6, 1, 2, skin));
-    };
-    const pupils = (shift: number, y: number) => {
-      if (shaped) return;
-      if (side) r(10 + shift, y, 1, 2, O);
-      else f.eyes.forEach((x) => r(x + shift, y, 1, 2, O));
-    };
-    const shut = () => {
-      coverEyes();
-      if (!has('glasses')) return;
-      if (side) r(10, 7, 2, 1, O);
-      else { r(xl - 1, 7, 2, 1, O); if (xr !== undefined) r(xr, 7, 2, 1, O); }
-    };
-    if (frame === 3) shut();
-    else if (frame === 1 && gesture === 'idle') {
-      if (has('happy') || has('sleepy')) {
-        if (!has('grin') && !side) r(f.mouth - 1, 9, 3, 1, MOUTH);
-      } else if (has('glasses')) {
-        if (side) r(11, 6, 1, 2, O);
-        else { r(xl, 6, 1, 2, O); if (xr !== undefined) r(xr + 1, 6, 1, 2, O); }
-      } else {
-        coverEyes();
-        pupils(1, 6);
-      }
-    } else if (frame === 1 && gesture === 'think') {
-      if (!shaped) { coverEyes(); pupils(0, 5); }
-      if (!side && !has('brows')) { r(xl - 1, 4, 2, 1, O); if (xr !== undefined) r(xr, 4, 2, 1, O); }
-    } else if (frame === 2 && gesture === 'think') {
-      coverEyes();
-      if (side) r(10, 7, 2, 1, O);
-      else f.eyes.forEach((x) => r(x, 7, 2, 1, O));
-    } else if (frame === 2) {
-      if (!shaped) {
-        coverEyes();
-        f.happy.forEach((x) => { r(x - 1, 7, 1, 1, O); r(x, 6, 1, 1, O); r(x + 1, 7, 1, 1, O); });
-      }
-      if (!has('grin')) {
-        if (side) r(f.mouth - 1, 9, 2, 1, MOUTH);
-        else r(f.mouth - 1, 9, 3, 1, MOUTH);
-      }
-    }
-  }
-  if (f && talking && frame > 0) {
-    const m = f.mouth;
-    if (!side && frame === 2) r(m - 1, 8, 4, 2, MOUTH);
-    else if (side) r(m, 8, 2, 2, MOUTH);
-    else r(m, 8, 2, 2, MOUTH);
-  }
-
   const pants = '#3d3550';
   const wood = '#ab7646';
   const woodDark = '#8a5b34';
   if (sitting && options?.chair !== false) {
-    // 椅子画在裤子下面。转朝向时这张图跟着换，不另放会错位的三维椅。
+    // 椅子画在裤子下面，转朝向时跟着这张图一起换。
     if (side) {
       r(2, 12, 2, 6, wood); r(2, 12, 2, 1, woodDark);
       r(2, 17, 8, 2, wood); r(2, 18, 8, 1, woodDark);
@@ -262,16 +195,14 @@ export function buildPixelAvatar(v: PersonaVisual, options?: { standing?: boolea
   }
   if (standing) {
     if (side) {
-      if (raise) { r(8, 5, 2, 1, skin); r(8, 6, 2, 5, shade(shirt)); }
-      else { r(7, 12, 2, 5, shade(shirt)); r(7, 17, 2, 1, skin); }
+      r(7, 12, 2, 5, shade(shirt)); r(7, 17, 2, 1, skin);
       r(5, 16, 6, 2, pants);
       r(5, 18, 3, 5, pants); r(8, 18, 3, 5, shade(pants));
       r(4, 23, 4, 1, O); r(8, 23, 5, 1, O);
     } else {
       r(2, 12, 1, 5, shirt);
       r(2, 17, 1, 1, skin);
-      if (raise) { r(12, 6, 2, 1, skin); r(13, 7, 1, 4, shirt); }
-      else { r(13, 12, 1, 5, shirt); r(13, 17, 1, 1, skin); }
+      r(13, 12, 1, 5, shirt); r(13, 17, 1, 1, skin);
       r(4, 16, 8, 2, pants);
       r(4, 18, 3, 5, pants); r(9, 18, 3, 5, pants);
       r(3, 23, 4, 1, O); r(9, 23, 4, 1, O);
@@ -279,15 +210,13 @@ export function buildPixelAvatar(v: PersonaVisual, options?: { standing?: boolea
   } else if (sitting) {
     // 脚在最底一行。侧面朝右时，大腿朝画面右侧伸出，镜像后朝左的人反过来。
     if (side) {
-      if (raise) { r(8, 6, 2, 1, skin); r(8, 7, 2, 4, shade(shirt)); }
       r(6, 16, 6, 2, pants);
       r(10, 18, 2, 3, pants);
       r(9, 21, 4, 1, O);
     } else {
       r(2, 12, 1, 4, shirt);
       r(2, 16, 1, 1, skin);
-      if (raise) { r(11, 6, 2, 1, skin); r(12, 7, 1, 4, shirt); }
-      else { r(13, 12, 1, 4, shirt); r(13, 16, 1, 1, skin); }
+      r(13, 12, 1, 4, shirt); r(13, 16, 1, 1, skin);
       r(3, 16, 4, 2, pants); r(9, 16, 4, 2, pants);
       r(3, 18, 3, 3, shade(pants)); r(10, 18, 3, 3, shade(pants));
       r(2, 21, 4, 1, O); r(9, 21, 4, 1, O);

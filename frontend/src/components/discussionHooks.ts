@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { AgentState, Participant, Seat } from '../types';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { AgentState, Participant } from '../types';
 import type { Away } from '../data/stageRules';
 import { playReady, playSeat, playVoice, useMuted } from '../sound';
 import { createBgm, type Bgm } from './stageFx';
@@ -60,38 +60,6 @@ export function useWalkAnimations({ walkCast, session, away, participants, seatE
   }, [session]);
   useEffect(() => () => { for (const animation of walks.current.values()) animation.cancel(); }, []);
   return { walking, setWalking, walkStarts, walkEnabled };
-}
-
-/**
- * 三维里镜头一直在动，人物位置每帧都变：直接写到座位元素上，不走 React 状态（否则整页每帧重渲染）。
- * React 状态只低频同步，给气泡翻到下方、传递动画这些用。
- */
-export function useSeatPositions({ threeActive, seatEls }: {
-  threeActive: boolean;
-  seatEls: { current: Map<number, HTMLElement> };
-}) {
-  const [projectedSeats, setProjectedSeats] = useState<Seat[]>([]);
-  const seatPos = useRef<Seat[]>([]);
-  const syncTimer = useRef(0);
-  const placeSeats = useCallback(() => {
-    for (const [index, el] of seatEls.current) {
-      const seat = seatPos.current[index];
-      if (!seat) continue;
-      el.style.left = seat.x + '%';
-      el.style.top = seat.y + '%';
-      el.style.setProperty('--s', String(seat.scale ?? 1));
-    }
-  }, []);
-  const onSeatPositions = useCallback((positions: Seat[]) => {
-    seatPos.current = positions;
-    placeSeats();
-    if (!syncTimer.current) {
-      syncTimer.current = window.setTimeout(() => { syncTimer.current = 0; setProjectedSeats(seatPos.current); }, 150);
-    }
-  }, [placeSeats]);
-  useEffect(() => () => clearTimeout(syncTimer.current), []);
-  useLayoutEffect(() => { if (threeActive) placeSeats(); });
-  return { projectedSeats, onSeatPositions };
 }
 
 /**
