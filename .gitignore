@@ -8,3 +8,6 @@ frontend/.env.bak-*
 
 # npm run legacy 检出的旧版（git worktree）
 .legacy/
+
+# 本地验收/抓图临时目录（含 Chrome 用户数据，绝不提交）
+.verify/
