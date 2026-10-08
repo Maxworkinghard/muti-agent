@@ -4,7 +4,7 @@
  * 坐标：1 格 = 1 米，x 向东、z 向南，地板方块在 y=0、人踩在 y=1。湖在北面（z<0），下午的太阳在西偏南。
  *   石基座   x 5–20、z 0–16，比四周草地高 1 格；北沿（z=0）是伸进湖里的石砌驳岸。
  *   主厅     x 6–19、z 4–15，云杉地板，柱网 x∈{6,10,15,19}、z∈{4,7,12,15}，柱高 4 格，梁在 y=5。
- *   前廊     z 1–3，屋面从山墙一直挑到湖边，只在两个外角立柱，朝湖完全敞开。
+ *   前廊     z 1–3，露天的木平台直接临水，山墙只挑出 1 格；两角各一根灯柱（道具层）。
  *   屋顶     双坡，屋脊南北向（x=12.5），山墙正对湖面：从厅里往北看，梁下是湖，梁上的三角山花里是山和天。
  *            0.5 格一级的板岩瓦（外层）+ 云杉望板（内层，低一格），露出顺屋脊方向的檩条（道具层）。
  *   藻井     桌子正上方 x 10–15、z 7–12 升起一座八角天窗楼：井壁深橡木，上两层朝内八段格窗，顶上中间一块玻璃。
@@ -23,9 +23,9 @@ export const HALL={
   floorY:1,
   cols:{x:[6,10,15,19],z:[4,7,12,15]},
   beamY:5,
-  caisson:{x0:10,x1:15,z0:7,z1:12,top:11},
+  caisson:{x0:10,x1:15,z0:7,z1:12,top:10},
   /** 屋面范围（含出檐） */
-  roof:{x0:4,x1:21,z0:1,z1:16},
+  roof:{x0:4,x1:21,z0:3,z1:16},
   /** 屋面外层（瓦）底面高度：西檐、东檐 5，梁上 6，屋脊 9。按 x 格查。 */
   roofU,
   /** 屋面内层（望板）底面高度：檩条顶面贴着它 */
@@ -55,7 +55,6 @@ export function buildHall():Builder{
   const col=(x:number,z:number,h:number)=>{for(let y=1;y<=h;y++)b.put(x,y,z,'dark_oak_log',{axis:'y'});};
   for(const x of cols.x)for(const z of [4,15])col(x,z,4);
   for(const z of [7,12])for(const x of [6,19])col(x,z,4);
-  for(const x of [6,19])col(x,1,4);
 
   // ——墙：东墙（壁炉 + 格窗）、南墙（书架 + 格窗）、西面半高石栏。
   const wallBay=(cells:Array<[number,number]>,mid:'pane'|'books')=>{for(const [x,z] of cells){b.put(x,1,z,'stone_bricks');for(const y of [2,3])b.put(x,y,z,mid==='pane'?'glass_pane':'bookshelf',mid==='pane'?{waterlogged:'false'}:{});b.put(x,4,z,'calcite');}};
@@ -70,7 +69,7 @@ export function buildHall():Builder{
 
   // ——梁（去皮深橡木，横放）：主厅一圈 + 两道纵梁两道横梁，围出藻井的口；东西两道边梁一直伸到前廊外角。
   for(let x=6;x<=19;x++)for(const z of [4,7,12,15])b.put(x,beamY,z,'stripped_dark_oak_log',{axis:'x'});
-  for(let z=1;z<=15;z++)for(const x of [6,10,15,19]){if([4,7,12,15].includes(z))continue;if(z<4&&(x===10||x===15))continue;b.put(x,beamY,z,'stripped_dark_oak_log',{axis:'z'});}
+  for(let z=5;z<=14;z++)for(const x of [6,10,15,19]){if([7,12].includes(z))continue;b.put(x,beamY,z,'stripped_dark_oak_log',{axis:'z'});}
 
   // ——藻井：一圈井壁，四角各填一格成八角，朝内的八段在上两层开格窗，顶上中间一块玻璃天窗。
   const inC=(x:number,z:number)=>x>=C.x0&&x<=C.x1&&z>=C.z0&&z<=C.z1;
@@ -84,8 +83,17 @@ export function buildHall():Builder{
   }
   for(let x=C.x0;x<=C.x1;x++)for(let z=C.z0;z<=C.z1;z++){
     const center=(x===12||x===13)&&(z===9||z===10);
-    b.put(x,C.top,z,center?'glass':ring(x,z)?'stripped_dark_oak_log':'birch_planks',ring(x,z)&&!center?{axis:x===C.x0||x===C.x1?'z':'x'}:{});
-    if(!center)b.put(x,C.top+1,z,'deepslate_tile_slab',{type:'bottom',waterlogged:'false'});
+    b.put(x,C.top,z,center?'glass':ring(x,z)?'calcite':'birch_planks');
+  }
+  // 天窗楼的四坡小屋顶：外圈一圈板岩瓦楼梯朝外落水，里圈一层瓦，中间 2×2 玻璃天窗抬高一格。
+  for(let x=C.x0;x<=C.x1;x++)for(let z=C.z0;z<=C.z1;z++){
+    const y=C.top+1,center=(x===12||x===13)&&(z===9||z===10);
+    if(center){b.put(x,y,z,'glass');continue;}
+    if(ring(x,z)){const facing=z===C.z0?'south':z===C.z1?'north':x===C.x0?'east':'west';
+      const corner=(x===C.x0||x===C.x1)&&(z===C.z0||z===C.z1);
+      const shape=!corner?'straight':(x===C.x0&&z===C.z0)||(x===C.x1&&z===C.z1)?'outer_right':'outer_left';
+      b.put(x,y,z,'deepslate_tile_stairs',{facing,half:'bottom',shape,waterlogged:'false'});}
+    else b.put(x,y,z,'deepslate_tile_slab',{type:'bottom',waterlogged:'false'});
   }
 
   // ——屋面：外层板岩瓦、内层云杉望板（低一格），屋脊压一道瓦。藻井、烟囱、梁占的格子跳过。

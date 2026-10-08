@@ -41,7 +41,7 @@ export function buildLandscape(k:V2Kit,o:LakeSetting):THREE.Group{
   // ——湖：湖床（深青）+ 半透明水面，倒影画在两者之间。
   const span=560,depth=o.shore-(o.farShore-60);
   const bed=new THREE.Mesh(new THREE.PlaneGeometry(span,depth+40).rotateX(-Math.PI/2),k.flat('#1d4558'));bed.position.set((o.west+o.east)/2,o.water-2.2,o.shore-(depth+40)/2);bed.receiveShadow=true;root.add(bed);
-  const waterMat=k.mat('v2-water',p=>{const W=PAL.water;p.fill(W.mid);const rr=rng(91);for(let i=0;i<9;i++){const y=Math.floor(rr()*16),x=Math.floor(rr()*13);p.rect(x,y,2+Math.floor(rr()*4),1,rr()<.5?W.light:W.deep);}if(rr()<.9)p.px(Math.floor(rr()*16),Math.floor(rr()*16),W.glint);},{rough:.22,transparent:true});
+  const waterMat=k.mat('v2-water',p=>{const W=PAL.water;p.fill(W.mid);const rr=rng(91);for(let i=0;i<7;i++){const y=Math.floor(rr()*16),x=Math.floor(rr()*13);p.rect(x,y,2+Math.floor(rr()*4),1,rr()<.3?W.light:W.deep);}if(rr()<.9)p.px(Math.floor(rr()*16),Math.floor(rr()*16),W.glint);},{rough:.22,transparent:true});
   waterMat.opacity=.7;waterMat.depthWrite=false;
   const waterGeo=new THREE.PlaneGeometry(span,depth).rotateX(-Math.PI/2),uv=waterGeo.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*span/4,uv.getY(i)*depth/4);
   const water=new THREE.Mesh(waterGeo,waterMat);water.position.set((o.west+o.east)/2,o.water,o.shore-depth/2);water.receiveShadow=true;water.renderOrder=1;water.name='v2-water';root.add(water);
@@ -56,7 +56,7 @@ export function buildLandscape(k:V2Kit,o:LakeSetting):THREE.Group{
 
   // ——对岸、两侧山坡：4 米一格的台地，从水边往后抬高，上面种方块树。
   const land=new ColorBoxes(),trees=new ColorBoxes(),cell=4;
-  const grassTop=[C(PAL.grass.base),C(PAL.grass.dark),C('#5f8f3c'),C(PAL.grass.light)],dirtSide=C('#6c5038'),rockSide=C('#7b7a74');
+  const grassTop=[C(PAL.grass.base),C(PAL.grass.dark),C('#5f8f3c'),C(PAL.grass.light)],dirtSide=C('#5b6c3c'),rockSide=C('#7b7a74');
   const terrace=(x:number,z:number,h:number)=>{const t=grassTop[Math.floor(n(x*.07,z*.07)*4)%4];b(x,z,h,t);};
   const b=(x:number,z:number,h:number,t:THREE.Color)=>land.add(x,o.water-3,z,x+cell,h,z+cell,t,h-o.water>9?rockSide:dirtSide);
   // 对岸：z 从 farShore 往后 70 米，x 跨整个湖。
@@ -69,6 +69,10 @@ export function buildLandscape(k:V2Kit,o:LakeSetting):THREE.Group{
     for(let i=0;i<22;i++)for(let z=o.farShore;z<o.shore+20;z+=cell){const x=side<0?edge-(i+1)*cell:edge+i*cell;
       const out=i/22,along=(z-o.farShore)/(o.shore+20-o.farShore),h=o.water+1+Math.floor((out*26*(1-.45*along)+n(x*.06,z*.06)*8)/1.5)*1.5;terrace(x,z,h);
       if(r()<.5){const kind=r()<.08?'cherry':r()<.4?'spruce':r()<.5?'birch':'oak';tree(trees,x+cell/2,h,z+cell/2,5+r()*5,kind,r);}}}
+  // 近岸平地上零星的树和灌木丛（方块地形区以外、湖岸以南），让大片草地不至于空。
+  if(o.hole){const H=o.hole;for(let i=0;i<70;i++){const a=r()*Math.PI*2,d=24+r()*70,x=(H.x0+H.x1)/2+Math.cos(a)*d,z=o.shore+6+Math.abs(Math.sin(a))*d*.9;
+    if(x>H.x0-3&&x<H.x1+3&&z<H.z1+3)continue;if(r()<.35){const s=1.2+r()*1.4,c=C(PAL.leaf.dark);trees.add(x-s/2,o.ground,z-s/2,x+s/2,o.ground+s*.8,z+s/2,C(PAL.leaf.base),c);continue;}
+    const kind=r()<.12?'cherry':r()<.3?'birch':r()<.55?'spruce':'oak';tree(trees,x,o.ground,z,4+r()*4,kind,r);}}
   const landMat=k.flat('#ffffff',{vertex:true}),landMesh=new THREE.Mesh(land.geometry(),landMat);landMesh.receiveShadow=true;landMesh.name='v2-far-land';root.add(landMesh);
   const treeMesh=new THREE.Mesh(trees.geometry(),landMat);treeMesh.name='v2-far-trees';root.add(treeMesh);
 

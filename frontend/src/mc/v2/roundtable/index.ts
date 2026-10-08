@@ -20,8 +20,8 @@ const kits=new WeakMap<Kit,V2Kit>();
 const v2=(k:Kit)=>{let x=kits.get(k);if(!x){x=createV2Kit(k.owned);kits.set(k,x);}return x;};
 
 export const RT={tableR:1.45,tableH:.95,seatGap:.36,
-  /** 座位从正东偏 22.5° 起每 45° 一个：默认机位（西南）正对着两个座位之间的空当，看得到桌面 */
-  phase:Math.PI/8};
+  /** 座位从正东偏 30° 起每 45° 一个：默认机位（西南角）正对着两个座位之间的空当，看得到桌面 */
+  phase:Math.PI/6};
 
 export function buildRoundtableV2():Room{
   const {x:cx,z:cz}=HALL.table,R=RT.tableR+RT.seatGap;
@@ -33,10 +33,10 @@ export function buildRoundtableV2():Room{
   const lights:Room['lights']=[
     {position:[cx,3.95,cz],length:.4,intensity:1.6,distance:8,kind:'lantern',shadow:false,color:'#ffd49a'},
     {position:[18.75,1.55,10],length:.3,intensity:2.6,distance:9,kind:'lantern',shadow:true,color:'#ff9c52'},
-    {position:[6.5,4.1,2.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
-    {position:[19.5,4.1,2.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
+    {position:[6.5,3.05,1.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
+    {position:[19.5,3.05,1.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
   ];
-  const camera:Point=[7.0,4.3,14.6],cameraTarget:Point=[14.2,1.9,7.0];
+  const camera:Point=[6.8,3.45,14.8],cameraTarget:Point=[14.2,2.45,7.0];
   let fire:THREE.Group|null=null;
   const room:Room={
     kind:'roundtable',title:MC_SCENE_NAMES.roundtable,seatedSpeech:true,material:'original',
@@ -48,7 +48,7 @@ export function buildRoundtableV2():Room{
     bounds:{min:[6.05,1,1.05],max:[19.95,5.95,15.95]},
     flight:{min:[-4,1,-6],max:[30,16,24]},
     look:{background:'#d2e1ee',outdoor:true,sky:'#c9dcf0',ground:'#a59c88',ambient:1.05,
-      sun:{color:'#ffe9cf',intensity:3.4,azimuth:200,elevation:22,shadow:.9},exposure:1.12,indirect:.3,
+      sun:{color:'#ffe9cf',intensity:3.4,azimuth:200,elevation:22,shadow:.9},exposure:1.12,indirect:.4,
       haze:'#d4e2ee',fog:[90,460],skyTop:'#5b93d3',saturation:1},
     paint:{...V2_BLOCK_PAINT},
     boardStyle:'sign',boardFrame:'block/dark_oak_planks',
@@ -62,13 +62,14 @@ export function buildRoundtableV2():Room{
       const stone=g.mat('stone',V2_BLOCK_PAINT['block/stone_bricks']);
       for(const x of HALL.cols.x)for(const z of [4,15])g.box(root,.86,.18,.86,stone,x+.5,1.09,z+.5);
       for(const z of [7,12])for(const x of [6,19])g.box(root,.86,.18,.86,stone,x+.5,1.09,z+.5);
-      for(const x of [6,19])g.box(root,.86,.18,.86,stone,x+.5,1.09,1.5);
       // 檩条：顺屋脊方向，贴着望板底面；藻井那段断开。
       const beam=g.mat('purlin',V2_BLOCK_PAINT['block/stripped_dark_oak_log']);
       const purlin=(x:number,z0:number,z1:number)=>{const top=HALL.underside(Math.floor(x));g.box(root,.34,.34,z1-z0,beam,x,top-.17,(z0+z1)/2);};
-      for(const x of [8.5,17.5])purlin(x,1,17);
-      for(const x of [10.5,15.5])for(const [z0,z1] of [[1,7],[13,17]])purlin(x,z0,z1);
-      for(const [z0,z1] of [[1,7],[13,17]]){const top=HALL.underside(12);g.box(root,.4,.4,z1-z0,beam,13,top-.2,(z0+z1)/2);}
+      for(const x of [8.5,17.5])purlin(x,3,17);
+      for(const x of [10.5,15.5])for(const [z0,z1] of [[3,7],[13,17]])purlin(x,z0,z1);
+      for(const [z0,z1] of [[3,7],[13,17]]){const top=HALL.underside(12);g.box(root,.4,.4,z1-z0,beam,13,top-.2,(z0+z1)/2);}
+      // 北山墙的童柱：梁上一根短柱顶住脊檩，从厅里看出去，山花被它分成两扇三角窗。
+      g.box(root,.32,HALL.underside(12)-6,.32,beam,13,(HALL.underside(12)+6)/2,4.5);
       // 会议圈：草编席、八角桌、茶具。
       root.add(place(octagonMat(g,2.95),cx,1,cz));
       root.add(place(octagonTable(g,RT.tableR,RT.tableH),cx,1,cz));
@@ -80,7 +81,8 @@ export function buildRoundtableV2():Room{
       root.add(place(pottedShrub(g,.55,true,true,5),17.82,3.16,11.35));
       // 灯：桌子上方的大纸灯从天窗楼顶垂下来，前廊两个外角各一盏小灯。
       const top=HALL.caisson.top;root.add(place(cord(g,top-4.55),cx,4.55,cz));root.add(place(paperLantern(g,.56,.8),cx,4.55,cz));
-      for(const x of [6.5,19.5]){root.add(place(cord(g,.35),x,4.65,2.5));root.add(place(paperLantern(g,.3,.7),x,4.65,2.5));}
+      // 前廊是露天平台：两角各一根木灯柱，顶上一盏小纸灯。
+      for(const x of [6.5,19.5]){g.box(root,.16,1.8,.16,beam,x,1.9,1.5);g.box(root,.5,.08,.12,beam,x,2.84,1.5);root.add(place(paperLantern(g,.3,.7),x,2.88+.42,1.5));}
       // 植物：西栏上两盆、前廊两角、书架边一大盆，节奏不对称。
       root.add(place(pottedShrub(g,.7,false,false,11),6.5,1.5,5.4));
       root.add(place(pottedShrub(g,.8,false,true,12),6.5,1.5,13.6));
@@ -91,8 +93,8 @@ export function buildRoundtableV2():Room{
       root.add(place(reedBlind(g,2.6,1.6),6.5,5,14.0,Math.PI/2));
       // 山墙封檐板：南北两端顺着屋面坡度各两块深色板，盖住台阶瓦和两层屋面之间的空隙；东西檐口一根檐檩。
       const verge=g.mat('verge',V2_BLOCK_PAINT['block/dark_oak_planks']),slope=Math.atan(.5),len=9*Math.hypot(1,.5);
-      for(const z of [.94,17.06])for(const s of [-1,1]){const m=g.box(root,len,.9,.12,verge,13+s*4.5,9.55-2.25-.45,z);m.rotation.z=-s*slope;}
-      for(const x of [4.2,21.8])g.box(root,.4,.6,16,beam,x,4.72,9);
+      for(const z of [2.94,17.06])for(const s of [-1,1]){const m=g.box(root,len,.9,.12,verge,13+s*4.5,9.55-2.25-.45,z);m.rotation.z=-s*slope;}
+      for(const x of [3.98,22.02])g.box(root,.28,1.04,14.1,beam,x,4.5,10);
       // 西侧入口外的三块踏步石。
       const step=g.mat('cobble',V2_BLOCK_PAINT['block/cobblestone']);for(const [x,z] of [[4.2,10.1],[3.1,9.6],[2.0,10.3]] as const)g.box(root,.8,.08,.7,step,x,.04,z);
     },

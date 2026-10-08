@@ -21,6 +21,10 @@ export const PROP_PAINT:Record<string,Painter>={
   mat:p=>{const r=rng(104);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const weave=((x>>1)+(y>>1))%2;p.px(x,y,weave?'#cdb57e':'#bda46c');}speckle(p,r,['#a88e58','#dcc590'],.06);},
   matEdge:p=>{p.fill('#3f4a3a').rect(0,7,16,2,'#556250');},
   paper:p=>{p.fill(PAL.paper.base);const r=rng(105);speckle(p,r,['#e6dabb','#f6eedb'],.2);},
+  // 写了几行字的便笺：整张铺在一张纸上。
+  note:p=>{p.fill(PAL.paper.base);for(let y=3;y<14;y+=2){const w=6+((y*7)%6);p.rect(2,y,w,1,'#8a7a62');}p.rect(0,0,16,1,'#d9cba8');},
+  // 卷起的卷轴：米白纸卷，两端深色轴头，中间一道朱红系带。
+  scrollRoll:p=>{p.fill('#e8dcc0');p.rect(0,0,16,2,'#f4ecd8');p.rect(0,13,16,3,'#c9b994');p.rect(0,0,2,16,'#4a3123').rect(14,0,2,16,'#4a3123');p.rect(7,0,2,16,'#b8452f');},
   scroll:p=>{p.fill(PAL.paper.base);for(let y=3;y<14;y+=3)p.rect(3,y,10,1,'#8a7a62');p.rect(0,0,16,1,'#b8452f').rect(0,15,16,1,'#b8452f');},
   ceramic:p=>{p.fill('#dfe6e2');p.rect(0,5,16,3,'#3f6f8a');p.rect(0,6,16,1,'#5a8aa4');p.rect(0,0,16,1,'#f4f8f6');},
   teapot:p=>{p.fill('#5b3a2c');p.rect(0,4,16,2,'#74503c');p.rect(0,12,16,1,'#3e271c');},
@@ -67,13 +71,15 @@ export function chair(k:V2Kit,fabric:string){
 /** 桌上的茶具：托盘、茶壶、给每个座位一只茶杯，少数座位一卷纸。 */
 export function teaSet(k:V2Kit,seats:Array<[number,number]>,cx:number,cz:number,top:number){
   const g=new THREE.Group();g.name='v2-tea';
-  k.box(g,.62,.03,.42,M(k,'tray'),cx,top+.015,cz);
-  k.box(g,.22,.17,.2,M(k,'teapot'),cx-.08,top+.115,cz);k.box(g,.1,.04,.1,M(k,'teapot'),cx-.08,top+.22,cz);k.box(g,.12,.04,.04,M(k,'teapot'),cx+.07,top+.13,cz);
-  k.box(g,.09,.08,.09,M(k,'ceramic'),cx+.18,top+.07,cz+.1);
+  // 小件的贴图按物件大小整张铺上（px = 16 / 尺寸），不然一只杯子上只剩一两个像素的花纹。
+  k.box(g,.62,.03,.42,M(k,'tray'),cx,top+.015,cz,40);
+  const pot=M(k,'teapot');k.box(g,.2,.15,.2,pot,cx-.08,top+.105,cz,80);k.box(g,.1,.04,.1,pot,cx-.08,top+.2,cz,160);k.box(g,.03,.03,.03,pot,cx-.08,top+.235,cz,500);
+  const spout=k.box(g,.12,.035,.035,pot,cx+.06,top+.15,cz,130);spout.rotation.z=.6;k.box(g,.03,.1,.03,pot,cx-.2,top+.11,cz,160);
+  for(const [dx,dz] of [[.15,.1],[.15,-.08]])k.box(g,.07,.06,.07,M(k,'ceramic'),cx+dx,top+.06,cz+dz,230);
   seats.forEach(([x,z],i)=>{const dx=x-cx,dz=z-cz,l=Math.hypot(dx,dz),ux=dx/l,uz=dz/l,yaw=Math.atan2(dx,dz);
-    k.box(g,.09,.08,.09,M(k,'ceramic'),cx+ux*.98-uz*.22,top+.04,cz+uz*.98+ux*.22);
-    const sheet=k.box(g,.32,.012,.24,M(k,'paper'),cx+ux*.92+uz*.08,top+.006,cz+uz*.92-ux*.08);sheet.rotation.y=yaw+(i%2?.12:-.1);
-    if(i%3===0){const s=k.box(g,.06,.06,.36,M(k,'scroll'),cx+ux*.62,top+.03,cz+uz*.62);s.rotation.y=yaw+Math.PI/2;}});
+    k.box(g,.11,.012,.11,M(k,'tray'),cx+ux*.98-uz*.24,top+.006,cz+uz*.98+ux*.24,140);k.box(g,.07,.07,.07,M(k,'ceramic'),cx+ux*.98-uz*.24,top+.047,cz+uz*.98+ux*.24,230);
+    const sheet=k.box(g,.3,.01,.22,M(k,'note'),cx+ux*.9+uz*.1,top+.005,cz+uz*.9-ux*.1,53);sheet.rotation.y=yaw+(i%2?.12:-.1);
+    if(i%3===0){const s=k.box(g,.36,.06,.06,M(k,'scrollRoll'),cx+ux*.62,top+.03,cz+uz*.62,44);s.rotation.y=yaw;}});
   return g;
 }
 /** 纸灯笼：上下深木盖、四面发光纸，原点在灯笼顶部挂点。 */
@@ -110,6 +116,14 @@ export function hangingBasket(k:V2Kit,len=.7){
   k.box(g,.42,.18,.42,M(k,'pot'),0,-len-.09,0);
   const ivy=M(k,'ivy',{side:THREE.DoubleSide});for(let i=0;i<5;i++){const a=i/5*Math.PI*2,h=.5+(i%3)*.18;const p=new THREE.Mesh(new THREE.PlaneGeometry(.22,h),ivy);p.position.set(Math.sin(a)*.2,-len-.05-h/2,Math.cos(a)*.2);p.rotation.y=a;p.castShadow=true;g.add(p);}
   k.box(g,.46,.16,.46,M(k,'shrub'),0,-len+.04,0);
+  return g;
+}
+/** 垂下来的一串樱花枝：几片交叉的镂空花叶片，长短不一。原点在挂点。 */
+export function blossomStrand(k:V2Kit,len:number,seed=1){
+  const g=new THREE.Group(),r=rng(seed),m=M(k,'blossom',{side:THREE.DoubleSide});
+  for(let i=0;i<6;i++){const h=len*(.45+r()*.55),w=.22+r()*.16,geo=new THREE.PlaneGeometry(w,h),uv=geo.getAttribute('uv');for(let j=0;j<uv.count;j++)uv.setXY(j,uv.getX(j)*w,uv.getY(j)*h);
+    const p=new THREE.Mesh(geo,m);p.position.set((r()-.5)*.35,-h/2,(r()-.5)*.35);p.rotation.y=i*Math.PI/3+r()*.4;p.castShadow=true;g.add(p);}
+  const twig=M(k,'lanternFrame');k.box(g,.05,.05,.7,twig,0,-.02,0);
   return g;
 }
 /** 芦苇帘：卷起的帘轴 + 放下一段的帘面（有缝，阳光从缝里漏进来）。原点在顶部中心，帘面在 x-y 平面。 */
