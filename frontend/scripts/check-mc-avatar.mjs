@@ -3,7 +3,7 @@
 // 2. avatar 模块里没有随机数、没有按 id 哈希挑衣服；同一份造型拼两次，发型零件一模一样；
 // 3. 搭配约束：每条规则在真实造型和构造的冲突造型上都成立；
 // 4. 每人主色 4–5 种（相近色算一个，皮肤不算）；33 人的轮廓（发型 + 头饰 + 外层 + 下装 + 呆毛 / 胡子 / 围巾）两两不同；
-// 5. 坐姿几何：鞋底正好落在地面、大腿下沿贴座面、头身比在 1:1.3–1:1.6；椅子族的座面前沿在小腿后面、靠背前面在外套背面后面、
+// 5. 坐姿几何：鞋底正好落在地面、大腿下沿贴座面、全高约 3～3.6 头身（颈高/头高 1.95–2.60）；椅子族的座面前沿在小腿后面、靠背前面在外套背面后面、
 //    靠背顶低于大头后仰时的后脑下沿、扶手内侧在胳膊外面。
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -62,7 +62,7 @@ try {
   const hipSeated = SEAT_H + RIG.leg.d / 2 * T, sole = hipSeated - RIG.leg.shin * T;
   assert.ok(Math.abs(sole) < 1e-9, '坐下鞋底离地 ' + sole.toFixed(3));
   assert.ok(Math.abs(SEAT_H - SIT_DROP + HIP_Y * T - hipSeated) < 1e-9, '坐下髋轴不在座面上方半个腿厚');
-  const ratio = NECK_Y / (RIG.head.h * HEAD_SCALE); assert.ok(ratio >= 1.3 && ratio <= 1.6, '头身比 1:' + ratio.toFixed(2));
+  const ratio = NECK_Y / (RIG.head.h * HEAD_SCALE); assert.ok(ratio >= 1.95 && ratio <= 2.6, '头身比 1:' + ratio.toFixed(2) + '（全高约 ' + (1 + ratio).toFixed(2) + ' 头身）');
   const shinBack = (RIG.leg.thigh - (RIG.leg.w / 2 - .15)) * T; assert.ok(CHAIR.front <= shinBack - .005, '座面前沿 ' + CHAIR.front + ' 顶到小腿后侧 ' + shinBack.toFixed(3));
   const coatBack = (RIG.torso.d / 2 + 1) * T; assert.ok(-CHAIR.back >= coatBack - 1e-9, '靠背前面顶进外套背面');
   const headBottomSeated = hipSeated + RIG.torso.h * T, tiltDip = RIG.head.d / 2 * HEAD_SCALE * T * Math.sin(.4); assert.ok(CHAIR.backTop <= headBottomSeated - tiltDip + .01, '靠背顶 ' + CHAIR.backTop + ' 会顶进后仰的后脑（' + (headBottomSeated - tiltDip).toFixed(3) + '）');
@@ -70,7 +70,7 @@ try {
   for (const type of Object.keys(BODY)) for (const style of ['standard', 'relaxed', 'side']) for (const outer of [false, true]) {
     const b = makeBody(type), pose = sitPose(b, style, outer), gap = seatClearance(b, pose);
     const ratioB = b.neckY / (rig.HEAD.h * b.head.scale[1]);
-    assert.ok(ratioB >= 1.3 && ratioB <= 1.6, type + ' 头身比 1:' + ratioB.toFixed(2));
+    assert.ok(ratioB >= 1.95 && ratioB <= 2.6, type + ' 头身比 1:' + ratioB.toFixed(2));
     assert.ok(gap.sole < .08, type + ' ' + style + (outer ? ' 外套' : '') + ' 鞋底离地 ' + gap.sole.toFixed(3) + ' T');
     assert.ok(gap.front >= .3, type + ' ' + style + (outer ? ' 外套' : '') + ' 小腿离座面前沿 ' + gap.front.toFixed(3) + ' T');
     const headBottom = SEAT_H + RIG.leg.d / 2 * T + b.torso.h * T, dip = RIG.head.d / 2 * b.head.scale[2] * T * Math.sin(.4);
@@ -81,7 +81,7 @@ try {
   for (const l of Object.values(LOOKS)) {
     const b = makeBody(l.body.type, l.body.head), outer = !!l.outer && !['apron', 'overalls'].includes(l.outer.kind), gap = seatClearance(b, sitPose(b, l.body.sit, outer));
     const ratioB = b.neckY / (rig.HEAD.h * b.head.scale[1]);
-    assert.ok(ratioB >= 1.3 && ratioB <= 1.6, l.name + ' 头身比 1:' + ratioB.toFixed(2));
+    assert.ok(ratioB >= 1.95 && ratioB <= 2.6, l.name + ' 头身比 1:' + ratioB.toFixed(2));
     assert.ok(gap.sole < .08 && gap.front >= .3, l.name + ' 坐姿脚或小腿不合（sole ' + gap.sole.toFixed(3) + ' front ' + gap.front.toFixed(3) + '）');
   }
   console.log('Pass seating: sole on floor, ratio 1:' + ratio.toFixed(2) + ', seat front', CHAIR.front, '< shin', shinBack.toFixed(3) + ', back', CHAIR.back, ', back top', CHAIR.backTop, '<', (headBottomSeated - tiltDip).toFixed(3) + ', arm gap', (CHAIR.armIn - armOut).toFixed(3) + '; 8 bodies × 3 sits');

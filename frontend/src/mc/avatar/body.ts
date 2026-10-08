@@ -17,14 +17,14 @@ export type SitStyle='standard'|'relaxed'|'side';
 interface Preset {label:string;note:string;head:number;shape:HeadShape;torso:[number,number,number];arm:[number,number];leg:{w:number;thigh:number;shin:number}}
 /** 8 种体型（单位 T）：头的整体缩放、默认头型、躯干宽高深、胳膊粗细和长度、腿宽、大腿、小腿（含鞋） */
 export const BODY:Record<BodyType,Preset>={
-  standard:{label:'标准型',note:'均衡协调，适合大多数角色',head:1.10,shape:'default',torso:[18,17,10],arm:[7,17],leg:{w:9,thigh:10,shin:28}},
-  slim:{label:'纤细型',note:'身形纤细、腿长，显得轻盈',head:1.06,shape:'long',torso:[15,18,8],arm:[6,18],leg:{w:7.5,thigh:11,shin:30}},
-  cute:{label:'软萌型',note:'躯干短、头更大更圆，头身感更强',head:1.12,shape:'round',torso:[17,15,10],arm:[7,15],leg:{w:9,thigh:10,shin:28}},
-  crisp:{label:'利落型',note:'干练，肩线和腰线直，轮廓清楚',head:1.08,shape:'square',torso:[17,17,9],arm:[6.5,17],leg:{w:8,thigh:10.5,shin:29}},
-  broad:{label:'宽肩型',note:'肩宽、躯干厚、胳膊粗，更有力量感',head:1.10,shape:'square',torso:[22,18,11],arm:[8,18],leg:{w:10,thigh:10,shin:28}},
-  longcoat:{label:'长外套型',note:'个子高、腿长，长外套拉出竖向轮廓',head:1.08,shape:'default',torso:[17,18,10],arm:[6.5,18],leg:{w:8.5,thigh:10.5,shin:30}},
-  bulky:{label:'厚毛衣型',note:'躯干和袖子都胖一圈，柔软温暖',head:1.12,shape:'round',torso:[21,17,12],arm:[8.5,17],leg:{w:9.5,thigh:10,shin:28}},
-  outdoor:{label:'户外机能型',note:'结实，配包、护目镜、靴子等装备',head:1.10,shape:'default',torso:[19,17,11],arm:[7.5,17],leg:{w:9.5,thigh:10,shin:28}},
+  standard:{label:'标准型',note:'约 3.3 头身，肩和腰均衡',head:0.77,shape:'default',torso:[18,24,10],arm:[7,22],leg:{w:9,thigh:12,shin:28}},
+  slim:{label:'纤细型',note:'肩窄、躯干薄、腿更长',head:0.74,shape:'long',torso:[14,26,7],arm:[5.5,24],leg:{w:7,thigh:13,shin:30}},
+  cute:{label:'软萌型',note:'个子更矮，头相对更大，仍在 3 头身附近',head:0.78,shape:'round',torso:[17,18,11],arm:[7,18],leg:{w:9,thigh:11,shin:28}},
+  crisp:{label:'利落型',note:'肩线直、腰薄、四肢偏长',head:0.74,shape:'square',torso:[16,24,8],arm:[6,23],leg:{w:8,thigh:12,shin:29}},
+  broad:{label:'宽肩型',note:'肩宽、躯干厚、胳膊粗',head:0.78,shape:'square',torso:[22,22,12],arm:[8,21],leg:{w:10,thigh:12,shin:28}},
+  longcoat:{label:'长外套型',note:'更高，长外套拉出竖向轮廓',head:0.76,shape:'default',torso:[16,26,9],arm:[6,24],leg:{w:8,thigh:13,shin:30}},
+  bulky:{label:'厚毛衣型',note:'个子偏矮、躯干又宽又厚',head:0.82,shape:'round',torso:[21,20,13],arm:[8.5,19],leg:{w:10,thigh:11,shin:28}},
+  outdoor:{label:'户外机能型',note:'结实，肩和背包比标准型更厚',head:0.76,shape:'default',torso:[19,23,11],arm:[7.5,22],leg:{w:9.5,thigh:12,shin:28}},
 };
 /** 头型：在体型的头缩放上再乘一个比例（宽、高、深），脸两侧竖棱切多少（T），下巴两侧收多少（T） */
 export const HEAD_SHAPES:Record<HeadShape,{label:string;m:[number,number,number];cut:number;jaw:number}>={
