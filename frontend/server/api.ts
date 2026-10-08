@@ -8,7 +8,8 @@ import { createLlmHandler } from './llm-proxy.ts';
 
 /**
  * 后端接口（来自 PR6，挂在 Vite 开发 / 预览服务器上，Key 只在这里读取，不会进前端代码）。
- * 情感分析和工作模式用这里的会话流程；娱乐和辩论各自在浏览器里运行独立引擎。
+ * 当前页面只有工作模式使用这里的会话流程；娱乐、情感分析和辩论使用浏览器引擎。
+ * 会话接口仍接受四种模式，保留已有调用方与兼容流程。
  *   GET  /api/health                     当前模型和配置状态
  *   POST /api/sessions                   用 SessionConfig 开一场会话 → { sessionId }
  *   GET  /api/sessions/:id/events        SSE 推送 EngineEvent，断线重连按 Last-Event-ID 补发

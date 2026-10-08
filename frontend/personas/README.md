@@ -19,7 +19,7 @@
 
 ## 协议格式确认（按阿冷样例跑通）
 
-顶层接受 `{ "schemaVersion": "1.0", "persona": { ... } }`。前端和 `../persona-protocol` 用的是同一份校验代码（`persona-protocol/src/protocol.mjs`），命令行校验：`node ../persona-protocol/src/cli.mjs 文件.json`。
+顶层接受 `{ "schemaVersion": "1.0", "persona": { ... } }`。前端使用根目录同一份 `persona-protocol/src/protocol.mjs` 校验代码。在 `frontend/` 执行 `node ../persona-protocol/src/cli.mjs 文件.json`；若在本目录 `frontend/personas/`，使用 `node ../../persona-protocol/src/cli.mjs 文件.json`。
 
 `id` 以小写字母开头，只含小写字母、数字和单个短横线，比如 `aleng`、`ent-cold-observer-001` 都可以；整个人物库里不能重复。文件名不必和 id 一致，`.persona.json` 只是建议的后缀，任何 `.json` 都会被读取。
 

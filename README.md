@@ -2,6 +2,8 @@
 
 多人格讨论工作台：选模式和主题，选几个人物入座，看他们围绕你的问题讨论或分工协作。讨论中可以暂停、插话、继续，讨论结束后还能接着追问。
 
+维护入口：[AGENTS.md](AGENTS.md) → [STANDARDS.md](STANDARDS.md) → [ARCHITECTURE.md](ARCHITECTURE.md)，交付前读 [VERIFY.md](VERIFY.md)。本次治理结果、遗留分类和待决项见 [维护审计](docs/MAINTENANCE_AUDIT.md)；前端运行/实验入口见 [frontend/README.md](frontend/README.md)。
+
 项目按当前方向持续开发：围绕娱乐、辩论、情感分析和工作四种模式，完善人物库、讨论交互与场景表现。原有像素场景继续保留，3D 场景作为独立选项新增；人物模型与动作动画逐步适配，已接入能力和当前限制以本文及对应资源说明为准。
 
 ## 界面
@@ -10,7 +12,7 @@
 
 ![模式 · 主题 · 场景](docs/screens/01-mode-topic-scene.png)
 
-**2. 选择人物**：从该模式的人物库里挑人入座，辩论要正反方各至少一人，中立主持固定兼裁判。
+**2. 选择人物**：从该模式的人物库里挑人入座，辩论要正反方各至少一人，中立主持负责串场，结束后整理共识与分歧，不评分或判胜负。
 
 ![选择人物](docs/screens/02-cast.jpg)
 
@@ -33,7 +35,7 @@
 | 模式 | 引擎 | 人物 |
 | --- | --- | --- |
 | 娱乐 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/entertainment/` + 底盘 `live/`）：导演看全场、提名每一步可能接话的人，谁真的开口按各人此刻的冲动抽，每个角色按自己的人设说、自己定看法（导演的话头不合人设可以不接）；能插嘴、冷场散场；可以暂停、@点名、私聊撺掇 | `frontend/personas/entertainment/` 7 位室友，加播客主持人阿麦，共 8 人 |
-| 辩论 | 浏览器里的独立导演 + 辩手 + 裁判引擎（`frontend/src/engines/rational/`）：按正反方轮次交锋，主持或中立裁判判定；人物说法随现场变化 | `backend/人物/理性/` 5 人，构建时直接加载 |
+| 辩论 | 浏览器里的独立导演 + 辩手 + 赛后整理引擎（`frontend/src/engines/rational/`）：按正反方轮次交锋，结束后中立整理讨论，不打分、不判胜负；人物说法随现场变化 | `backend/人物/理性/` 5 人，构建时直接加载 |
 | 情感分析 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/emotion/` + 底盘 `live/`）：七种回应风格一起接住你的事，导演按「回应情绪 → 分清事实与感受 → 下一步行动」往前排、提名谁接话，谁开口按冲动抽、怎么说各人自己定，情绪（心疼、火气、担心、欣慰）一步步递进；有人问你时会停下来等你开口；可以暂停、@点名、私聊 | `frontend/personas/emotion/` 7 人 |
 | 工作 | Node 会话后端（`frontend/server/work.ts`）：立项派活 → 分头干活 → 互相评审 → 定稿交付 | `frontend/personas/product/` 13 人 |
 
@@ -47,7 +49,7 @@
 
 ## 目录
 
-- `frontend/`：网页和 Node 后端（`server/`），人物在 `personas/`，给各组的交接说明在 `docs/handoff/`。
+- `frontend/`：网页和 Node 后端（`server/`），人物在 `personas/`；`docs/handoff/` 为历史快照，当前维护从根目录规范及模块 README 开始。
 - `backend/`：辩论人物与性格资料的原始文件；旧版 Python 服务保留作独立工具，网页运行不依赖它。
 - `persona-protocol/`：人物文件格式的校验器，前端加载人物和图鉴导入都用它；命令行用法 `node persona-protocol/src/cli.mjs 文件.json`。
 - `docs/screens/`：README 里用到的四张界面截图。
@@ -101,4 +103,12 @@ npm run build              # 构建页面和 Node 后端（即 frontend/ 里的 
 APP_ACCESS_PASSWORD='replace-with-a-long-random-password' PORT=8080 npm start  # 默认端口 5173
 ```
 
+上面的环境变量写法适用于 Bash。PowerShell 用 `$env:APP_ACCESS_PASSWORD='replace-with-a-long-random-password'`、`$env:PORT='8080'` 分别设置，再运行 `npm start`。
+
 若存在 `frontend/.env.production`，它会覆盖 `.env` 中的模型配置（本地 `npm run dev` 不读它）。
+
+## 检查与实验
+
+根目录 `npm test` 或 `frontend/` 中 `npm test` 运行全部离线检查（假模型与本地数据）；前端 `npm run test:pixel-avatar` 单独检查原有 2D 像素人物。适用页面回归与验收定义见 [VERIFY.md](VERIFY.md)。
+
+`stage-lab.html` 可预览六个 MC 场景，`?scene=roundtable-mc&v=2` 选择圆桌实验样板；正式工作台仍使用旧六场景。`mc-lab.html`（动作/材质）和 `avatar-lab.html`（人物/椅子/地面）只在开发服务器可用。实验已接入或预览构建成功不代表用户认可视觉方向。

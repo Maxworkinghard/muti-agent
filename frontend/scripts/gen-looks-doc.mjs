@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import { createServer } from 'vite';
 const vite = await createServer({ configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' });
 try {
-  const [{ LOOKS }, { HAIR_LABEL }, { resolveLook }, { LIBRARY_PERSONAS }, { RATIONAL_PERSONAS }, rig] = await Promise.all([
+  const [{ LOOKS }, { HAIR_LABEL }, { resolveLook }, { LIBRARY_PERSONAS }, { RATIONAL_PERSONAS }, rig, body] = await Promise.all([
     vite.ssrLoadModule('/src/mc/avatar/looks.ts'), vite.ssrLoadModule('/src/mc/avatar/hair.ts'), vite.ssrLoadModule('/src/mc/avatar/resolve.ts'),
-    vite.ssrLoadModule('/src/data/personas.ts'), vite.ssrLoadModule('/src/data/rationalPersonas.ts'), vite.ssrLoadModule('/src/mc/avatar/rig.ts')]);
+    vite.ssrLoadModule('/src/data/personas.ts'), vite.ssrLoadModule('/src/data/rationalPersonas.ts'), vite.ssrLoadModule('/src/mc/avatar/rig.ts'),
+    vite.ssrLoadModule('/src/mc/avatar/body.ts')]);
   const personas = new Map([...LIBRARY_PERSONAS, ...RATIONAL_PERSONAS].map(p => [p.id, p]));
   const L = {
     eyes: { round: '圆眼', sharp: '锐眼（外眼角上挑）', droopy: '下垂眼', sleepy: '睡眼', sparkle: '亮晶晶的眼', narrow: '细长眼' },
@@ -17,17 +18,17 @@ try {
     outer: { cardigan: '开衫', blazer: '西装外套', jacket: '夹克', coat: '系腰带长风衣', vest: '马甲', zip: '拉链外套', varsity: '棒球服', apron: '围裙', overalls: '背带裤' },
     bottom: { pants: '长裤', jeans: '牛仔裤', shorts: '短裤', skirt: '百褶裙', cargo: '工装裤' },
     shoes: { sneakers: '球鞋', boots: '短靴', loafers: '乐福鞋', slippers: '拖鞋' },
-    acc: { glasses: '方框眼镜', roundGlasses: '圆框眼镜', headphones: '头戴耳机', neckphones: '挂脖耳机', headset: '单耳耳麦', beanie: '毛线帽', cap: '棒球帽', beret: '贝雷帽', hood: '兜帽', scarf: '围巾', tie: '领带', bowtie: '领结', ribbon: '蝴蝶结', clip: '发夹', bow: '大发结', pen: '耳后一支笔', beard: '胡子', watch: '手表', ahoge: '呆毛', earring: '耳钉' },
+    acc: { glasses: '方框眼镜', roundGlasses: '圆框眼镜', headphones: '头戴耳机', neckphones: '挂脖耳机', headset: '单耳耳麦', beanie: '毛线帽', cap: '棒球帽', beret: '贝雷帽', hood: '兜帽', scarf: '围巾', tie: '领带', bowtie: '领结', ribbon: '蝴蝶结', clip: '发夹', bow: '大发结', pen: '耳后一支笔', beard: '胡子', watch: '手表', ahoge: '呆毛', earring: '耳钉', goggles: '护目镜', monocle: '单片眼镜', shawl: '披肩', necklace: '项链', shoulderBag: '挎包', waistBag: '腰包', backpack: '背包', charm: '挂件', pin: '胸针', tool: '工具', headband: '发带', flower: '花饰' },
     pattern: { plain: '素色', stripe: '条纹', plaid: '格纹', knit: '针织' },
     mark: { blush: '腮红', freckles: '雀斑', sweat: '汗滴', mole: '痣' },
   };
-  const basisName = b => b === 'config' ? '原设定' : b === 'inferred' ? '推断' : '—';
+  const basisName = b => ({ config: '原设定', inferred: '推断', request: '用户要求（配置标记，需回查确认）' })[b] ?? '—';
   const rgb = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
   const near = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) < 30; };
   /** 主色：头发、上衣、外套、下装、鞋、带颜色的配件；相近的颜色（RGB 距离 < 30）算一个。皮肤不算。 */
   const palette = look => { const r = resolveLook(look).look, cs = [r.hair.color, r.hair.tie, r.top.color, r.outer?.color, r.bottom.color, r.shoes.color, ...r.acc.filter(a => a.color && !['ahoge', 'beard'].includes(a.kind)).map(a => a.color)].filter(Boolean), out = [];
     for (const c of cs) if (!out.some(o => near(o, c))) out.push(c); return out; };
-  const silhouette = look => { const r = resolveLook(look); return [HAIR_LABEL[r.look.hair.style], r.hood ? '兜帽' : r.hat ? L.acc[r.hat] : '', r.phones ? L.acc[{ head: 'headphones', neck: 'neckphones', set: 'headset' }[r.phones]] : '', r.look.outer ? L.outer[r.look.outer.kind] : L.top[r.look.top.kind], L.bottom[r.look.bottom.kind], ...['ahoge', 'beard', 'scarf', 'bow'].filter(k => r.has(k)).map(k => L.acc[k])].filter(Boolean).join(' + '); };
+  const silhouette = look => { const r = resolveLook(look), b = body.makeBody(look.body.type, look.body.head); return [body.BODY[b.type].label, body.HEAD_SHAPES[b.shape].label + '头型', body.SIT_LABEL[look.body.sit], HAIR_LABEL[r.look.hair.style], r.hood ? '兜帽' : r.hat ? L.acc[r.hat] : '', r.phones ? L.acc[{ head: 'headphones', neck: 'neckphones', set: 'headset' }[r.phones]] : '', r.look.outer ? L.outer[r.look.outer.kind] : L.top[r.look.top.kind], L.bottom[r.look.bottom.kind], ...['ahoge', 'beard', 'scarf', 'bow'].filter(k => r.has(k)).map(k => L.acc[k])].filter(Boolean).join(' + '); };
   const groups = [['情绪陪伴组', ['jie-mo', 'hao-hao', 'leng-cui', 'fu-du-ji', 'shu-dong', 'nuan-bao-bao', 'pao-zhang']],
     ['娱乐组（宿舍室友 + 播客主持）', ['ent-affirmer-001', 'ent-cold-observer-001', 'ent-contrarian-001', 'ent-counter-contrarian-001', 'ent-imagination-001', 'ent-life-friend-001', 'ent-normal-001', 'podcast-host-amai']],
     ['产品研发组', ['ji-mu', 'suan-pan', 'fang-da-jing', 'ban-shou', 'zhao-yao-jing', 'nao-zhong', 'pin-tu', 'chi-lun', 'tiao-se-pan', 'bu-chong-wang', 'mie-huo-qi', 'la-ba', 'gang-bi']],
@@ -37,17 +38,19 @@ try {
   const T = rig.T, R = rig.RIG;
   let md = `# 33 个人物的 Q 版造型：推导与依据
 
-> 由 \`scripts/gen-looks-doc.mjs\` 从 \`src/mc/avatar/looks.ts\` 生成，不要手改；造型改了以后重新运行脚本。
+> 当前造型配置说明，由 \`scripts/gen-looks-doc.mjs\` 从 \`looks.ts\`、\`rig.ts\`、\`body.ts\` 生成，不要手改。此文记录实现，不代表视觉验收通过；验收定义见根目录 [VERIFY.md](../../../VERIFY.md)。
 > 每个人的造型是按人物 id 写死的静态配置（没有随机数、没有按 id 哈希挑衣服），推导顺序：设定 → 气质 → 特征 → 发型 → 服装 → 配色 → 表情和姿态倾向。
-> 字段来源：**原设定** = 人物文件里本来就有（visual 的肤色、发色、发型、衣服色、extras，或身份里明写的东西）；**推断** = 设定没写，按气质和身份补的造型。
+> 字段来源沿用配置中的标记：**原设定** = 人物文件已有；**推断** = Agent 补充；**用户要求** = 配置标为 request，须回查原始确认记录，不能凭此认定整套造型已获认可。
 > 设定原文见 \`00-roster.md\`。
 
-## 1. 骨架与比例（所有人共用）
+## 1. 基准骨架与实际体型
+
+以下数值来自 \`rig.ts\` 的基准骨架。实际人物经 \`body.makeBody()\` 使用各自的体型和头型；基准数值不是所有人的统一尺寸，也不是全项目的永久美术规范。
 
 | 项 | 数值 |
 |---|---|
 | 单位 | 1 T = 1/48 米 = 贴图 1 像素 |
-| 头 | ${R.head.w}×${R.head.h}×${R.head.d} T，整颗头再放大 ${rig.HEAD_SCALE} 倍（头上 1 像素 ≈ ${rig.HEAD_SCALE} T） |
+| 头 | ${R.head.w}×${R.head.h}×${R.head.d} T，基准缩放 ${rig.HEAD_SCALE} 倍（头上 1 像素 ≈ ${rig.HEAD_SCALE} T） |
 | 躯干 | ${R.torso.w}×${R.torso.h}×${R.torso.d} T |
 | 腿 | 宽 ${R.leg.w}、深 ${R.leg.d}；大腿 ${R.leg.thigh} T、小腿 ${R.leg.shin} T（含鞋 ${R.leg.shoe} T） |
 | 胳膊 | ${R.arm.w}×${R.arm.h}×${R.arm.d} T |
@@ -55,7 +58,11 @@ try {
 | 统一座面高 | ${rig.SEAT_H} 米；坐下根点下沉 ${rig.SIT_DROP.toFixed(3)} 米；大腿水平、小腿竖直，鞋底正好落在地面 |
 | 眼高 | 站 ${rig.EYE_STAND.toFixed(3)} 米；坐（座位锚点以上）${rig.EYE_SIT.toFixed(3)} 米 |
 
-为什么小腿这么长：座面 0.50 米、坐着脚要着地，膝轴到脚底就必须是 0.50 + 半个腿厚 = ${R.leg.shin} T。旧的 Q 版骨架腿总长只有 0.50 米，坐下脚离地 0.31 米、只能踩脚踏；现在加长小腿、头同步放大，头身比仍在 1:1.3–1:1.5 的范围里。
+基准坐姿膝轴到脚底为座面高加半个腿厚（${rig.SEAT_H} + ${(R.leg.d / 2 * T).toFixed(3)} 米）；实际人物的坐姿由 \`body.sitPose()\` 推导，不沿用历史样板的 1:1.3–1:1.5 比例。当前各体型尺寸如下（不含头发）：
+
+| 体型 | 头型 | 身高（米） | 全高 / 头高 |
+|---|---|---|---|
+${Object.keys(body.BODY).map(type => { const b = body.makeBody(type); return `| ${body.BODY[type].label} | ${body.HEAD_SHAPES[b.shape].label} | ${(b.headTop * T).toFixed(3)} | ${(b.headTop / (rig.HEAD.h * b.head.scale[1])).toFixed(2)} |`; }).join('\n')}
 
 ## 2. 零件库和搭配约束
 
@@ -64,6 +71,9 @@ try {
 | 类 | 数量 | 零件 |
 |---|---|---|
 | 发型 | ${Object.keys(HAIR_LABEL).length} | ${Object.values(HAIR_LABEL).join('、')} |
+| 体型 | ${Object.keys(body.BODY).length} | ${Object.values(body.BODY).map(b => b.label).join('、')} |
+| 头型 | ${Object.keys(body.HEAD_SHAPES).length} | ${Object.values(body.HEAD_SHAPES).map(h => h.label).join('、')} |
+| 坐姿 | ${Object.keys(body.SIT_LABEL).length} | ${Object.values(body.SIT_LABEL).join('、')} |
 | 眼型 | ${Object.keys(L.eyes).length} | ${Object.values(L.eyes).join('、')} |
 | 眉型 | ${Object.keys(L.brows).length} | ${Object.values(L.brows).join('、')} |
 | 默认嘴型 | ${Object.keys(L.mouth).length} | ${Object.values(L.mouth).join('、')} |
@@ -90,7 +100,7 @@ try {
 
 ## 3. 轮廓区分
 
-人和人靠轮廓和结构区分（发型、帽子 / 兜帽 / 耳机、外层款式、下装），不是只换颜色。下表按“发型 + 头上的东西 + 外层 + 下装 + 呆毛 / 胡子 / 围巾 / 大发结”列出每个人的轮廓；同一发型的人至少在头饰或外层上不同。
+下表按当前配置列出体型、头型、坐姿、发型、头饰、外层和下装的组合。这是数据层区分，不能据此声称实际画面中的人物辨识度或视觉质量已验收。
 
 | 轮廓 | 人物 |
 |---|---|
@@ -108,6 +118,8 @@ try {
       md += `- 设定：${p ? p.identity : '（人物库里没有这个 id）'}\n- 推导：${look.why}\n\n`;
       md += `| 字段 | 值 | 来源 |\n|---|---|---|\n`;
       md += `| 肤色 | \`${look.skin}\` | ${basisName(b.skin)} |\n`;
+      const actualBody = body.makeBody(look.body.type, look.body.head);
+      md += `| 体型 / 头型 / 坐姿 | ${body.BODY[actualBody.type].label} / ${body.HEAD_SHAPES[actualBody.shape].label} / ${body.SIT_LABEL[look.body.sit]}；身高 ${(actualBody.headTop * T).toFixed(3)} 米 | ${basisName(b.body)} |\n`;
       md += `| 发色 | \`${look.hair.color}\`${look.hair.tie ? `（发圈 \`${look.hair.tie}\`）` : ''} | ${basisName(b.hairColor)} |\n`;
       md += `| 发型 | ${HAIR_LABEL[look.hair.style]}（${look.hair.style}） | ${basisName(b.hairStyle)} |\n`;
       md += `| 五官 | ${L.eyes[look.face.eyes]}、${L.brows[look.face.brows]}、${L.mouth[look.face.mouth]}，瞳色 \`${look.face.iris}\`${look.face.marks?.length ? '，' + look.face.marks.map(m => L.mark[m]).join('、') : ''} | ${basisName(b.eyes)} |\n`;

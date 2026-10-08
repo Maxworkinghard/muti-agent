@@ -1,5 +1,7 @@
 # 交接说明：MC 3D 场景美术重建（人物 / 椅子 / 地面）
 
+> 历史快照（2026-10-09 已标记）：正文只记录当时状态、计划与判断，不作为当前执行指令。当前入口/架构见根目录 [ARCHITECTURE.md](../../../ARCHITECTURE.md)，工程与视觉验收见 [VERIFY.md](../../../VERIFY.md)，资料状态见 [文档索引](../README.md)。历史“通过/可接受”、分支和待办不自动构成当前事实或用户确认。
+
 > 写于 2026-10-08 20:05（UTC+8）。用户叫停，Phase 2 停在中途，这份说明是给下一位接手的人的。
 > 写的时候 `npx tsc --noEmit` 能通过。
 
@@ -50,8 +52,8 @@
 | `00-roster.md` | ✅ 33 个人物的名册：设定、性格、特征，Phase 1 写好 |
 | `01-baseline-audit.md` | ✅ 旧版的基线审计 |
 | `baseline/` | ✅ 旧版的基线截图 |
-| `02-character-looks.md` | ❌ 还没写 |
-| `03-sample-log.md` | ❌ 还没写 |
+| `02-character-looks.md` | 历史交接时未写；后续已生成，当前由 `scripts/gen-looks-doc.mjs` 维护 |
+| `03-sample-log.md` | 历史交接时未写；后续已有 r1–r3 差距记录，仅作历史追溯 |
 | `sample/wip-r0/` | ⚠️ 开发过程中的实验台截图，不算正式轮次（见第 5 节） |
 
 `02-character-looks.md` 的写法：

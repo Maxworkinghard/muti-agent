@@ -9,8 +9,8 @@
  *
  * 为什么小腿这么长：统一座面高 0.50 米（SEAT_H），坐下时大腿水平、下沿贴座面，膝轴在座面上方半个腿厚（4 T），
  * 小腿竖直垂下要正好够到地面，所以膝轴到脚底 = 24 + 4 = 28 T。旧的 Q 版骨架腿总长只有 24 T（=座高），
- * 坐下脚离地 0.31 米，只能踩脚踏；现在脚底平踩在地上。坐姿眼高（EYE_SIT）和旧骨架基本一样（0.72 / 0.77），
- * 站着变高（和最早的方块人 1.875 米相当，房间、门、镜头本来就是按这个高度搭的）。
+ * 坐下脚离地 0.31 米，只能踩脚踏；当前基准骨架坐姿脚底落地。各人物的尺寸与坐姿由 body.ts 推导，
+ * 当前眼高使用下方公式计算；旧轮次的眼高和比例只作为历史数据。
  */
 export const T=1/48;
 export const RIG={
@@ -37,15 +37,15 @@ export const HEAD_TOP=NECK_Y+RIG.head.h*HEAD_SCALE;      // 91.7
 export const HEAD={hx:RIG.head.w/2,hz:RIG.head.d/2,h:RIG.head.h,w:RIG.head.w,d:RIG.head.d,fx:RIG.head.w/2-2,cut:2};
 /** 统一座面高（地面以上，米）。所有新椅子的座面顶都在这里。 */
 export const SEAT_H=.5;
-/** 坐下时根点比座位锚点（座面顶）低多少：髋轴要在座面上方半个腿厚，根点 = 锚点 - (髋高 - 半腿厚)。34 T ≈ 0.708 */
+/** 坐下时根点比座位锚点（座面顶）低多少：髋轴在座面上方半个腿厚；当前基准为 36 T = 0.75 米 */
 export const SIT_DROP=(HIP_Y-RIG.leg.d/2)*T;
 /** 坐下时大腿、小腿的转角：大腿水平（-90°），小腿竖直（膝盖 +90°），鞋底正好落在地面上。 */
 export const SIT_THIGH=-Math.PI/2,SIT_KNEE=Math.PI/2;
-/** 站立眼高（脚底以上）：55 + 13.5×1.1 ≈ 69.9 T ≈ 1.456 */
+/** 基准站立眼高（脚底以上）：(颈轴高度 + 眼睛局部高度 × 头缩放) × T */
 export const EYE_STAND=(NECK_Y+RIG.eyeY*HEAD_SCALE)*T;
-/** 坐姿眼高（座位锚点以上）：≈ 35.9 T ≈ 0.747 */
+/** 基准坐姿眼高（座位锚点以上）：站立眼高减去根点下沉 */
 export const EYE_SIT=EYE_STAND-SIT_DROP;
-/** 手里拿东西 / 碰道具的那一点（胳膊骨骼空间，肩轴往下到手心）：-15 T */
+/** 手里拿东西 / 碰道具的点（胳膊骨骼空间），按当前胳膊长与肩轴偏移计算 */
 export const HAND_REACH=-(RIG.arm.h-RIG.arm.drop)*T;
 /** 名字牌在眼睛上方多高：盖过头顶、头发和帽子（头顶以上 10 T） */
 export const LABEL_ABOVE_EYE=((RIG.head.h-RIG.eyeY)*HEAD_SCALE+10)*T;
