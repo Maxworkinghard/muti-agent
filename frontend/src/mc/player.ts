@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {createSkin,type Skin,type FaceExtra} from './skin';
-import {buildAvatar,lookFor,T,RIG,HIP_Y,NECK_Y,SIT_DROP,EYE_STAND,HAND_REACH} from './avatar';
+import {buildAvatar,lookFor,T,RIG,HIP_Y,SIT_DROP,EYE_STAND,HAND_REACH,HEAD,HEAD_SCALE,SIT_THIGH,SIT_KNEE} from './avatar';
 import type {Participant,PersonaVisual} from '../types';
 import type {Avatar} from './avatar/build';
 import type {Look} from './avatar/types';
@@ -28,13 +28,15 @@ export function createRig(id:string,name:string,visual:PersonaVisual,side='host'
   const bones=positions.map(()=>new THREE.Bone());bones.forEach((b,i)=>{b.position.set(...positions[i].map(n=>n*T) as [number,number,number]);if(parents[i]>=0)bones[parents[i]].add(b);});
   const material=new THREE.MeshStandardMaterial({map:skin.texture,alphaTest:.1,roughness:.88,metalness:0,side:THREE.FrontSide});
   const mesh=new THREE.SkinnedMesh(avatar.geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;mesh.add(bones[0]);mesh.bind(new THREE.Skeleton(bones));mesh.frustumCulled=false;root.add(mesh);
+  // 绑定之后再放大头骨：头、头发、帽子、眼镜一起放大，身体不动
+  bones[3].scale.setScalar(HEAD_SCALE);
   const knees=avatar.shins.map((g,i)=>{const knee=new THREE.Group();knee.position.set(0,-RIG.leg.thigh*T,0);const shin=new THREE.Mesh(g,material);shin.castShadow=true;shin.receiveShadow=true;knee.add(shin);bones[6+i].add(knee);return knee;});
   return {root,mesh,bones,knees,material,skin,look,avatar};
 }
-/** 坐姿的腿：大腿几乎水平（下沿贴座面）、膝盖稍微分开，小腿折回竖直、略向前，脚踩在椅子的前横档上。 */
+/** 坐姿的腿：大腿水平（下沿贴座面）、膝盖稍微分开，小腿折回竖直，鞋底平踩在地上（rig.ts 的小腿长度正好够到地面）。 */
 export function legPose(bones:THREE.Bone[],knees:THREE.Group[],sit:number,walk=0){
-  bones[6].rotation.set(-1.5*sit-walk,0,-.1*sit);bones[7].rotation.set(-1.5*sit+walk,0,.1*sit);
-  for(const knee of knees)knee.rotation.x=1.42*sit+(sit<.5?Math.abs(walk)*.6:0);
+  bones[6].rotation.set(SIT_THIGH*sit-walk,0,-.08*sit);bones[7].rotation.set(SIT_THIGH*sit+walk,0,.08*sit);
+  for(const knee of knees)knee.rotation.x=SIT_KNEE*sit+(sit<.5?Math.abs(walk)*.6:0);
 }
 /**
  * 骨骼（Q 版，尺寸见 avatar/rig.ts）：0 脚底、1 髋、2 上半身（以髋为轴，能前倾后靠）、3 头、4 右臂、5 左臂、6 右腿、7 左腿。
@@ -139,7 +141,7 @@ export function createPlayer(p:Participant,card:THREE.Object3D|null,contacts?:Pr
     if(!faceExtra.length&&a.desired==='thinking'&&!s.reduced)faceExtra.push('think');
     skin.face(a.mind,poseNow,speaking,s.reduced,faceExtra);
     root.updateMatrixWorld(true);bones[3].getWorldPosition(headWorld);bones[3].getWorldQuaternion(headQuat);
-    eye.set(0,RIG.eyeY*T,17*T).applyQuaternion(headQuat).add(headWorld);forward.set(0,0,1).applyQuaternion(headQuat);
+    eye.set(0,RIG.eyeY*HEAD_SCALE*T,(HEAD.hz+1)*HEAD_SCALE*T).applyQuaternion(headQuat).add(headWorld);forward.set(0,0,1).applyQuaternion(headQuat);
     // 环境反射按所在位置的游戏光照网格调亮暗：墙角暗，灯下亮。
     const level=Math.max(...grid.sample(a.position[0],a.position[1]+1-a.sit*SIT_DROP,a.position[2]))/15;material.envMapIntensity=.04+level*.08;
   },dispose(){const geometries=new Set<THREE.BufferGeometry>();root.traverse(o=>{if(o instanceof THREE.Mesh)geometries.add(o.geometry);});geometries.forEach(g=>g.dispose());material.dispose();skin.texture.dispose();mesh.skeleton.dispose();}};

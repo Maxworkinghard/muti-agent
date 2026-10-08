@@ -10,10 +10,11 @@ import {MC_SCENE_NAMES} from '../../rooms/names';
 import {V2_BLOCK_PAINT} from '../blockTextures';
 import {createV2Kit,place,type V2Kit} from '../kit';
 import {buildLandscape} from '../landscape';
-import {PAL} from '../pixel';
 import {HALL,TERRAIN,buildHall} from './hall';
 import {drawHallBoard} from './board';
-import {blossomSpray,teaStation,chair,cord,hearthFire,octagonMat,octagonTable,paperLantern,pottedShrub,PROP_PAINT,reedBlind,teaSet} from './furnish';
+import {blossomSpray,teaStation,cord,hearthFire,octagonMat,octagonTable,paperLantern,pottedShrub,PROP_PAINT,reedBlind,teaSet} from './furnish';
+import {makeChair,SOFT_FABRIC} from '../../props/chairs';
+import {plankHall} from '../../props/floors';
 
 /** 同一个道具 Kit 只配一个 v2 工具（材质缓存、统一释放）。 */
 const kits=new WeakMap<Kit,V2Kit>();
@@ -49,7 +50,10 @@ export function buildRoundtableV2():Room{
     fit:[...anchors.map(a=>[a.seat[0],a.seat[1]+1.3,a.seat[2]] as Point),...[-1,1].map(s=>[board.position[0]+s*board.width/2,board.position[1]+board.height/2+.1,board.position[2]] as Point)],
     judge:[17.4,2.7,13.9],judgeTarget:[12.6,1.9,8.8],
     layout:{tables:[{id:'round-table',side:'judge',center:[cx,1,cz],length:RT.tableR*2,depth:RT.tableR*2,height:RT.tableH,shape:'round',skirtYaw:0}],chairs,desk:[],podium:{position:[cx,1,cz+3.2],yaw:Math.PI},board,phaseLamps:[]},
-    banners:[],windows:[],floor:[],lights,
+    // 地面：厅内 x 7–19、z 5–15 盖一张 16 像素/米的长条木地板图（深橡木包边，壁炉前的石炉床对着方块世界 x 17–18、z 8–11），
+    // 方块地面照旧负责走路、碰撞和光照；门槛那一圈石头露在外面。
+    banners:[],windows:[],floor:[{y:1.002,x0:7,x1:19,z0:5,z1:15}],lights,
+    floorArt:(c,w,d)=>plankHall(c,w,d,{border:8,hearth:{x0:10,x1:12,z0:3,z1:7}}),
     bounds:{min:[6.05,1,1.05],max:[19.95,5.95,15.95]},
     flight:{min:[-4,1,-6],max:[30,16,24]},
     // 光：低角度的西南斜阳更强、天光和环境光更弱——室内深处暗下来，地上的柱影和帘影更清楚，灯和炉火的暖光池才看得见。
@@ -59,7 +63,8 @@ export function buildRoundtableV2():Room{
     paint:{...V2_BLOCK_PAINT},
     boardStyle:'sign',boardFrame:'block/dark_oak_planks',
     drawBoard:drawHallBoard,
-    makeChair:(k,c)=>chair(v2(k),PAL.fabric[(c.actor??0)%PAL.fabric.length]),
+    // 共用椅子族的会议木椅：座面 0.50、自然木框、低饱和布垫（每个座位一种颜色）
+    makeChair:(k,c)=>makeChair(v2(k),'meeting',SOFT_FABRIC[(c.actor??0)%SOFT_FABRIC.length]),
     decorateBoard:(k,sign)=>{const g=v2(k),iron=g.mat('iron',PROP_PAINT.iron),drop=HALL.beamY+1-(board.position[1]+board.height/2);
       // 两根铁吊杆把匾挂在抬高的梁下。
       for(const s of [-1,1]){g.box(sign,.08,.16,.12,iron,s*1.25,board.height/2+.06,-.02);g.box(sign,.035,drop,.035,iron,s*1.25,board.height/2+drop/2,-.02);}},

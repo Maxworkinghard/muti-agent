@@ -7,6 +7,7 @@
 //   node scripts/mc-shots.mjs compare <改前标签> <改后标签>
 //   node scripts/mc-shots.mjs lab <标签> [镜头 ...]   拍 avatar-lab.html（Q 版人物 / 椅子 / 地面实验台），镜头名见 LAB_SHOTS
 //   --v=2 拍 src/mc/v2 的重建场景（页面带 &v=2，机位用 cams.json 里的 <房间>@v2，文件名带 -v2）
+//   node scripts/mc-shots.mjs collage <输出.jpg> <标题> <图片=说明> ...   把几张截图拼成一页（--cols=列数，--w=每格宽），无头 Chrome 存成 JPG
 //   --quality=high|medium 画质档（默认 high）
 // 照片在 frontend/.shots/<标签>/，对比页是 frontend/.shots/compare-<改前>-<改后>.html。
 //
@@ -126,7 +127,7 @@ const LAB_SHOTS = {
   'rt-front': 'mode=row&group=roundtable&view=front', 'rt-side': 'mode=row&group=roundtable&view=side', 'rt-back': 'mode=row&group=roundtable&view=back', 'rt-34': 'mode=row&group=roundtable&view=34', 'rt-sit': 'mode=row&group=roundtable&pose=sit&view=34',
   'emotion-front': 'mode=row&group=emotion&view=front', 'ent-front': 'mode=row&group=ent&view=front', 'product-front': 'mode=row&group=product&view=front', 'all-front': 'mode=row&group=all&view=front', 'all-sit': 'mode=row&group=all&pose=sit&view=34',
   'expr-rt-a': 'mode=expr&ids=math-intuitionist-001,skeptic-001,socratic-questioner-001,pragmatic-philosopher-001', 'expr-rt-b': 'mode=expr&ids=logic-analyst-001,jie-mo,hao-hao,leng-cui', 'expr-emotion': 'mode=expr&ids=fu-du-ji,shu-dong,nuan-bao-bao,pao-zhang',
-  'poses': 'mode=poses&id=jie-mo&view=34', 'chairs-34': 'mode=chairs&view=34', 'chairs-side': 'mode=chairs&view=side', 'chairs-front': 'mode=chairs&view=front', 'floors': 'mode=floors',
+  'poses': 'mode=poses&id=jie-mo&view=34', 'chairs-34': 'mode=chairs&occ=0&view=34', 'chairs-side': 'mode=chairs&occ=0&view=side', 'chairs-sit-34': 'mode=chairs&occ=1&view=34', 'chairs-sit-side': 'mode=chairs&occ=1&view=side', 'chairs-sit-front': 'mode=chairs&occ=1&view=front', 'floors': 'mode=floors',
 };
 async function lab(label, names) {
   const out = path.join(shotsDir, label); fs.mkdirSync(out, { recursive: true });
@@ -180,7 +181,36 @@ function compare(a, b) {
   const file = path.join(shotsDir, `compare-${a}-${b}.html`); fs.writeFileSync(file, html); console.log(file);
 }
 
+
+/** 拼图：把几张截图（路径=说明）排成一页网格，用无头 Chrome 截成 JPG。图片原样缩放，不加滤镜。 */
+async function collage(outFile, title, items) {
+  const cols = Number(flags.cols ?? 2), cellW = Number(flags.w ?? 720), out = path.resolve(outFile), dir = fs.mkdtempSync(path.join(tmpdir(), 'mc-collage-'));
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const cells = items.map(it => { const i = it.indexOf('='); const file = path.resolve(i > 0 ? it.slice(0, i) : it), label = i > 0 ? it.slice(i + 1) : path.basename(file); if (!fs.existsSync(file)) throw new Error('没有这张图：' + file); return '<figure><img src="' + 'file:///' + file.split(path.sep).join('/') + '"><figcaption>' + esc(label) + '</figcaption></figure>'; });
+  const html = '<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#1e1e1e;color:#eee;font:15px/1.3 system-ui,"Microsoft YaHei",sans-serif;width:' + (cols * cellW + 8 * (cols + 1)) + 'px}h1{font-size:18px;margin:8px 10px}.g{display:grid;grid-template-columns:repeat(' + cols + ',' + cellW + 'px);gap:8px;padding:0 8px 8px}figure{margin:0}img{width:100%;display:block}figcaption{padding:3px 2px 0}</style><h1>' + esc(title) + '</h1><div class="g">' + cells.join('') + '</div>';
+  const page = path.join(dir, 'collage.html'); fs.writeFileSync(page, html);
+  const cdp = 9400 + Math.floor(Math.random() * 400), profile = path.join(tmpdir(), 'mc-shots-collage-' + process.pid);
+  const chrome = spawn(process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--no-first-run', '--disable-extensions', '--allow-file-access-from-files', '--user-data-dir=' + profile, '--hide-scrollbars', '--remote-debugging-port=' + cdp, 'about:blank'], { stdio: 'ignore', windowsHide: true });
+  let ws;
+  try {
+    let target; for (let i = 0; i < 80 && !target; i++) { try { target = (await (await fetch('http://127.0.0.1:' + cdp + '/json/list')).json()).find(t => t.type === 'page'); } catch {} if (!target) await sleep(250); }
+    if (!target) throw new Error('无头浏览器没有启动');
+    ws = new WebSocket(target.webSocketDebuggerUrl); await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+    let id = 0; const pending = new Map(); ws.onmessage = e => { const m = JSON.parse(e.data); const r = pending.get(m.id); if (!r) return; pending.delete(m.id); m.error ? r.reject(new Error(JSON.stringify(m.error))) : r.resolve(m.result); };
+    const send = (method, params = {}) => new Promise((resolve, reject) => { const rid = ++id; pending.set(rid, { resolve, reject }); ws.send(JSON.stringify({ id: rid, method, params })); });
+    await send('Page.enable'); await send('Runtime.enable');
+    await send('Emulation.setDeviceMetricsOverride', { width: cols * cellW + 8 * (cols + 1), height: 120, deviceScaleFactor: 1, mobile: false });
+    await send('Page.navigate', { url: 'file:///' + page.split(path.sep).join('/') });
+    for (let i = 0; i < 60; i++) { await sleep(250); const r = await send('Runtime.evaluate', { expression: '[...document.images].every(i => i.complete && i.naturalWidth > 0)', returnByValue: true }); if (r.result.value) break; }
+    const size = (await send('Runtime.evaluate', { expression: 'JSON.stringify([document.documentElement.scrollWidth, document.documentElement.scrollHeight])', returnByValue: true })).result.value, [w, h] = JSON.parse(size);
+    await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false }); await sleep(300);
+    const shot = await send('Page.captureScreenshot', { format: 'jpeg', quality: 86, clip: { x: 0, y: 0, width: w, height: h, scale: 1 } });
+    fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, Buffer.from(shot.data, 'base64')); console.log(JSON.stringify({ out, w, h, items: items.length }));
+  } finally { try { ws?.close(); } catch {} chrome.kill(); await sleep(400); try { fs.rmSync(profile, { recursive: true, force: true }); fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+}
+
 if (rest[0] === 'shoot' && rest[1]) await shoot(rest[1], rest.slice(2).length ? rest.slice(2) : ROOMS);
 else if (rest[0] === 'compare' && rest[1] && rest[2]) compare(rest[1], rest[2]);
 else if (rest[0] === 'lab' && rest[1]) await lab(rest[1], rest.slice(2).length ? rest.slice(2) : Object.keys(LAB_SHOTS));
+else if (rest[0] === 'collage' && rest[1] && rest[3]) await collage(rest[1], rest[2], rest.slice(3));
 else console.log('用法：node scripts/mc-shots.mjs shoot <标签> [房间 ...] [--material=room,original,hd,style] [--shots=overview,fixed,...]\n      node scripts/mc-shots.mjs compare <改前标签> <改后标签>\n      node scripts/mc-shots.mjs lab <标签> [' + Object.keys(LAB_SHOTS).join('|') + ' ...]');

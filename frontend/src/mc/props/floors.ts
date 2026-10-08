@@ -34,10 +34,20 @@ function plankV(c:Ctx,r:()=>number,x:number,y:number,len:number,wid:number,base:
   for(let i=0;i<streaks;i++){const l=4+Math.floor(r()*Math.max(1,len-7)),sy=y+1+Math.floor(r()*Math.max(1,len-l-2)),sx=x+1+Math.floor(r()*Math.max(1,wid-2));rect(c,sx,sy,1,Math.min(l,y+len-1-sy),tone(base,r()<.6?.92:1.06));}
   rect(c,x+wid-1,y,1,len,tone(base,.66));rect(c,x,y+len-1,wid,1,tone(base,.62));
 }
-/** 石板（炉床、石木混拼）：砂浆缝 1 像素，石面一两道细裂和一处亮斑。 */
+/**
+ * 石板（炉床、石木混拼）：砂浆缝 1 像素，左上两条亮边。石面上的痕迹每块不一样：没有、一道细裂、一道折线裂、
+ * 缺一个角、两三个浅坑——由种子选，不是同一个记号贴满每一块。
+ */
 function flag(c:Ctx,r:()=>number,x:number,y:number,w:number,h:number,base:string){
   rect(c,x,y,w,h,base);rect(c,x,y,w-1,1,tone(base,1.07));rect(c,x,y,1,h-1,tone(base,1.04));
-  if(w>4&&h>4){const cx=x+2+Math.floor(r()*(w-4)),cy=y+2+Math.floor(r()*(h-4));rect(c,cx,cy,2,1,tone(base,.84));rect(c,cx+1,cy+1,1,1,tone(base,.84));}
+  const kind=Math.floor(r()*6),dk=tone(base,.82);
+  if(w>5&&h>5){
+    const cx=x+2+Math.floor(r()*(w-5)),cy=y+2+Math.floor(r()*(h-5));
+    if(kind===1){const len=2+Math.floor(r()*3);for(let i=0;i<len;i++)rect(c,cx+i,cy+(i>>1),1,1,dk);}
+    else if(kind===2){rect(c,cx,cy,2,1,dk);rect(c,cx+2,cy+1,1,1,dk);rect(c,cx+2,cy+2,2,1,dk);}
+    else if(kind===3){const right=r()<.5;rect(c,right?x+w-3:x+1,y+h-3,2,1,tone(base,.9));rect(c,right?x+w-2:x+1,y+h-2,1,1,tone(base,.86));}
+    else if(kind===4){rect(c,cx,cy,1,1,tone(base,.9));rect(c,cx+2,cy+1,1,1,tone(base,.9));if(r()<.5)rect(c,cx+1,cy+3,1,1,tone(base,.92));}
+  }
   rect(c,x,y+h-1,w,1,'#5c5852');rect(c,x+w-1,y,1,h,'#5c5852');
 }
 

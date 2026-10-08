@@ -15,7 +15,10 @@ export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):Debat
   const keep=<T extends THREE.Material|THREE.Texture>(x:T)=>{owned.push(x);return x;};
   // 地面图：每米 16 像素，最近邻放大，和方块贴图一样是清楚的像素格。
   if(room.floorArt)for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0,art=room.floorArt;
-    const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);const quad=mesh(g,k.pixels(w*16,d*16,c=>art(c,w,d)),(f.x0+f.x1)/2,f.y,(f.z0+f.z1)/2,false);quad.name='floor-art';root.add(quad);}
+    const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);const fm=k.pixels(w*16,d*16,c=>art(c,w,d));
+    // 地面图贴着方块地面（离地 2 毫米），深度往镜头这边偏一点，不和方块顶面打架；人的鞋底在 y=1，不会陷进地面图里
+    fm.polygonOffset=true;fm.polygonOffsetFactor=-1;fm.polygonOffsetUnits=-2;
+    const quad=mesh(g,fm,(f.x0+f.x1)/2,f.y,(f.z0+f.z1)/2,false);quad.name='floor-art';root.add(quad);}
   // 水面（草地的池塘）：原版流动的水贴图，染成房间给的湖蓝，带一点反光。
   let water:THREE.Texture|undefined,waterFrames=1;
   const waterBlocks=room.blocks.filter(b=>b.id==='water'),still=assets.textures.get('block/water_still.png');

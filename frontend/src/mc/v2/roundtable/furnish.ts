@@ -1,5 +1,5 @@
 /**
- * 湖畔议事厅的家具与陈设（v2 自己设计、自己画贴图）：八角深木桌和石桌座、八把带不同布垫的木椅、
+ * 湖畔议事厅的家具与陈设（v2 自己设计、自己画贴图）：八角深木桌和石桌座（椅子用共用椅子族 props/chairs.ts）、
  * 桌上的茶具与纸卷、壁炉里的火、纸灯笼、盆栽、垂吊花篮、芦苇帘、草编席。尺寸按游戏人物比例（坐高 0.5、桌面 0.95）。
  */
 import * as THREE from 'three';
@@ -55,17 +55,6 @@ export function octagonTable(k:V2Kit,r:number,height:number){
   k.prism(g,.34,.2,8,k.mat('frame-log',V2_BLOCK_PAINT['block/stripped_dark_oak_log']),0,.72,0);
   k.prism(g,r*.72,.06,8,k.mat('frame-planks',V2_BLOCK_PAINT['block/dark_oak_planks']),0,height-.15,0);
   k.prism(g,r,.12,8,[M(k,'tableEdge'),M(k,'tableTop'),M(k,'tableTop')],0,height-.06,0);
-  return g;
-}
-/** 木椅：白桦框架、三根横档的靠背、布垫（颜色因座位而异）。朝 +z 坐，原点在地面中心。 */
-export function chair(k:V2Kit,fabric:string){
-  const g=new THREE.Group(),w=M(k,'chairWood'),c=M(k,'cushion',{color:fabric});
-  for(const x of [-.21,.21])for(const z of [-.19,.19])k.box(g,.07,.45,.07,w,x,.225,z);
-  k.box(g,.5,.06,.48,w,0,.47,0);k.box(g,.46,.07,.44,c,0,.535,.01);
-  for(const x of [-.21,.21])k.box(g,.07,.6,.07,w,x,.8,-.2);
-  for(const y of [.7,.86])k.box(g,.42,.05,.04,w,0,y,-.2);k.box(g,.52,.07,.07,w,0,1.1,-.2);
-  // 靠背上一块小靠垫，同色。
-  k.box(g,.36,.24,.05,c,0,.82,-.16);
   return g;
 }
 /** 桌上的茶具：托盘、茶壶、给每个座位一只茶杯，少数座位一卷纸。 */

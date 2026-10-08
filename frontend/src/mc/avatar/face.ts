@@ -1,94 +1,101 @@
 /**
- * 脸（头部正面 32×30 像素，每像素 1 T）：大眼睛（6×7，两点高光）、小嘴、腮红。保持旧接口：face(mind,t,speaking,reduced,extra)。
- * 眼型 6 种、眉型 6 种、默认嘴型 6 种；表情：neutral / happy / surprised / thinking / angry / shy，
+ * 脸（头部正面 36×36 像素，每像素 1 T）：大眼睛（7×8，两点高光，眼睛落在脸的中下部）、小嘴、腮红。
+ * 保持旧接口：skin.face(mind,t,speaking,reduced,extra) → avatar.face(FaceState)。
+ * 眼型 6 种、眉型 6 种、默认嘴型 6 种；表情 6 种：neutral / happy / surprised / thinking / angry / shy，
  * 说话三帧嘴型，眨眼。表情由旧的触发词映射过来（shock→surprised、cheer/happy→happy、brows/frown→angry、think、shy）。
+ * 版式（行从上往下数）：发际线以上画成刘海背后的暗部；眉 14–16；眼 18–26；鼻 27；嘴 29–31；腮红 26–27。
  */
 import type {Pen} from './paint';
 import {mix,tone} from './paint';
 import type {EyeType,BrowType,MouthType,Expression,Look} from './types';
-import {HAIR} from './hair';
-export const FACE_W=32,FACE_H=30;
-const EYES:[number,number]=[6,20],EYE_Y=13;
+export const FACE_W=36,FACE_H=36;
+/** 两只眼睛最左一列（每只 7 宽），眼睛顶行（上眼线） */
+export const EYE_COLS:[number,number]=[6,23],EYE_ROW=18;
 export interface FaceState {expression:Expression;speak:number;blink:boolean;sleepy?:boolean;grin?:boolean;blush?:boolean;sweat?:boolean;raise?:boolean}
-export function paintFace(p:Pen,look:Look,st:FaceState,opts:{hat:boolean;glasses:boolean;hood:boolean;beard:boolean}){
-  const skin=look.skin,hair=look.hair.color,lash=mix('#24181f',hair,.2),iris=look.face.iris;
-  const shade=tone(skin,.9),lip=mix(tone(skin,.62),'#b8504a',.35),mouthDark='#6a2a2c',tongue='#e07a78',white='#fffaf6';
+export interface FaceOpts {hat:boolean;glasses:boolean;hood:boolean;beard:boolean;hairline:(x:number)=>number;hairDeep:string}
+export function paintFace(p:Pen,look:Look,st:FaceState,o:FaceOpts){
+  const skin=look.skin,hair=look.hair.color,iris=look.face.iris;
+  const lash=mix('#22161d',hair,.18),shade=tone(skin,.9),lip=mix(tone(skin,.6),'#b04848',.4),mouthDark='#5a1f27',tongue='#d86a6a',white='#fffaf4';
   p.fill(skin);
-  // 下颌两侧和下巴一点暗部
-  p.rect(0,18,1,12,shade).rect(31,18,1,12,shade).rect(1,27,30,3,tone(skin,.96)).rect(2,29,28,1,shade);
-  // 发际线：和体素刘海同一条轮廓（刘海体素在脸前 1 格，这里画的是它后面的头皮/头发，侧面看不露缝）
-  const shape=HAIR[look.hair.style].shape;
-  for(let c=0;c<32;c++){const x=2*Math.floor((c-16)/2)+1;let f=shape.fringe(x);if(opts.glasses&&f<20)f=20;if(opts.hat&&f<18)f=18;const rows=Math.max(opts.hood?3:2,Math.min(17,30-f));p.rect(c,0,1,rows,hair);p.px(c,rows-1,tone(hair,.75));}
+  // 下颌两侧和下巴一圈暗部，脸不是一块平板
+  p.rect(0,20,1,16,shade).rect(35,20,1,16,shade).rect(1,33,34,2,tone(skin,.96)).rect(1,35,34,1,shade);
+  // 发际线：和体素刘海同一条轮廓，刘海背后画成最暗的头发（束与束之间的缝里看到的是头发的里层）
+  for(let c=0;c<FACE_W;c++){const x=c-18+.5,rows=Math.max(o.hood?3:2,Math.min(22,Math.round(36-o.hairline(x))));p.rect(c,0,1,rows,o.hairDeep);p.px(c,rows,tone(skin,.86));}
   const e=st.expression;
   // ——眉
-  const brow=tone(hair,.62),bt=look.face.brows,by=st.raise||e==='surprised'?9:10;
-  for(const [i,ex] of EYES.entries()){const inner=i===0?ex+5:ex,outer=i===0?ex:ex+5,dir=i===0?1:-1;
-    if(e==='angry'){p.rect(Math.min(inner,inner-dir*4),by,5,1,brow);p.px(inner,by+1,brow).px(inner-dir,by+1,brow);p.px(outer,by-1,brow);}
-    else if(e==='shy'||bt==='worried'){p.rect(Math.min(inner,inner-dir*4),by,5,1,brow);p.px(inner,by-1,brow);p.px(outer,by+1,brow);}
-    else if(e==='thinking'&&i===1){p.rect(ex,by-1,6,1,brow);p.px(ex+5,by,brow);}
-    else if(bt==='thick'){p.rect(ex,by-1,6,2,brow);}
-    else if(bt==='sharp'){p.rect(ex,by,6,1,brow);p.px(outer,by-1,brow);}
-    else if(bt==='arched'){p.rect(ex+1,by-1,4,1,brow);p.px(ex,by,brow).px(ex+5,by,brow);}
-    else if(bt==='straight'){p.rect(ex,by,6,1,brow);}
-    else {p.rect(ex+1,by,4,1,brow);p.px(outer,by+1,brow,.6);}
-  }
+  const hn=parseInt(hair.slice(1),16),light=(.2126*((hn>>16)&255)+.7152*((hn>>8)&255)+.0722*(hn&255))/255>.45;
+  // 浅色头发的眉毛压得更深，不然在肤色上看不见
+  const brow=tone(hair,light?.5:.66),bt=look.face.brows,raise=st.raise||e==='surprised'?-2:0;
+  EYE_COLS.forEach((x0,i)=>{const dir=i===0?-1:1,outer=i===0?x0:x0+6,inner=i===0?x0+6:x0,y=15+raise;
+    if(e==='angry'){for(let k=0;k<7;k++){const c=outer-dir*k,r=13+Math.round(k*3/6);p.px(c,r,brow).px(c,r+1,brow);}return;}
+    if(e==='shy'||bt==='worried'){for(let k=0;k<6;k++){const c=outer-dir*k,r=y+1-Math.round(k*2/5);p.px(c,r,brow);}p.px(inner,y-1,brow);return;}
+    if(e==='thinking'&&i===1){for(let k=0;k<7;k++)p.px(outer-dir*k,y-2+(k<2?1:0),brow);return;}
+    if(bt==='thick'){p.rect(x0,y-1,7,2,brow).px(outer,y+1,brow);}
+    else if(bt==='sharp'){p.rect(x0,y,7,1,brow).px(outer,y-1,brow).px(outer+dir,y-2,brow);}
+    else if(bt==='arched'){p.rect(x0+2,y-1,3,1,brow).px(x0+1,y,brow).px(x0+5,y,brow).px(outer,y+1,brow);}
+    else if(bt==='straight'){p.rect(x0,y,7,1,brow);}
+    else {p.rect(x0+1,y,5,1,brow).px(outer,y+1,brow,.7);}
+  });
   // ——眼
   const type:EyeType=st.sleepy?'sleepy':look.face.eyes;
-  for(const [i,ex] of EYES.entries()){const y=EYE_Y,outer=i===0?ex:ex+5,inner=i===0?ex+5:ex,dir=i===0?-1:1;
-    if(st.blink||e==='happy'&&!st.speak){ // 闭眼：眨眼是一道线，开心是 ^ 形弯眼
-      if(e==='happy'){p.px(ex,y+4,lash).px(ex+1,y+3,lash).rect(ex+2,y+2,2,1,lash).px(ex+4,y+3,lash).px(ex+5,y+4,lash);}
-      else p.rect(ex,y+4,6,1,lash).px(outer,y+5,lash);
-      continue;}
-    const irisD=tone(iris,.55),irisL=mix(iris,'#ffffff',.38);
-    let top=y+1,bot=y+6;
-    if(type==='sleepy'){top=y+3;}
-    if(type==='narrow'||e==='angry'){top=y+2;bot=y+5;}
-    if(e==='surprised'){top=y;bot=y+7;}
-    // 白眼仁只在惊讶时露一圈
-    if(e==='surprised'){p.rect(ex,top,6,bot-top+1,white);p.rect(ex+1,top+1,4,bot-top-1,iris);p.rect(ex+2,top+2,2,2,irisD);p.px(ex+1,top+1,white);}
-    else{
-      p.rect(ex,top,6,bot-top+1,iris);p.rect(ex,top,6,Math.min(2,bot-top),irisD);p.rect(ex,bot,6,1,irisL);
-      // 瞳孔：想事情往上看，害羞往下看
-      const look_=e==='thinking'?-1:e==='shy'?1:0,shift=e==='thinking'?dir:e==='shy'?-dir:0;
-      p.rect(ex+2+shift,Math.max(top,y+3+look_),2,2,tone(iris,.35));
-      // 两点高光：左上一大块、右下一小点（光从左上来，两只眼睛同侧）
-      if(bot-top>=3){p.rect(ex+1,top+1,2,2,white);p.px(ex+4,bot-1,white,.9);}else p.px(ex+1,top,white);
-      if(type==='sparkle'){p.px(ex+4,top+1,white).px(ex+3,top+2,white,.6);}
-      // 眼角：圆眼两角收一个像素
-      if(type==='round'||type==='sparkle'){p.px(ex,bot,skin).px(ex+5,bot,skin);}
-    }
-    // 上眼线（加粗外眼角），下垂眼外角往下，锐眼外角往上挑
-    p.rect(ex,top-1,6,1,lash);
-    if(type==='sharp'||e==='angry'){p.px(outer,top-2,lash).px(outer+dir,top-2,lash);p.px(inner,top,lash);}
-    else if(type==='droopy'){p.px(outer+dir,top,lash).px(outer+dir,top+1,lash);}
-    else p.px(outer+dir,top-1,lash).px(outer+dir,top,lash,.7);
-    if(type==='sleepy')p.rect(ex,top-3,6,2,tone(skin,.88));
-    if(e==='angry'){p.px(inner,top,skin).px(inner-dir,top,skin,.0);p.rect(inner+(i===0?-1:0),top,2,1,lash);}
-  }
-  // ——腮红、雀斑、汗
-  if(st.blush||e==='shy'){const a=e==='shy'?.95:.7;for(const x of [3,24]){p.rect(x,20,5,2,'#ec8f8a',a);if(e==='shy')for(let k=0;k<3;k++)p.px(x+1+k*1.5|0,20,'#d8605e',.8);}}
-  if(look.face.marks?.includes('freckles'))for(const [x,y] of [[5,21],[7,22],[25,21],[27,22],[6,20],[26,20]])p.px(x,y,tone(skin,.78));
-  if(look.face.marks?.includes('mole'))p.px(22,24,tone(skin,.55));
-  if(st.sweat||look.face.marks?.includes('sweat')&&e!=='happy'){p.rect(28,8,2,3,'#9fd3f2').px(28,11,'#9fd3f2').px(28,8,'#ffffff',.8);}
-  // ——鼻子：一个像素的阴影
-  p.px(15,20,tone(skin,.82));
+  EYE_COLS.forEach((x0,i)=>{const dir=i===0?-1:1,outer=i===0?x0:x0+6,inner=i===0?x0+6:x0;
+    if(st.blink||(e==='happy'&&!st.speak)){
+      if(e==='happy'&&!st.blink){p.rect(x0+2,22,3,1,lash).px(x0+1,23,lash).px(x0+5,23,lash).px(x0,24,lash).px(x0+6,24,lash).px(x0+2,23,lash,.55).px(x0+4,23,lash,.55);}
+      else{p.rect(x0,24,7,1,lash).px(outer,25,lash).px(outer+dir,23,lash,.8);}
+      return;}
+    const irisD=tone(iris,.5),irisL=mix(iris,'#ffffff',.42),pupil=tone(iris,.28);
+    let top=19,bot=26;
+    if(type==='sleepy')top=22;
+    if(type==='narrow')top=21,bot=25;
+    if(type==='sharp')top=20;
+    if(e==='angry')top=Math.max(top,21);
+    if(e==='surprised'){top=18;bot=26;}
+    if(e==='surprised'){
+      p.rect(x0,top,7,bot-top+1,white);p.rect(x0+1,top+1,5,bot-top-1,iris);p.rect(x0+1,top+1,5,2,irisD);p.rect(x0+2,top+3,3,3,pupil);p.px(x0+2,top+2,white).px(x0+3,top+2,white,.7);
+      p.rect(x0,top-1,7,1,lash);p.px(outer+dir,top-1,lash);
+      return;}
+    p.rect(x0,top,7,bot-top+1,iris).rect(x0,top,7,Math.min(2,bot-top),irisD).rect(x0,bot,7,1,irisL);
+    // 瞳孔：想事情往上、往一边看，害羞往下看
+    const gy=e==='thinking'?-1:e==='shy'?1:0,gx=e==='thinking'?1:e==='shy'?-dir:0,py=Math.max(top+1,Math.min(bot-2,Math.round((top+bot)/2)-1+gy));
+    p.rect(x0+2+gx,py,3,3,pupil);
+    // 两点高光：左上一大块、右下一小点（两只眼同一侧，光从左上来）
+    if(bot-top>=4){p.rect(x0+1,top+1,2,2,white);p.px(x0+5,bot-1,white,.9);}else p.px(x0+1,top+1,white);
+    if(type==='sparkle'){p.px(x0+4,top+1,white).px(x0+5,top+2,white,.6).px(x0+3,bot-2,white,.5);}
+    // 眼角收圆：下面两角露肤色
+    if(type==='round'||type==='sparkle'||type==='droopy'){p.px(x0,bot,skin).px(x0+6,bot,skin);}
+    // 上眼线（外眼角加粗），下垂眼外角往下，锐眼外角往上挑
+    p.rect(x0,top-1,7,1,lash);
+    if(type==='sharp'||e==='angry'){p.px(outer,top-2,lash).px(outer+dir,top-2,lash).px(outer+dir,top-3,lash,.7);if(e==='angry')p.px(inner,top,lash).px(inner-dir,top,lash,.6);}
+    else if(type==='droopy'){p.px(outer+dir,top,lash).px(outer+dir,top+1,lash).px(outer,top,lash);}
+    else p.px(outer+dir,top-1,lash).px(outer+dir,top-2,lash,.6);
+    if(type==='sleepy'){p.rect(x0,top-3,7,2,tone(skin,.9));p.rect(x0,top-1,7,1,lash);}
+    // 下眼线：外眼角一点
+    p.px(outer,bot+1,tone(skin,.76));
+  });
+  // ——腮红、雀斑、痣、汗
+  if(st.blush||e==='shy'){const a=e==='shy'?.95:.62;for(const x of [3,27]){p.rect(x,26,6,2,'#ef8f8a',a);if(e==='shy')for(let k=0;k<3;k++)p.px(x+1+k*2,26,'#d65a5c',.85);}}
+  if(look.face.marks?.includes('freckles'))for(const [x,y] of [[4,25],[6,26],[8,25],[27,25],[29,26],[31,25]])p.px(x,y,tone(skin,.78));
+  if(look.face.marks?.includes('mole'))p.px(25,29,tone(skin,.55));
+  if(st.sweat||(look.face.marks?.includes('sweat')&&e!=='happy')){p.rect(31,11,2,4,'#a7d8f4').px(31,15,'#a7d8f4').px(32,10,'#a7d8f4').px(31,11,'#ffffff',.85).px(32,15,'#7fbde4');}
+  // ——鼻：一个像素的阴影
+  p.px(17,27,tone(skin,.82)).px(18,27,tone(skin,.92));
   // ——嘴
-  const m:MouthType=st.grin?'grin':look.face.mouth,mx=15,my=23;
-  if(opts.beard){ /* 胡子挡住下半张脸，只画说话时的一条缝 */ if(st.speak)p.rect(mx-1,my,4,1,mouthDark);return;}
+  const m:MouthType=st.grin?'grin':look.face.mouth;
+  if(o.beard&&!st.speak){p.rect(16,29,4,1,mix(lip,'#3a2a2a',.3));return;}
   if(st.speak){const f=st.speak-1;
-    if(f===0)p.rect(mx,my,2,2,mouthDark).px(mx,my+1,tongue);
-    else if(f===1)p.rect(mx-1,my-1,4,3,mouthDark).rect(mx,my+1,2,1,tongue);
-    else p.rect(mx-1,my,4,1,mouthDark).rect(mx-1,my,4,1,'#ffffff',.5);
+    if(f===0)p.rect(17,29,2,2,mouthDark).rect(17,30,2,1,tongue);
+    else if(f===1)p.rect(16,28,4,3,mouthDark).rect(17,30,2,1,tongue).rect(17,28,2,1,white,.85);
+    else p.rect(16,29,4,1,mouthDark).rect(17,30,2,1,mouthDark);
     return;}
-  if(e==='happy'){p.rect(mx-2,my-1,6,1,mouthDark).rect(mx-1,my,4,1,mouthDark).rect(mx,my+1,2,1,mouthDark).rect(mx-1,my,4,1,tongue,.0).px(mx,my,tongue).px(mx+1,my,tongue);return;}
-  if(e==='surprised'){p.rect(mx,my-1,2,3,mouthDark).px(mx-1,my,mouthDark).px(mx+2,my,mouthDark);return;}
-  if(e==='angry'){p.rect(mx-2,my,6,1,lip).px(mx-2,my+1,lip).px(mx+3,my+1,lip).rect(mx-1,my,4,1,'#ffffff',.7);return;}
-  if(e==='shy'){p.px(mx-2,my,lip).px(mx-1,my+1,lip).px(mx,my,lip).px(mx+1,my+1,lip).px(mx+2,my,lip);return;}
-  if(e==='thinking'){p.rect(mx,my,3,1,lip).px(mx-1,my+1,lip);return;}
-  if(m==='smile'){p.rect(mx-1,my+1,4,1,lip).px(mx-2,my,lip).px(mx+3,my,lip);}
-  else if(m==='flat'){p.rect(mx-1,my,4,1,lip);}
-  else if(m==='cat'){p.px(mx-2,my,lip).px(mx-1,my+1,lip).px(mx,my,lip).px(mx+1,my,lip).px(mx+2,my+1,lip).px(mx+3,my,lip);}
-  else if(m==='smirk'){p.rect(mx-1,my+1,3,1,lip).px(mx+2,my,lip).px(mx+3,my-1,lip);}
-  else if(m==='grin'){p.rect(mx-2,my,6,2,mouthDark).rect(mx-2,my,6,1,'#ffffff').px(mx-2,my+1,skin).px(mx+3,my+1,skin);}
-  else p.rect(mx,my,2,1,lip);
+  if(e==='happy'){p.rect(15,29,6,1,mouthDark).rect(16,30,4,1,mouthDark).rect(17,30,2,1,tongue).rect(17,31,2,1,mouthDark).rect(16,29,4,1,white,.35);return;}
+  if(e==='surprised'){const ring:Array<[number,number]>=[[17,28],[18,28],[16,29],[19,29],[16,30],[19,30],[17,31],[18,31]];for(const [x,y] of ring)p.px(x,y,mouthDark);p.rect(17,29,2,2,'#a23b47');p.px(17,29,'#c9616b');return;}
+  if(e==='angry'){p.rect(16,29,4,1,mouthDark).px(15,30,mouthDark).rect(16,30,4,1,white).px(20,30,mouthDark).rect(16,31,4,1,mouthDark).px(18,30,tone(white,.8));return;}
+  if(e==='shy'){for(const [x,y] of [[15,29],[16,30],[17,29],[18,30],[19,29],[20,30]] as const)p.px(x,y,lip);return;}
+  if(e==='thinking'){p.rect(18,30,3,1,lip).px(17,29,lip,.8);return;}
+  if(m==='smile'){p.rect(16,30,4,1,lip).px(15,29,lip).px(20,29,lip);}
+  else if(m==='flat'){p.rect(16,29,4,1,lip);}
+  else if(m==='cat'){for(const [x,y] of [[15,29],[16,30],[17,29],[18,29],[19,30],[20,29]] as const)p.px(x,y,lip);}
+  else if(m==='smirk'){p.rect(16,30,3,1,lip).px(19,29,lip).px(20,28,lip);}
+  else if(m==='grin'){p.rect(15,29,6,1,mouthDark).rect(16,29,4,1,white).rect(16,30,4,1,mouthDark).px(15,30,skin).px(20,30,skin);}
+  else p.rect(17,29,2,1,lip);
 }

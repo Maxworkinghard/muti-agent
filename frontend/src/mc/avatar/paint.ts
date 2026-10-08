@@ -1,4 +1,4 @@
-/** 人物贴图集：每个人一张 256×256 的画布，1 像素 = 1 T（1/48 米）。盒子的每个面要么占一块画好的区域，要么取一个纯色格。 */
+/** 人物贴图集：每个人一张 256×256 的画布（放不下时 build.ts 换 512），1 像素 = 1 T（1/48 米）。盒子的每个面要么占一块画好的区域，要么取一个纯色格。 */
 export interface Rect {x:number;y:number;w:number;h:number}
 const rgb=(c:string):[number,number,number]=>{const n=parseInt(c.slice(1),16);return [(n>>16)&255,(n>>8)&255,n&255];};
 const hex=(r:number,g:number,b:number)=>'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
@@ -7,9 +7,11 @@ export function tone(c:string,f:number){const [r,g,b]=rgb(c);if(f<=1)return hex(
 export function mix(a:string,b:string,t:number){const x=rgb(a),y=rgb(b);return hex(x[0]+(y[0]-x[0])*t,x[1]+(y[1]-x[1])*t,x[2]+(y[2]-x[2])*t);}
 export interface Pen {w:number;h:number;rect(x:number,y:number,w:number,h:number,c:string,a?:number):Pen;px(x:number,y:number,c:string,a?:number):Pen;fill(c:string):Pen;clear(x:number,y:number,w:number,h:number):Pen}
 export class Atlas {
-  readonly size=256;readonly canvas:HTMLCanvasElement;readonly ctx:CanvasRenderingContext2D;
+  readonly canvas:HTMLCanvasElement;readonly ctx:CanvasRenderingContext2D;
   private sx=0;private sy=0;private sh=0;private rects:Rect[]=[];private solids=new Map<string,Rect>();
-  constructor(){this.canvas=document.createElement('canvas');this.canvas.width=this.canvas.height=this.size;this.ctx=this.canvas.getContext('2d')!;this.ctx.imageSmoothingEnabled=false;}
+  /** 已经用到第几行（0–1），调试用 */
+  get used(){return (this.sy+this.sh)/this.size;}
+  constructor(readonly size=256){this.canvas=document.createElement('canvas');this.canvas.width=this.canvas.height=this.size;this.ctx=this.canvas.getContext('2d')!;this.ctx.imageSmoothingEnabled=false;}
   /** 架子式装箱，四周留 1 像素的边（bleed 时用边缘像素填上，远处 mipmap 不串色） */
   alloc(w:number,h:number):Rect{w=Math.max(1,Math.round(w));h=Math.max(1,Math.round(h));
     if(this.sx+w+2>this.size){this.sx=0;this.sy+=this.sh;this.sh=0;}
