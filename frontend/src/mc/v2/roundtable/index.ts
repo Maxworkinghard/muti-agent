@@ -13,13 +13,15 @@ import {buildLandscape} from '../landscape';
 import {PAL} from '../pixel';
 import {HALL,TERRAIN,buildHall} from './hall';
 import {drawHallBoard} from './board';
-import {chair,cord,hearthFire,octagonMat,octagonTable,paperLantern,pottedShrub,PROP_PAINT,reedBlind,teaSet} from './furnish';
+import {blossomSpray,teaStation,chair,cord,hearthFire,octagonMat,octagonTable,paperLantern,pottedShrub,PROP_PAINT,reedBlind,teaSet} from './furnish';
 
 /** 同一个道具 Kit 只配一个 v2 工具（材质缓存、统一释放）。 */
 const kits=new WeakMap<Kit,V2Kit>();
 const v2=(k:Kit)=>{let x=kits.get(k);if(!x){x=createV2Kit(k.owned);kits.set(k,x);}return x;};
 
-export const RT={tableR:1.45,tableH:.95,seatGap:.36,
+export const RT={
+  /** 桌面外接圆半径 1.65（直径 3.3 米）、座位圈半径 2.15：每人约 1.7 米弧长，肩宽 0.9 的人坐下两边还空半米 */
+  tableR:1.65,tableH:.95,seatGap:.5,
   /** 座位从正东偏 30° 起每 45° 一个：默认机位（西南角）正对着两个座位之间的空当，看得到桌面 */
   phase:Math.PI/6};
 
@@ -29,35 +31,41 @@ export function buildRoundtableV2():Room{
   for(let i=0;i<8;i++){const a=RT.phase+i*Math.PI/4,x=cx+R*Math.cos(a),z=cz+R*Math.sin(a),yaw=Math.atan2(cx-x,cz-z);
     anchors.push({seat:[x,1.5,z],stand:[x,1,z],homeYaw:yaw,mic:'seat-'+i,chair:'chair-'+i});
     chairs.push({id:'chair-'+i,side:'judge',position:[x,1,z],yaw,slide:.2,actor:i});}
-  const board={position:[cx,4.4,5.08] as Point,width:3,height:1};
+  /** 匾挂在北口抬高的那根梁下，比原先高 0.2 米；匾下和匾上都还看得到湖与山 */
+  const board={position:[cx,4.6,5.08] as Point,width:3,height:1};
   const lights:Room['lights']=[
-    {position:[cx,3.95,cz],length:.4,intensity:1.6,distance:8,kind:'lantern',shadow:false,color:'#ffd49a'},
-    {position:[18.75,1.55,10],length:.3,intensity:2.6,distance:9,kind:'lantern',shadow:true,color:'#ff9c52'},
+    // 暖光只照亮自己周围一圈：桌上一池、壁炉前一池，衰减得快，和窗外的冷天光形成对比。
+    {position:[cx,3.95,cz],length:.4,intensity:5,distance:7,kind:'lantern',shadow:false,color:'#ffcf8a'},
+    {position:[18.6,1.55,10],length:.3,intensity:8,distance:8,kind:'lantern',shadow:true,color:'#ff9a4a'},
     {position:[6.5,3.05,1.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
     {position:[19.5,3.05,1.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
   ];
-  const camera:Point=[6.8,3.45,14.8],cameraTarget:Point=[14.2,2.45,7.0];
+  /** 默认机位：西南角、略高于站立人眼，离桌子 7 米；左边是北口外的湖和山，右边是桌子和壁炉 */
+  const camera:Point=[7.7,3.05,14.5],cameraTarget:Point=[14.6,2.0,5.4];
   let fire:THREE.Group|null=null;
   const room:Room={
     kind:'roundtable',title:MC_SCENE_NAMES.roundtable,seatedSpeech:true,material:'original',
-    blocks:buildHall().connect(),ceiling:[],anchors,host:[cx,1,cz+2.6],camera,cameraTarget,fov:52,
+    blocks:buildHall().connect(),ceiling:[],anchors,host:[cx,1,cz+3.2],camera,cameraTarget,fov:50,
     fit:[...anchors.map(a=>[a.seat[0],a.seat[1]+1.3,a.seat[2]] as Point),...[-1,1].map(s=>[board.position[0]+s*board.width/2,board.position[1]+board.height/2+.1,board.position[2]] as Point)],
     judge:[17.4,2.7,13.9],judgeTarget:[12.6,1.9,8.8],
     layout:{tables:[{id:'round-table',side:'judge',center:[cx,1,cz],length:RT.tableR*2,depth:RT.tableR*2,height:RT.tableH,shape:'round',skirtYaw:0}],chairs,desk:[],podium:{position:[cx,1,cz+3.2],yaw:Math.PI},board,phaseLamps:[]},
     banners:[],windows:[],floor:[],lights,
     bounds:{min:[6.05,1,1.05],max:[19.95,5.95,15.95]},
     flight:{min:[-4,1,-6],max:[30,16,24]},
-    look:{background:'#d2e1ee',outdoor:true,sky:'#c9dcf0',ground:'#a59c88',ambient:1.05,
-      sun:{color:'#ffe9cf',intensity:3.4,azimuth:200,elevation:22,shadow:.9},exposure:1.12,indirect:.4,
-      haze:'#d4e2ee',fog:[90,460],skyTop:'#5b93d3',saturation:1},
+    // 光：低角度的西南斜阳更强、天光和环境光更弱——室内深处暗下来，地上的柱影和帘影更清楚，灯和炉火的暖光池才看得见。
+    look:{background:'#c3d7ea',outdoor:true,sky:'#b9d2ee',ground:'#8f8676',ambient:.7,
+      sun:{color:'#ffe6c4',intensity:4.4,azimuth:205,elevation:17,shadow:.95},exposure:1.1,indirect:.28,
+      haze:'#c3d7ea',fog:[80,420],skyTop:'#3f7fd0',saturation:1},
     paint:{...V2_BLOCK_PAINT},
     boardStyle:'sign',boardFrame:'block/dark_oak_planks',
     drawBoard:drawHallBoard,
     makeChair:(k,c)=>chair(v2(k),PAL.fabric[(c.actor??0)%PAL.fabric.length]),
-    decorateBoard:(k,sign)=>{const g=v2(k),iron=g.mat('iron',PROP_PAINT.iron);for(const s of [-1,1]){g.box(sign,.08,.16,.12,iron,s*1.25,board.height/2+.1,-.02);}},
+    decorateBoard:(k,sign)=>{const g=v2(k),iron=g.mat('iron',PROP_PAINT.iron),drop=HALL.beamY+1-(board.position[1]+board.height/2);
+      // 两根铁吊杆把匾挂在抬高的梁下。
+      for(const s of [-1,1]){g.box(sign,.08,.16,.12,iron,s*1.25,board.height/2+.06,-.02);g.box(sign,.035,drop,.035,iron,s*1.25,board.height/2+drop/2,-.02);}},
     animate:now=>{(fire?.userData.flicker as ((n:number)=>void)|undefined)?.(now);},
     decorate:(k,root)=>{const g=v2(k);
-      root.add(buildLandscape(g,{water:-.35,shore:0,farShore:-110,mountains:-175,west:-70,east:100,ground:0,seed:7,hole:TERRAIN,peakScale:.5}));
+      root.add(buildLandscape(g,{water:-.35,shore:0,farShore:-110,mountains:-200,west:-70,east:100,ground:0,seed:7,hole:TERRAIN,center:[cx,cz]}));
       // 柱础：每根柱子脚下一块石头。
       const stone=g.mat('stone',V2_BLOCK_PAINT['block/stone_bricks']);
       for(const x of HALL.cols.x)for(const z of [4,15])g.box(root,.86,.18,.86,stone,x+.5,1.09,z+.5);
@@ -69,11 +77,11 @@ export function buildRoundtableV2():Room{
       for(const x of [10.5,15.5])for(const [z0,z1] of [[3,7],[13,17]])purlin(x,z0,z1);
       for(const [z0,z1] of [[3,7],[13,17]]){const top=HALL.underside(12);g.box(root,.4,.4,z1-z0,beam,13,top-.2,(z0+z1)/2);}
       // 北山墙的童柱：梁上一根短柱顶住脊檩，从厅里看出去，山花被它分成两扇三角窗。
-      g.box(root,.32,HALL.underside(12)-6,.32,beam,13,(HALL.underside(12)+6)/2,4.5);
+      g.box(root,.32,HALL.underside(12)-7,.32,beam,13,(HALL.underside(12)+7)/2,4.5);
       // 会议圈：草编席、八角桌、茶具。
-      root.add(place(octagonMat(g,2.95),cx,1,cz));
+      root.add(place(octagonMat(g,3.4),cx,1,cz));
       root.add(place(octagonTable(g,RT.tableR,RT.tableH),cx,1,cz));
-      root.add(teaSet(g,anchors.map(a=>[a.seat[0],a.seat[2]] as [number,number]),cx,cz,1+RT.tableH));
+      root.add(teaSet(g,anchors.map(a=>[a.seat[0],a.seat[2]] as [number,number]),cx,cz,1+RT.tableH,RT.tableR));
       // 壁炉：火、壁炉台和台上两三件小东西。
       fire=hearthFire(g);root.add(place(fire,19,1,10));
       const mantel=g.mat('frame-planks',V2_BLOCK_PAINT['block/dark_oak_planks']);g.box(root,.42,.16,4.3,mantel,17.85,3.08,10);
@@ -84,7 +92,7 @@ export function buildRoundtableV2():Room{
       // 前廊是露天平台：两角各一根木灯柱，顶上一盏小纸灯。
       for(const x of [6.5,19.5]){g.box(root,.16,1.8,.16,beam,x,1.9,1.5);g.box(root,.5,.08,.12,beam,x,2.84,1.5);root.add(place(paperLantern(g,.3,.7),x,2.88+.42,1.5));}
       // 植物：西栏上两盆、前廊两角、书架边一大盆，节奏不对称。
-      root.add(place(pottedShrub(g,.7,false,false,11),6.5,1.5,5.4));
+      root.add(place(pottedShrub(g,.7,false,false,11),6.5,1.5,8.6));
       root.add(place(pottedShrub(g,.8,false,true,12),6.5,1.5,13.6));
       root.add(place(pottedShrub(g,1.2,true,false,13),7.3,1,2.0));
       root.add(place(pottedShrub(g,1.1,true,true,14),18.2,1,2.2));
@@ -95,8 +103,12 @@ export function buildRoundtableV2():Room{
       const verge=g.mat('verge',V2_BLOCK_PAINT['block/dark_oak_planks']),slope=Math.atan(.5),len=9*Math.hypot(1,.5);
       for(const z of [2.94,17.06])for(const s of [-1,1]){const m=g.box(root,len,.9,.12,verge,13+s*4.5,9.55-2.25-.45,z);m.rotation.z=-s*slope;}
       for(const x of [3.98,22.02])g.box(root,.28,1.04,14.1,beam,x,4.5,10);
-      // 西侧入口外的三块踏步石。
-      const step=g.mat('cobble',V2_BLOCK_PAINT['block/cobblestone']);for(const [x,z] of [[4.2,10.1],[3.1,9.6],[2.0,10.3]] as const)g.box(root,.8,.08,.7,step,x,.04,z);
+      // 前景框景：默认机位左上方，从西侧那根檩条（x=8.5）上垂下两枝樱花。
+      root.add(place(blossomSpray(g,1.6,1.15,21),8.5,5.66,10.7,Math.PI/2));root.add(place(blossomSpray(g,1.0,.85,22),8.5,5.66,9.5,Math.PI/2+.5));
+      // 前景左下：西侧中间一跨、半高石栏里面的茶台（矮几、炭炉、铁壶、两个坐垫），让镜头前不是一整片空地板。
+      root.add(place(teaStation(g),8.9,1,9.5,Math.PI));
+      // 西侧入口（北边一跨）外的三块踏步石。
+      const step=g.mat('cobble',V2_BLOCK_PAINT['block/cobblestone']);for(const [x,z] of [[4.2,5.6],[3.1,5.1],[2.0,5.8]] as const)g.box(root,.8,.08,.7,step,x,.04,z);
     },
   };
   return room;

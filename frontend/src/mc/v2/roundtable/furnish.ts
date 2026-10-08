@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type {Painter} from '../../style';
 import {PAL,pick,rng,speckle,tone} from '../pixel';
 import {V2_BLOCK_PAINT} from '../blockTextures';
-import {place,type V2Kit} from '../kit';
+import {ColorBoxes,place,type V2Kit} from '../kit';
 
 const F=PAL.frame;
 /** 道具贴图（16×16，按每米 16 像素平铺）。 */
@@ -69,7 +69,8 @@ export function chair(k:V2Kit,fabric:string){
   return g;
 }
 /** 桌上的茶具：托盘、茶壶、给每个座位一只茶杯，少数座位一卷纸。 */
-export function teaSet(k:V2Kit,seats:Array<[number,number]>,cx:number,cz:number,top:number){
+export function teaSet(k:V2Kit,seats:Array<[number,number]>,cx:number,cz:number,top:number,tableR=1.45){
+  /** 杯子、便笺、纸卷离桌心的距离跟着桌子半径走 */const sr=tableR/1.45;
   const g=new THREE.Group();g.name='v2-tea';
   // 小件的贴图按物件大小整张铺上（px = 16 / 尺寸），不然一只杯子上只剩一两个像素的花纹。
   k.box(g,.62,.03,.42,M(k,'tray'),cx,top+.015,cz,40);
@@ -77,9 +78,9 @@ export function teaSet(k:V2Kit,seats:Array<[number,number]>,cx:number,cz:number,
   const spout=k.box(g,.12,.035,.035,pot,cx+.06,top+.15,cz,130);spout.rotation.z=.6;k.box(g,.03,.1,.03,pot,cx-.2,top+.11,cz,160);
   for(const [dx,dz] of [[.15,.1],[.15,-.08]])k.box(g,.07,.06,.07,M(k,'ceramic'),cx+dx,top+.06,cz+dz,230);
   seats.forEach(([x,z],i)=>{const dx=x-cx,dz=z-cz,l=Math.hypot(dx,dz),ux=dx/l,uz=dz/l,yaw=Math.atan2(dx,dz);
-    k.box(g,.11,.012,.11,M(k,'tray'),cx+ux*.98-uz*.24,top+.006,cz+uz*.98+ux*.24,140);k.box(g,.07,.07,.07,M(k,'ceramic'),cx+ux*.98-uz*.24,top+.047,cz+uz*.98+ux*.24,230);
-    const sheet=k.box(g,.3,.01,.22,M(k,'note'),cx+ux*.9+uz*.1,top+.005,cz+uz*.9-ux*.1,53);sheet.rotation.y=yaw+(i%2?.12:-.1);
-    if(i%3===0){const s=k.box(g,.36,.06,.06,M(k,'scrollRoll'),cx+ux*.62,top+.03,cz+uz*.62,44);s.rotation.y=yaw;}});
+    k.box(g,.11,.012,.11,M(k,'tray'),cx+ux*.98*sr-uz*.24,top+.006,cz+uz*.98*sr+ux*.24,140);k.box(g,.07,.07,.07,M(k,'ceramic'),cx+ux*.98*sr-uz*.24,top+.047,cz+uz*.98*sr+ux*.24,230);
+    const sheet=k.box(g,.3,.01,.22,M(k,'note'),cx+ux*.9*sr+uz*.1,top+.005,cz+uz*.9*sr-ux*.1,53);sheet.rotation.y=yaw+(i%2?.12:-.1);
+    if(i%3===0){const s=k.box(g,.36,.06,.06,M(k,'scrollRoll'),cx+ux*.62*sr,top+.03,cz+uz*.62*sr,44);s.rotation.y=yaw;}});
   return g;
 }
 /** 纸灯笼：上下深木盖、四面发光纸，原点在灯笼顶部挂点。 */
@@ -118,12 +119,38 @@ export function hangingBasket(k:V2Kit,len=.7){
   k.box(g,.46,.16,.46,M(k,'shrub'),0,-len+.04,0);
   return g;
 }
-/** 垂下来的一串樱花枝：几片交叉的镂空花叶片，长短不一。原点在挂点。 */
-export function blossomStrand(k:V2Kit,len:number,seed=1){
-  const g=new THREE.Group(),r=rng(seed),m=M(k,'blossom',{side:THREE.DoubleSide});
-  for(let i=0;i<6;i++){const h=len*(.45+r()*.55),w=.22+r()*.16,geo=new THREE.PlaneGeometry(w,h),uv=geo.getAttribute('uv');for(let j=0;j<uv.count;j++)uv.setXY(j,uv.getX(j)*w,uv.getY(j)*h);
-    const p=new THREE.Mesh(geo,m);p.position.set((r()-.5)*.35,-h/2,(r()-.5)*.35);p.rotation.y=i*Math.PI/3+r()*.4;p.castShadow=true;g.add(p);}
-  const twig=M(k,'lanternFrame');k.box(g,.05,.05,.7,twig,0,-.02,0);
+/**
+ * 一枝垂下来的樱花（前景框景用）：几段深色细枝 + 每个枝节一团小方块花簇（三种粉、少量白），
+ * 方块边长 3.5–8 厘米，远看是一簇簇花而不是一片片纸。原点在挂点，枝条往 +x 伸、往下垂。
+ */
+export function blossomSpray(k:V2Kit,len:number,droop:number,seed=1){
+  const g=new THREE.Group();g.name='v2-blossom-spray';const r=rng(seed),bark=new THREE.Color(PAL.bark.dark),cb=new ColorBoxes();
+  const pinks=[PAL.cherry.base,PAL.cherry.light,PAL.cherry.dark,PAL.cherry.base,'#fff4f6'].map(c=>new THREE.Color(c));
+  const nodes:Array<[number,number,number]>=[];
+  const limb=(x0:number,y0:number,z0:number,dx:number,dy:number,dz:number,steps:number,th:number)=>{let x=x0,y=y0,z=z0;for(let i=0;i<steps;i++){const nx=x+dx*(.8+r()*.4),ny=y+dy*(.7+r()*.6),nz=z+dz+(r()-.5)*.08;
+    cb.add(Math.min(x,nx)-th/2,Math.min(y,ny)-th/2,Math.min(z,nz)-th/2,Math.max(x,nx)+th/2,Math.max(y,ny)+th/2,Math.max(z,nz)+th/2,bark,bark);x=nx;y=ny;z=nz;nodes.push([x,y,z]);}return [x,y,z] as [number,number,number];};
+  const n=Math.max(3,Math.round(len/.2));limb(0,0,0,len/n,-droop/n,0,n,.06);
+  const main=nodes.length;for(let i=1;i<main-1;i+=2){const [x,y,z]=nodes[i];limb(x,y,z,(r()-.3)*.18,-.16-r()*.14,(r()-.5)*.2,2+Math.floor(r()*2),.035);}
+  for(const [x,y,z] of nodes){const m=10+Math.floor(r()*8);for(let j=0;j<m;j++){const s=.035+r()*.045,px=x+(r()-.5)*.26,py=y+(r()-.6)*.22,pz=z+(r()-.5)*.26,c=pinks[Math.floor(r()*pinks.length)];
+    cb.add(px-s/2,py-s/2,pz-s/2,px+s/2,py+s/2,pz+s/2,c,c.clone().multiplyScalar(.86),c.clone().multiplyScalar(.72),false);}}
+  const mesh=new THREE.Mesh(cb.geometry(),k.flat('#ffffff',{vertex:true}));mesh.castShadow=true;g.add(mesh);
+  return g;
+}
+/**
+ * 茶台（厅西南角、默认机位左下的前景）：一块草席、一张矮几（几上两只茶罐、一只茶盘）、一只石炭炉（炭火 + 铁壶）、两个坐垫。
+ * 原点在地面中心，长边沿 z。
+ */
+export function teaStation(k:V2Kit){
+  const g=new THREE.Group();g.name='v2-tea-station';const wood=M(k,'tableTop'),edge=M(k,'tableEdge');
+  k.box(g,1.3,.02,1.7,M(k,'matEdge'),0,.01,0);k.box(g,1.16,.02,1.56,M(k,'mat'),0,.02,0);
+  for(const x of [-.24,.24])for(const z of [-.42,.42])k.box(g,.06,.32,.06,edge,x,.19,z-.1);
+  k.box(g,.6,.06,1.04,[edge,edge,wood,wood,edge,edge],0,.38,-.1);
+  k.box(g,.34,.02,.24,M(k,'tray'),0,.42,-.3,40);
+  for(const [x,z,h] of [[-.14,.12,.16],[-.02,.2,.12]] as const)k.box(g,.09,h,.09,M(k,'ceramic'),x,.41+h/2,z,180);
+  // 炭炉：石身、上面一层炭火、铁壶。
+  const stone=M(k,'stonePot');k.box(g,.38,.34,.38,stone,0,.19,.6);k.box(g,.3,.02,.3,M(k,'ember',{glow:1.6}),0,.365,.6);
+  const pot=M(k,'iron');k.box(g,.22,.17,.22,pot,0,.47,.6,80);k.box(g,.1,.04,.1,pot,0,.575,.6,160);const sp=k.box(g,.12,.035,.035,pot,-.13,.5,.6,130);sp.rotation.z=-.6;
+  for(const [x,z,i] of [[.48,-.3,0],[.48,.25,1]] as const)k.box(g,.44,.09,.44,M(k,'cushion',{color:PAL.fabric[i===0?3:6]}),x,.065,z);
   return g;
 }
 /** 芦苇帘：卷起的帘轴 + 放下一段的帘面（有缝，阳光从缝里漏进来）。原点在顶部中心，帘面在 x-y 平面。 */

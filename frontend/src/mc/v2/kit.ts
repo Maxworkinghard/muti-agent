@@ -40,6 +40,10 @@ export const place=<T extends THREE.Object3D>(o:T,x:number,y:number,z:number,yaw
 /** 把一组盒子按顶点颜色合并成一个网格（远景：树林、山、云），一次绘制。 */
 export class ColorBoxes {
   private pos:number[]=[];private col:number[]=[];private nor:number[]=[];private idx:number[]=[];
+  /** 已有的顶点数（配合 tint 给一批刚加进来的盒子统一混色） */
+  get vertices(){return this.pos.length/3;}
+  /** 把第 from 个顶点以后的颜色往 color 混 t（远景空气透视用） */
+  tint(from:number,color:THREE.Color,t:number){for(let i=from*3;i<this.col.length;i+=3){this.col[i]+=(color.r-this.col[i])*t;this.col[i+1]+=(color.g-this.col[i+1])*t;this.col[i+2]+=(color.b-this.col[i+2])*t;}}
   /** 轴对齐盒子，min/max 角点；top/side/bottom 三种颜色（顶面亮、侧面次之、底面暗）。skipBottom 省掉看不见的底面。 */
   add(x0:number,y0:number,z0:number,x1:number,y1:number,z1:number,top:THREE.Color,side:THREE.Color,bottom?:THREE.Color,skipBottom=true){
     const faces:Array<[number[],number[][],THREE.Color]>=[
