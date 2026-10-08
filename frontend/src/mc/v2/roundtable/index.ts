@@ -12,7 +12,7 @@ import {createV2Kit,place,type V2Kit} from '../kit';
 import {buildLandscape} from '../landscape';
 import {HALL,TERRAIN,buildHall} from './hall';
 import {drawHallBoard} from './board';
-import {blossomSpray,teaStation,cord,hearthFire,octagonMat,octagonTable,paperLantern,pottedShrub,PROP_PAINT,reedBlind,teaSet} from './furnish';
+import {blossomSpray,teaStation,cord,hearthFire,octagonTable,paperLantern,pottedShrub,PROP_PAINT,reedBlind,teaSet} from './furnish';
 import {makeChair,SOFT_FABRIC} from '../../props/chairs';
 import {plankHall} from '../../props/floors';
 
@@ -21,8 +21,8 @@ const kits=new WeakMap<Kit,V2Kit>();
 const v2=(k:Kit)=>{let x=kits.get(k);if(!x){x=createV2Kit(k.owned);kits.set(k,x);}return x;};
 
 export const RT={
-  /** 桌面外接圆半径 1.65（直径 3.3 米）、座位圈半径 2.15：每人约 1.7 米弧长，肩宽 0.9 的人坐下两边还空半米 */
-  tableR:1.65,tableH:.95,seatGap:.5,
+  /** 桌面外接圆半径 2.05（直径 4.1 米）、座位圈半径 2.60：每人约 2.0 米弧长。桌高仍是 0.95。 */
+  tableR:2.05,tableH:.95,seatGap:.55,
   /** 座位从正东偏 30° 起每 45° 一个：默认机位（西南角）正对着两个座位之间的空当，看得到桌面 */
   phase:Math.PI/6};
 
@@ -50,10 +50,10 @@ export function buildRoundtableV2():Room{
     fit:[...anchors.map(a=>[a.seat[0],a.seat[1]+1.3,a.seat[2]] as Point),...[-1,1].map(s=>[board.position[0]+s*board.width/2,board.position[1]+board.height/2+.1,board.position[2]] as Point)],
     judge:[17.4,2.7,13.9],judgeTarget:[12.6,1.9,8.8],
     layout:{tables:[{id:'round-table',side:'judge',center:[cx,1,cz],length:RT.tableR*2,depth:RT.tableR*2,height:RT.tableH,shape:'round',skirtYaw:0}],chairs,desk:[],podium:{position:[cx,1,cz+3.2],yaw:Math.PI},board,phaseLamps:[]},
-    // 地面：厅内 x 7–19、z 5–15 盖一张 16 像素/米的长条木地板图（深橡木包边，壁炉前的石炉床对着方块世界 x 17–18、z 8–11），
-    // 方块地面照旧负责走路、碰撞和光照；门槛那一圈石头露在外面。
+    // 地面：厅内 x 7–19、z 5–15 盖一张 16 像素/米的浅木地板（深橡木包边，壁炉前的石炉床对着方块世界 x 17–18、z 8–11），
+    // 桌下一块八角地毯（中心就是桌子 13,10，相对这张地面是 6,5）。方块地面照旧负责走路、碰撞和光照。
     banners:[],windows:[],floor:[{y:1.002,x0:7,x1:19,z0:5,z1:15}],lights,
-    floorArt:(c,w,d)=>plankHall(c,w,d,{border:8,hearth:{x0:10,x1:12,z0:3,z1:7}}),
+    floorArt:(c,w,d)=>plankHall(c,w,d,{border:8,hearth:{x0:10,x1:12,z0:3,z1:7},rug:{cx:6,cz:5,r:2.45}}),
     bounds:{min:[6.05,1,1.05],max:[19.95,5.95,15.95]},
     flight:{min:[-4,1,-6],max:[30,16,24]},
     // 光：低角度的西南斜阳更强、天光和环境光更弱——室内深处暗下来，地上的柱影和帘影更清楚，灯和炉火的暖光池才看得见。
@@ -83,8 +83,7 @@ export function buildRoundtableV2():Room{
       for(const [z0,z1] of [[3,7],[13,17]]){const top=HALL.underside(12);g.box(root,.4,.4,z1-z0,beam,13,top-.2,(z0+z1)/2);}
       // 北山墙的童柱：梁上一根短柱顶住脊檩，从厅里看出去，山花被它分成两扇三角窗。
       g.box(root,.32,HALL.underside(12)-7,.32,beam,13,(HALL.underside(12)+7)/2,4.5);
-      // 会议圈：草编席、八角桌、茶具。
-      root.add(place(octagonMat(g,3.4),cx,1,cz));
+      // 会议圈：八角桌、茶具。地毯画在地面贴图上，不再铺一块草编席。
       root.add(place(octagonTable(g,RT.tableR,RT.tableH),cx,1,cz));
       root.add(teaSet(g,anchors.map(a=>[a.seat[0],a.seat[2]] as [number,number]),cx,cz,1+RT.tableH,RT.tableR));
       // 壁炉：火、壁炉台和台上两三件小东西。

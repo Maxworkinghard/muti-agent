@@ -11,8 +11,10 @@ const rect=(c:Ctx,x:number,y:number,w:number,h:number,col:string)=>{if(w<=0||h<=
 /** 从色板挑一个和上一个不同的颜色 */
 const nextTone=(r:()=>number,pal:string[],prev?:string)=>{let c=pal[Math.floor(r()*pal.length)];if(c===prev)c=pal[(pal.indexOf(c)+1+Math.floor(r()*(pal.length-1)))%pal.length];return c;};
 
-/** 中等色橡木：比草编席（#cdb57e）深一档、比桌面和包边的深橡木浅一档，墙的白灰在上面跳得出来。 */
+/** 中等色橡木：石木混拼里的木条用。比桌面和包边的深橡木浅一档。 */
 export const OAK=['#a6825b','#ad8961','#9f7b55','#b28e66','#a37f58','#9a7652'];
+/** 议事厅地板：白桦为主、浅橡点缀（参考图 1.1 / 1.3），比旧的一整片中橡木亮，墙和地毯才分得开。 */
+const HALL_WOOD=['#e0cba8','#d7c4a2','#cbb892','#e6d3b0','#d2bf9a','#c4a07a','#b8926a'];
 const DARK_OAK=['#5a4130','#634836','#543c2c','#5e4433'];
 const WALNUT=['#5b3b29','#654330','#523424','#6c4834','#5f3e2b','#4d3121'];
 const FLAG=['#97928a','#8c877f','#a19b91','#86827b','#928d84'];
@@ -51,7 +53,7 @@ function flag(c:Ctx,r:()=>number,x:number,y:number,w:number,h:number,base:string
   rect(c,x,y+h-1,w,1,'#5c5852');rect(c,x+w-1,y,1,h,'#5c5852');
 }
 
-export interface PlankOptions{seed?:number;/** 深橡木包边宽度（像素） */border?:number;/** 石炉床（相对地面左上角的米） */hearth?:{x0:number;x1:number;z0:number;z1:number};}
+export interface PlankOptions{seed?:number;/** 深橡木包边宽度（像素） */border?:number;/** 石炉床（相对地面左上角的米） */hearth?:{x0:number;x1:number;z0:number;z1:number};/** 会议毯中心和半径（相对地面左上角的米）：木板 + 地毯，参考图 3.2 */rug?:{cx:number;cz:number;r:number};}
 /**
  * 长条木地板：沿 x 铺，板宽 4 像素（25 厘米），每块 1.6–3.6 米长；
  * 相邻两行的端缝至少错开 0.4 米，同一行相邻两块不同色；四周一圈深橡木包边（板沿边长方向走），炉床是错缝石板。
@@ -65,7 +67,7 @@ export function plankHall(c:Ctx,w:number,d:number,o:PlankOptions={}){
     while(x<W-B){
       let len=26+Math.floor(r()*32),end=x+len;
       while(prev.some(j=>Math.abs(j-end)<7))end+=4,len+=4;
-      const base=nextTone(r,OAK,last);last=base;
+      const base=nextTone(r,HALL_WOOD,last);last=base;
       const x0=Math.max(x,B),x1=Math.min(end,W-B);
       if(x1-x0>1){c.save();c.beginPath();c.rect(x0,y,x1-x0,wid);c.clip();plankH(c,r,x,y,len,wid,base);c.restore();}
       joints.push(end);x=end;
@@ -86,6 +88,24 @@ export function plankHall(c:Ctx,w:number,d:number,o:PlankOptions={}){
     let row=0,last:string|undefined;
     for(let y=Z0;y<Z1;y+=8,row++)for(let x=X0-(row%2?6:0);x<X1;){const fw=10+Math.floor(r()*4),base=nextTone(r,FLAG,last);last=base;flag(c,r,x,y,fw,8,base);x+=fw;}
     c.restore();
+  }
+  if(o.rug)drawRug(c,o.rug.cx,o.rug.cz,o.rug.r);
+}
+
+/** 八角会议毯：青底、米白边、一道暗红线、中间一块小菱形。平铺在木板上，不另做一块会挡脚的席。 */
+function drawRug(c:Ctx,cx:number,cz:number,rad:number){
+  const px=16,cxp=cx*px,czp=cz*px,rp=rad*px;
+  const field='#3c6b62',field2='#325e56',border='#ead7b4',line='#8d3a32',motif='#f3e6c8';
+  const x0=Math.max(0,Math.floor(cxp-rp)),x1=Math.ceil(cxp+rp),y0=Math.max(0,Math.floor(czp-rp)),y1=Math.ceil(czp+rp);
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+    const ax=Math.abs(x+.5-cxp),ay=Math.abs(y+.5-czp),oct=Math.max(ax,ay,(ax+ay)*.7071);
+    if(oct>rp)continue;
+    let col:string;
+    if(oct>rp-6)col=border;
+    else if(oct>rp-8)col=line;
+    else if(ax+ay<16)col=ax+ay<8?line:motif;
+    else col=((x>>2)+(y>>2))%2?field:field2;
+    rect(c,x,y,1,1,col);
   }
 }
 

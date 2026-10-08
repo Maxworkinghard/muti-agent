@@ -40,7 +40,7 @@ export interface HairOpts {hat:'beanie'|'cap'|'beret'|null;hood:boolean;glasses:
 const {hx,hz,h}=HEAD;
 /** 发型说明（docs/art/02-character-looks.md 用） */
 export const HAIR_LABEL:Record<HairStyle,string>={
-  tidy:'清爽侧分短发',spiky:'刺猬头',curly:'蓬松卷发',bob:'齐刘海波波头',sweep:'侧分长刘海',curtain:'中分',lowtail:'后梳低马尾',
+  braid:'侧编麻花辫',sidetail:'侧马尾',tidy:'清爽侧分短发',spiky:'刺猬头',curly:'蓬松卷发',bob:'齐刘海波波头',sweep:'侧分长刘海',curtain:'中分',lowtail:'后梳低马尾',
   wavy:'大波浪长发',ponytail:'高马尾',twintails:'双马尾',topknot:'头顶发髻',odango:'双丸子头',crew:'寸头',quiff:'飞机头',
   flame:'冲天炮',shaggy:'乱中长发',hime:'姬发式长直发',
 };
@@ -231,6 +231,23 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
       back(4,4,x=>[6,3,8,4,7,2,6,4,5][Math.floor((x+22)/5)%9]??5);
       useFringe([{x0:-hx-2,x1:-12,tip:21,lean:-1},{x0:-12,x1:-7,tip:18},{x0:-7,x1:-2,tip:22,lean:1},{x0:-2,x1:3,tip:19},{x0:3,x1:8,tip:23,lean:-1},{x0:8,x1:13,tip:19,lean:1},{x0:13,x1:hx+2,tip:21,lean:1}]);
       break;}
+    case 'braid':{ // 侧编麻花辫：侧分，头发在左耳后编成一条粗辫子，搭在肩前面（正面就看得见），辫梢一个发圈
+      part=-6;dome(5,2,3,2,[0,2,4.5]);
+      sides(2,z=>z>11?15:z>-3?18:10);
+      back(3,2,x=>Math.round(6+Math.abs(x)*.15));
+      useFringe([{x0:-hx-1,x1:-12,tip:25,lean:1},{x0:-12,x1:-6,tip:23,lean:1},{x0:-6,x1:0,tip:21,lean:1},{x0:0,x1:6,tip:21,lean:1},{x0:6,x1:12,tip:22,lean:1},{x0:12,x1:hx+1,tip:24,lean:1}]);
+      // 辫子：从左耳后（+x）往前往下，三股交错的一节一节（深浅两档），到胸前收尖
+      for(let i=0;i<6;i++){const y=12-i*4.2,z=-2+i*1.6,w=4.6-i*.25,t:Tone=i%2?1:0;put(hx+1.2,y-4,z-w/2,hx+1.2+w,y,z+w/2,t);put(hx+1.6+(i%2?1.2:0),y-4.4,z+w/2-.2,hx+1.6+(i%2?1.2:0)+w*.55,y-1.6,z+w/2+.6,t===0?1:0);}
+      tie(hx+1.4,-14.2,6.6,hx+5.4,-12.6,10.6);put(hx+2,-18,7.4,hx+4.8,-14.2,9.8,3);
+      break;}
+    case 'sidetail':{ // 侧马尾：右耳上方扎一束，往外翘一下再垂到肩下，大发结压在扎口
+      dome(5,2,3,2,[0,2,4.5]);
+      sides(2,z=>z>11?16:z>-3?17:10);
+      back(3,2,x=>Math.round(6+Math.abs(x)*.15));
+      useFringe([{x0:-hx-1,x1:-11,tip:22,lean:-1},{x0:-11,x1:-4,tip:21},{x0:-4,x1:3,tip:22},{x0:3,x1:10,tip:21},{x0:10,x1:hx+1,tip:23,lean:1}]);
+      tie(-hx-5,24,-6,-hx-1,30,0);
+      put(-hx-10,16,-7,-hx-3,30,1,'paint');put(-hx-10.5,4,-6.5,-hx-3.5,17,.5,'paint');put(-hx-9.5,-6,-5.5,-hx-4.5,5,-.5,'paint',{tip:true});put(-hx-8.5,-10,-4.5,-hx-5.5,-6,-1.5,3);
+      break;}
     case 'hime':{ // 姬发式：齐刘海、两颊一刀切的鬓发，后面长发垂到背上
       dome(5,2,4,2,[0,2,4.5]);
       sides(2,z=>z>9?3:z>-3?12:-4);
@@ -246,11 +263,11 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
 }
 
 /** 发丝贴图的配色：本色、暗、亮、最暗、发圈 */
-export function hairColors(base:string,tie:string,tone:(c:string,f:number)=>string,mix:(a:string,b:string,t:number)=>string):[string,string,string,string,string]{
+export function hairColors(base:string,tie:string,tone:(c:string,f:number)=>string,mix:(a:string,b:string,t:number)=>string,streak?:string):[string,string,string,string,string,string]{
   const n=parseInt(base.slice(1),16),lum=(.2126*((n>>16)&255)+.7152*((n>>8)&255)+.0722*(n&255))/255;
   // 黑发的光泽偏冷（蓝紫），浅色头发的光泽往白里提
   const light=lum<.22?mix(base,'#a6b4d4',.46):mix(base,'#fff6e0',.3);
-  return [base,tone(base,.8),light,tone(base,lum<.22?.7:.62),tie];
+  return [base,tone(base,.8),light,tone(base,lum<.22?.7:.62),tie,streak??base];
 }
 const hsh=(a:number,b:number)=>(((Math.floor(a)*73856093)^(Math.floor(b)*19349663))>>>0)%1000;
 /** 一缕头发的边界：沿着 s（侧面是 z，前后、头顶是 x）按 4–7 T 宽分缕，返回到最近边界的距离和缕号 */
@@ -259,7 +276,7 @@ function lock(s:number,salt:number){const widths=[5,4,6,4,7,5,4,6],P=41;let a=((
  * 发丝贴图的一个像素：face 是哪个面，(x,y,z) 是这个像素在头部局部坐标里的位置，box 是所在发团。
  * 返回调色板下标（0 本色 1 暗 2 亮 3 最暗）。
  */
-export function hairTexel(plan:HairPlan,face:FaceKey,x:number,y:number,z:number,box:HairBox):number{
+export function hairTexel(plan:HairPlan,face:FaceKey,x:number,y:number,z:number,box:HairBox,streak=false):number{
   const tex=plan.texture;
   if(face==='ny')return 3;
   // 寸头：贴头皮的短发，只有很淡的颗粒（暗点稀疏），顶上稍亮
@@ -281,6 +298,8 @@ export function hairTexel(plan:HairPlan,face:FaceKey,x:number,y:number,z:number,
   if(box.tip&&fromTip<2&&(k.d<1||k.i%2===1))return 3;
   // 刘海（脸前的发片）：每片左上角一道竖的高光，下半截暗一档
   if(face==='pz'&&box.z0>=hz-.01){const lx=x-box.x0;if(lx>=1&&lx<2&&y>h-7&&y<h-1)return 2;if(k.d<1&&y<h-4)return 1;return fromTip<3&&box.tip?1:0;}
+  // 挑染：每 5 缕里有一缕整缕换成挑染色（缕缝暗线照旧）
+  if(streak&&k.i%5===2&&k.d>=1&&!(box.tip&&fromTip<1))return 5;
   // 缕与缕之间的暗线：从这一缕的“分叉点”往下长到发梢
   const split=h-9-((k.i*7)%7);
   if(k.d<1&&y<split)return 1;

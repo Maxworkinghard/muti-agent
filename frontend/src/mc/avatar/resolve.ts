@@ -9,6 +9,9 @@
  *  7 裙子 + 长外套：外套下摆去掉（只到腰）。
  *  8 背带裤：下装颜色跟背带裤走；裙子改成裤子。
  *  9 胡子：嘴只在说话时露出来，平时是胡子底下一条缝。
+ * 10 单片镜和眼镜不同时戴；护目镜、发箍、发间小花遇到兜帽不戴（兜帽盖住），发箍遇到帽子也不戴。
+ * 11 披肩和围巾不同时戴（围巾在里、披肩在外会穿插），项链遇到围巾让给围巾。
+ * 12 侧马尾 / 侧编辫和挂脖耳机都在肩颈一侧：挂脖耳机让给辫子。
  */
 import type {Accessory,AccKind,HairStyle,Look} from './types';
 import {planHair,FRINGE_FLOOR} from './hair';
@@ -18,7 +21,7 @@ export interface Resolved {
 }
 const HATS=['beanie','cap','beret'] as const;
 /** 头发垂到头以下（长发、马尾） */
-const LONG:HairStyle[]=['wavy','hime','ponytail','lowtail','twintails'];
+const LONG:HairStyle[]=['wavy','hime','ponytail','lowtail','twintails','braid','sidetail'];
 export function resolveLook(input:Look):Resolved{
   const look:Look=JSON.parse(JSON.stringify(input));const notes:string[]=[];
   let acc=[...look.acc];const has=(k:AccKind)=>acc.some(a=>a.kind===k);const drop=(k:AccKind,why:string)=>{if(has(k)){acc=acc.filter(a=>a.kind!==k);notes.push(why);}};
@@ -36,6 +39,11 @@ export function resolveLook(input:Look):Resolved{
   let coatHem=look.outer?.kind==='coat';
   if(coatHem&&look.bottom.kind==='skirt'){coatHem=false;notes.push('裙子 + 长外套：外套下摆去掉');}
   if(look.outer?.kind==='overalls'){look.bottom={...look.bottom,color:look.outer.color,kind:look.bottom.kind==='skirt'?'pants':look.bottom.kind};}
+  if(has('monocle')&&(has('glasses')||has('roundGlasses')))drop('monocle','已经戴眼镜，不再戴单片镜');
+  if(hood){drop('goggles','兜帽盖住了护目镜');drop('headband','兜帽盖住了发箍');drop('flower','兜帽盖住了发间小花');}
+  if(hat)drop('headband','戴帽子不戴发箍');
+  if(has('scarf')){drop('shawl','围巾和披肩不同时戴');drop('necklace','围巾盖住了项链');}
+  if(['braid','sidetail'].includes(look.hair.style))drop('neckphones','侧辫 / 侧马尾和挂脖耳机都在肩颈一侧，耳机让给辫子');
   const phones=has('headset')?'set':has('headphones')?'head':has('neckphones')?'neck':null;
   return {look,hat,hood,glasses,phones,has,acc,ahoge:has('ahoge')&&!hat&&!hood,longBack,coatHem,notes};
 }

@@ -2,17 +2,18 @@
  * 共用椅子族：一套尺寸、六种场景款式。原点在地面上、座位锚点正下方，人朝 +z 坐。
  * 尺寸全部从 Q 版人物骨架（avatar/rig.ts）推出来，所有款式共用：
  *   - 座面顶 SEAT_H = 0.50（座位锚点 y=1.5 = 地面 1 + 0.5），人坐下大腿下沿正好贴座面；
- *   - 座面前沿 ≤ +0.11：膝盖在 +0.21，小腿后侧在 +0.118，小腿竖直垂到地面，脚平踩在地上（0.10–0.35），
- *     所以椅子在 z>0.10 的地方、x 在 ±0.215 以内，离地 0–0.13 不能有任何东西（脚踏、五爪脚、横档都不行）；
- *   - 靠背前面 -0.125：躯干背面 -0.104、外套背面 -0.125，人一坐下背就贴着靠背；
- *   - 靠背顶 ≤ 0.80：头底在 0.94，大头往后仰 0.4 弧度时后脑下沿会落到 0.81，再高就会顶进后脑；
- *   - 扶手内侧 ±0.37：人物胳膊外沿 ±0.333，手势往外摆也碰不到。
+ *   - 座面前沿 +0.095（avatar/body.ts 的 SEAT）：宽肩 / 厚毛衣的小腿更靠前，前沿再往外就会顶到小腿；
+ *     脚在 z 0.10–0.35、x ±0.23 以内，离地 0–0.13 不能有脚踏、五爪脚或横档；
+ *   - 靠背前面 -0.125：最厚的外套背面贴着靠背；
+ *   - 靠背顶 0.75：软萌型大头往后仰 0.4 弧度时，后脑下沿大约在 0.76，再高会顶进后脑；
+ *   - 扶手内侧 ±0.43：宽肩 / 厚毛衣的胳膊外沿约 ±0.40，手势往外摆还留 3 厘米。
  * 椅子 id、slide、碰撞箱（physics）都不在这里，房间照旧给。
  * 款式：meeting 会议木椅（自然木 + 低饱和布垫）、office 现代办公椅（雪橇底，脚下没有五爪）、classroom 浅木课椅、
  *       debate 稳重的正式座椅（深胡桃 + 软包 + 铜钉）、outdoor 户外木椅（风化木条）、lounge 软包扶手椅（播客）。
  */
 import * as THREE from 'three';
 import {SEAT_H} from '../avatar/rig';
+import {SEAT} from '../avatar/body';
 import {createV2Kit,type V2Kit} from '../v2/kit';
 import {rng,tone,blend} from '../v2/pixel';
 import type {Kit} from './furniture';
@@ -20,7 +21,7 @@ import type {Painter} from '../style';
 
 export {SEAT_H};
 /** 座面前沿、靠背前面、扶手内侧、靠背顶、座宽（米） */
-export const CHAIR={front:.11,back:-.125,armIn:.37,backTop:SEAT_H+.3,width:.46} as const;
+export const CHAIR={front:SEAT.front,back:SEAT.back,armIn:SEAT.armIn,backTop:SEAT.backTop,width:SEAT.halfWidth*2} as const;
 const D=CHAIR.front-CHAIR.back,ZC=(CHAIR.front+CHAIR.back)/2,S=SEAT_H,TOP=CHAIR.backTop;
 /** 椅子的贴图密度：每米 32 像素（方块是 16，人物是 48），腿和横档上看得见木纹 */
 const PX=32;

@@ -10,16 +10,22 @@ import fs from 'node:fs';
 import { createServer } from 'vite';
 const vite = await createServer({ configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' });
 try {
-  const [{ LOOKS }, hair, { resolveLook }, { LIBRARY_PERSONAS }, { RATIONAL_PERSONAS }, rig, { CHAIR }] = await Promise.all([
+  const [{ LOOKS }, hair, { resolveLook }, { LIBRARY_PERSONAS }, { RATIONAL_PERSONAS }, rig, { CHAIR }, body] = await Promise.all([
     vite.ssrLoadModule('/src/mc/avatar/looks.ts'), vite.ssrLoadModule('/src/mc/avatar/hair.ts'), vite.ssrLoadModule('/src/mc/avatar/resolve.ts'),
-    vite.ssrLoadModule('/src/data/personas.ts'), vite.ssrLoadModule('/src/data/rationalPersonas.ts'), vite.ssrLoadModule('/src/mc/avatar/rig.ts'), vite.ssrLoadModule('/src/mc/props/chairs.ts')]);
+    vite.ssrLoadModule('/src/data/personas.ts'), vite.ssrLoadModule('/src/data/rationalPersonas.ts'), vite.ssrLoadModule('/src/mc/avatar/rig.ts'), vite.ssrLoadModule('/src/mc/props/chairs.ts'),
+    vite.ssrLoadModule('/src/mc/avatar/body.ts')]);
+  const { makeBody, sitPose, seatClearance, BODY } = body;
   const { planHair, HAIR_LABEL, FRINGE_FLOOR } = hair;
   // 1. 覆盖
   const ids = [...new Set([...LIBRARY_PERSONAS, ...RATIONAL_PERSONAS].map(p => p.id))];
   assert.equal(ids.length, 33, '人物库应有 33 人');
   for (const id of ids) assert.ok(LOOKS[id], id + ' 没有造型配置');
   assert.deepEqual(Object.keys(LOOKS).sort(), [...ids].sort(), 'looks.ts 里有人物库之外的 id');
-  for (const [id, l] of Object.entries(LOOKS)) { assert.equal(l.id, id); assert.ok(l.why.length > 20, id + ' 缺推导说明'); for (const k of ['skin', 'hairColor', 'hairStyle', 'top', 'palette', 'tendency']) assert.ok(['config', 'inferred'].includes(l.basis[k]), id + ' 的 ' + k + ' 没标来源'); }
+  for (const [id, l] of Object.entries(LOOKS)) {
+    assert.equal(l.id, id); assert.ok(l.why.length > 20, id + ' 缺推导说明');
+    assert.ok(BODY[l.body?.type] && ['standard', 'relaxed', 'side'].includes(l.body.sit), id + ' 缺体型或坐姿');
+    for (const k of ['skin', 'hairColor', 'hairStyle', 'top', 'palette', 'tendency']) assert.ok(['config', 'inferred', 'request'].includes(l.basis[k]), id + ' 的 ' + k + ' 没标来源');
+  }
   const styles = new Set(Object.values(LOOKS).map(l => l.hair.style));
   assert.ok(Object.keys(HAIR_LABEL).length >= 15, '发型零件不到 15 种'); assert.ok(styles.size >= 10, '实际用到的发型只有 ' + styles.size + ' 种');
   console.log('Pass coverage:', ids.length, 'looks,', Object.keys(HAIR_LABEL).length, 'hair styles in library,', styles.size, 'used');
@@ -46,7 +52,7 @@ try {
     const r = resolveLook(l), cs = [r.look.hair.color, r.look.hair.tie, r.look.top.color, r.look.outer?.color, r.look.bottom.color, r.look.shoes.color, ...r.acc.filter(a => a.color && !['ahoge', 'beard'].includes(a.kind)).map(a => a.color)].filter(Boolean), pal = [];
     for (const c of cs) if (!pal.some(o => near(o, c))) pal.push(c);
     assert.ok(pal.length >= 4 && pal.length <= 5, l.name + ' 的主色有 ' + pal.length + ' 种：' + pal.join(' '));
-    const key = [r.look.hair.style, r.hood ? 'hood' : r.hat ?? '', r.phones ?? '', r.look.outer?.kind ?? r.look.top.kind, r.look.bottom.kind, ...['ahoge', 'beard', 'scarf', 'bow'].filter(k => r.has(k))].join('|');
+    const key = [l.body.type, l.body.head ?? '', l.body.sit, r.look.hair.style, r.hood ? 'hood' : r.hat ?? '', r.phones ?? '', r.look.outer?.kind ?? r.look.top.kind, r.look.bottom.kind, ...['ahoge', 'beard', 'scarf', 'bow'].filter(k => r.has(k))].join('|');
     sil.set(key, [...(sil.get(key) ?? []), l.name]);
   }
   const dup = [...sil.values()].filter(n => n.length > 1); assert.deepEqual(dup, [], '轮廓相同：' + dup.map(n => n.join('/')).join('；'));
@@ -61,5 +67,22 @@ try {
   const coatBack = (RIG.torso.d / 2 + 1) * T; assert.ok(-CHAIR.back >= coatBack - 1e-9, '靠背前面顶进外套背面');
   const headBottomSeated = hipSeated + RIG.torso.h * T, tiltDip = RIG.head.d / 2 * HEAD_SCALE * T * Math.sin(.4); assert.ok(CHAIR.backTop <= headBottomSeated - tiltDip + .01, '靠背顶 ' + CHAIR.backTop + ' 会顶进后仰的后脑（' + (headBottomSeated - tiltDip).toFixed(3) + '）');
   const armOut = (RIG.arm.x + RIG.arm.w / 2) * T; assert.ok(CHAIR.armIn - armOut >= .03, '扶手内侧离胳膊不到 3 厘米');
-  console.log('Pass seating: sole on floor, ratio 1:' + ratio.toFixed(2) + ', seat front', CHAIR.front, '< shin', shinBack.toFixed(3) + ', back', CHAIR.back, ', back top', CHAIR.backTop, '<', (headBottomSeated - tiltDip).toFixed(3) + ', arm gap', (CHAIR.armIn - armOut).toFixed(3));
+  for (const type of Object.keys(BODY)) for (const style of ['standard', 'relaxed', 'side']) for (const outer of [false, true]) {
+    const b = makeBody(type), pose = sitPose(b, style, outer), gap = seatClearance(b, pose);
+    const ratioB = b.neckY / (rig.HEAD.h * b.head.scale[1]);
+    assert.ok(ratioB >= 1.3 && ratioB <= 1.6, type + ' 头身比 1:' + ratioB.toFixed(2));
+    assert.ok(gap.sole < .08, type + ' ' + style + (outer ? ' 外套' : '') + ' 鞋底离地 ' + gap.sole.toFixed(3) + ' T');
+    assert.ok(gap.front >= .3, type + ' ' + style + (outer ? ' 外套' : '') + ' 小腿离座面前沿 ' + gap.front.toFixed(3) + ' T');
+    const headBottom = SEAT_H + RIG.leg.d / 2 * T + b.torso.h * T, dip = RIG.head.d / 2 * b.head.scale[2] * T * Math.sin(.4);
+    assert.ok(CHAIR.backTop <= headBottom - dip + .01, type + ' 靠背顶进后脑 ' + (headBottom - dip).toFixed(3));
+    const arm = (b.arm.x + b.arm.w / 2) * T;
+    assert.ok(CHAIR.armIn - arm >= .03, type + ' 扶手内侧离胳膊 ' + (CHAIR.armIn - arm).toFixed(3));
+  }
+  for (const l of Object.values(LOOKS)) {
+    const b = makeBody(l.body.type, l.body.head), outer = !!l.outer && !['apron', 'overalls'].includes(l.outer.kind), gap = seatClearance(b, sitPose(b, l.body.sit, outer));
+    const ratioB = b.neckY / (rig.HEAD.h * b.head.scale[1]);
+    assert.ok(ratioB >= 1.3 && ratioB <= 1.6, l.name + ' 头身比 1:' + ratioB.toFixed(2));
+    assert.ok(gap.sole < .08 && gap.front >= .3, l.name + ' 坐姿脚或小腿不合（sole ' + gap.sole.toFixed(3) + ' front ' + gap.front.toFixed(3) + '）');
+  }
+  console.log('Pass seating: sole on floor, ratio 1:' + ratio.toFixed(2) + ', seat front', CHAIR.front, '< shin', shinBack.toFixed(3) + ', back', CHAIR.back, ', back top', CHAIR.backTop, '<', (headBottomSeated - tiltDip).toFixed(3) + ', arm gap', (CHAIR.armIn - armOut).toFixed(3) + '; 8 bodies × 3 sits');
 } finally { await vite.close(); }

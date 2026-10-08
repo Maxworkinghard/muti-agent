@@ -8,9 +8,9 @@
  * 加 &shot 隐藏工具条（mc-shots.mjs lab 用）。每个格子单独取景渲染（剪裁视口），互不遮挡。渲染完成后 window.__labReady = true。
  */
 import * as THREE from 'three';
-import {createRig,legPose,type Rig} from '../mc/player';
+import {createRig,legPose,placePack,type Rig} from '../mc/player';
 import {LOOKS} from '../mc/avatar/looks';
-import {SEAT_H,SIT_DROP,T,HAND_REACH} from '../mc/avatar/rig';
+import {SEAT_H,T} from '../mc/avatar/rig';
 import {LIBRARY_PERSONAS} from '../data/personas';
 import {RATIONAL_PERSONAS} from '../data/rationalPersonas';
 import {createV2Kit} from '../mc/v2/kit';
@@ -57,7 +57,7 @@ const YAW:Record<string,number>={front:0,side:Math.PI/2,back:Math.PI,'34':Math.P
 const yaw=YAW[view]??0;
 /** 姿态：和游戏里 player.update 同一套角度 */
 function posed(r:Rig,kind:string,sit:number){
-  const b=r.bones;legPose(b,r.knees,sit);
+  const b=r.bones;legPose(r,sit);placePack(r,sit);
   let rx=-Math.PI/5*sit,ry=0,rz=0,lx=-Math.PI/5*sit,ly=0,lz=0;b[2].rotation.set(0,0,0);b[3].rotation.set(0,0,0);
   if(kind==='speak'){lx=-1.0;lz=.28;rx=-.85;}
   // 思考：左手托着下巴（手在脸的斜前方，大头不挡），头微歪
@@ -65,9 +65,13 @@ function posed(r:Rig,kind:string,sit:number){
   if(kind==='think'){rx=-2.4;ry=0;rz=-.6;b[3].rotation.x=.08;b[3].rotation.z=-.12;}
   if(kind==='lean'){b[2].rotation.x=.35;b[3].rotation.x=-.25;rx=-1;lx=-1;}
   if(kind==='tool'){rx=-1.15;rz=-.2;lx=-1.23;ly=.5;lz=.5;b[3].rotation.x=.16;
-    const pad=new THREE.Mesh(new THREE.BoxGeometry(.2,.012,.15),new THREE.MeshStandardMaterial({color:'#e9e1c8'}));const hand=new THREE.Group();hand.position.set(-.5*T,HAND_REACH+T,-1.5*T);hand.rotation.set(-1.25,.15,0);pad.position.set(0,0,.06);hand.add(pad);b[4].add(hand);}
+    const pad=new THREE.Mesh(new THREE.BoxGeometry(.2,.012,.15),new THREE.MeshStandardMaterial({color:'#e9e1c8'}));const hand=new THREE.Group();hand.position.set(-.5*T,r.avatar.body.handReach+T,-1.5*T);hand.rotation.set(-1.25,.15,0);pad.position.set(0,0,.06);hand.add(pad);b[4].add(hand);}
   b[4].rotation.set(rx,ry,rz);b[5].rotation.set(lx,ly,lz);
-  r.root.position.y=sit?SEAT_H-SIT_DROP:0;
+}
+/** 坐下时根点下沉到大腿贴座面，并按体型往前挪，让背贴到椅背；椅子本身留在原地。 */
+function plant(r:Rig,x:number,z:number,sit:number){
+  const zOff=sit?r.avatar.sit.zOff*T:0;
+  place(r.root,x+Math.sin(yaw)*zOff,sit?SEAT_H-r.avatar.body.sitDrop:0,z+Math.cos(yaw)*zOff,yaw);
 }
 const EXPR:Array<[string,FaceExtra[]]>=[['neutral',['neutral']],['happy',['happy']],['surprised',['shock']],['thinking',['think']],['angry',['angry']],['shy',['shy']]];
 const fabric=(i:number)=>SOFT_FABRIC[i%SOFT_FABRIC.length];
@@ -76,7 +80,7 @@ const rigs:Rig[]=[];
 interface Cell{x:number;y:number;w:number;h:number;at:THREE.Vector3;span:number;dir:THREE.Vector3;label?:string;fov?:number}
 const cells:Cell[]=[];
 const grid=(cols:number,rows:number,i:number,top=0)=>{const cw=W/cols,ch=(H-top)/rows;return {x:(i%cols)*cw,y:top+Math.floor(i/cols)*ch,w:cw,h:ch};};
-const person=(id:string,x:number,z:number,kind='stand',chair:ChairKind|null=null,extra:FaceExtra[]=['neutral'],i=0)=>{const r=rigOf(id);rigs.push(r);const sit=kind==='stand'?0:1;posed(r,kind,sit);place(r.root,x,0,z,yaw);
+const person=(id:string,x:number,z:number,kind='stand',chair:ChairKind|null=null,extra:FaceExtra[]=['neutral'],i=0)=>{const r=rigOf(id);rigs.push(r);const sit=kind==='stand'?0:1;posed(r,kind,sit);plant(r,x,z,sit);
   if(sit&&chair)place(makeChair(kit,chair,fabric(i)),x,0,z,yaw);r.skin.face(undefined,500,kind==='speak',true,extra);return r;};
 
 if(mode==='row'){
@@ -103,11 +107,11 @@ if(mode==='chairs'){
   const occ=q.get('occ')==='1',kinds:ChairKind[]=['meeting','office','classroom','debate','outdoor','lounge'],who=(q.get('ids')??'leng-cui,chi-lun,math-intuitionist-001,logic-analyst-001,ent-life-friend-001,podcast-host-amai').split(','),fab=['#62738a','#5f7c79','','#36597e','','#c26a3c'];
   const dir=view==='side'?new THREE.Vector3(0,.08,1):view==='front'?new THREE.Vector3(0,.2,1):new THREE.Vector3(0,.32,1);
   kinds.forEach((k,i)=>{const x=i*5;floorPatch(2.2,2.2,undefined,x,0);sunAt(x,0,1.5);place(makeChair(kit,k,fab[i]||undefined),x,0,0,yaw);
-    if(occ){const r=rigOf(who[i]);rigs.push(r);posed(r,'stand',1);place(r.root,x,0,0,yaw);r.skin.face(undefined,500,false,true,['neutral']);}
+    if(occ){const r=rigOf(who[i]);rigs.push(r);posed(r,'stand',1);plant(r,x,0,1);r.skin.face(undefined,500,false,true,['neutral']);}
     cells.push({...grid(3,2,i),at:new THREE.Vector3(x,occ?1.1:.5,0),span:occ?2.35:1.35,dir,label:k+(occ?' · '+LOOKS[who[i]].name:' · 空')});});
 }
 if(mode==='floors'){
-  const arts:Art[]=[(c,w,d)=>plankHall(c,w,d,{border:8,hearth:{x0:2.75,x1:3.75,z0:1.25,z1:2.75}}),(c,w,d)=>walnutHerringbone(c,w,d),(c,w,d)=>stoneWoodMix(c,w,d)],names=['湖畔议事厅长条木地板（含包边、炉床）','深胡桃人字拼','石木混拼'];
+  const arts:Art[]=[(c,w,d)=>plankHall(c,w,d,{border:8,hearth:{x0:2.75,x1:3.75,z0:1.25,z1:2.75},rug:{cx:2,cz:2,r:1.15}}),(c,w,d)=>walnutHerringbone(c,w,d),(c,w,d)=>stoneWoodMix(c,w,d)],names=['湖畔议事厅浅木地板 + 会议毯（含包边、炉床）','深胡桃人字拼','石木混拼'];
   arts.forEach((a,i)=>{const x=i*8;floorPatch(4,4,a,x,0);sunAt(x,0,3);if(i===0)person('hao-hao',x-.6,-.3);if(i===1)place(makeChair(kit,'debate','#4e79a1'),x+.4,0,.3,.5);if(i===2)place(makeChair(kit,'outdoor'),x-.2,0,.2,-.4);
     cells.push({...grid(3,2,i),at:new THREE.Vector3(x,.2,.6),span:2.6,dir:new THREE.Vector3(0,.75,1),label:names[i]+' · 近景'});
     cells.push({...grid(3,2,3+i),at:new THREE.Vector3(x,0,0),span:4.1,dir:new THREE.Vector3(0,1,.0001),label:names[i]+' · 俯视 4×4 米'});});
