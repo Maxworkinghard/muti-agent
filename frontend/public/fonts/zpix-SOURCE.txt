@@ -1,0 +1,3 @@
+﻿Zpix (最像素) — https://github.com/SolidZORO/zpix-pixel-font
+Release: v3.1.11 — zpix.ttf
+License: see upstream repo (free for personal/commercial with attribution per project terms)

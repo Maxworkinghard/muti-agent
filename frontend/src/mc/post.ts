@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import {GTAOPass} from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -9,7 +9,7 @@ import {SMAAPass} from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import {LUTPass} from 'three/examples/jsm/postprocessing/LUTPass.js';
 import {VolumetricPass,type LightRig} from './volumetric';
-import {ScenePass,SANITIZE,warmLut} from '../rendering/postCommon';
+import {ScenePass,SANITIZE,warmLut,cleanLut} from '../rendering/postCommon';
 export {warmLut} from '../rendering/postCommon';
 /**
  * 画质档（第 11.4 节）：
@@ -20,7 +20,8 @@ export {warmLut} from '../rendering/postCommon';
 export type Quality='high'|'medium'|'low';
 export const QUALITY_LABEL:Record<Quality,string>={high:'高',medium:'中',low:'低'};
 export interface Post {composer:EffectComposer;outline:OutlinePass;quality:Quality;setQuality(q:Quality):void;setSize(w:number,h:number):void;setFocus(distance:number|null):void;render():void;dispose():void}
-export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.PerspectiveCamera,quality:Quality,rig:LightRig):Post {
+/** styled：带色板的新画风——干净的调色表，不加光柱和景深，环境光遮蔽只留一点接触阴影。 */
+export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.PerspectiveCamera,quality:Quality,rig:LightRig,styled=false,saturation?:number):Post {
   const composer=new EffectComposer(renderer);
   const render=new ScenePass(scene,camera),depth=render.target.depthTexture!;
   // 环境光遮蔽用场景的深度反推法线；构造时直接传深度会因为 0.186 的一个空引用出错，所以先建好再换。
@@ -34,13 +35,14 @@ export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera
   bokeh.render=(r,writeBuffer,readBuffer)=>{const u=bokeh.uniforms as Record<string,THREE.IUniform>;u.tColor.value=readBuffer.texture;u.nearClip.value=camera.near;u.farClip.value=camera.far;r.setRenderTarget(bokeh.renderToScreen?null:writeBuffer);if(!bokeh.renderToScreen)r.clear();(bokeh as unknown as {_fsQuad:{render(r:THREE.WebGLRenderer):void}})._fsQuad.render(r);};
   const bloom=new UnrealBloomPass(new THREE.Vector2(512,512),.055,.35,1.3);
   const outline=new OutlinePass(new THREE.Vector2(1,1),scene,camera);outline.edgeStrength=4;outline.edgeGlow=.6;outline.edgeThickness=1;
-  const output=new OutputPass(),lut=new LUTPass({lut:warmLut(),intensity:1});
+  if(styled){gtao.updateGtaoMaterial({radius:.28,distanceExponent:1.4,thickness:1,scale:.28,samples:12});bloom.strength=.16;bloom.radius=.28;bloom.threshold=.95;}
+  const output=new OutputPass(),lut=new LUTPass({lut:styled?cleanLut(32,saturation):warmLut(),intensity:1});
   const smaa=new SMAAPass();
   const sanitize=new ShaderPass(SANITIZE,'tNone');sanitize.uniforms.tDiffuse.value=render.target.texture;
   for(const pass of [render,sanitize,gtao,volume,bokeh,bloom,outline,output,lut,smaa])composer.addPass(pass);
   let focus:number|null=null;
   const post:Post={composer,outline,quality,
-    setQuality(q){post.quality=q;gtao.enabled=volume.enabled=q==='high';bokeh.enabled=q==='high'&&focus!==null;bloom.enabled=q!=='low';renderer.shadowMap.enabled=q!=='low';},
+    setQuality(q){post.quality=q;gtao.enabled=q==='high';volume.enabled=!styled&&q==='high';bokeh.enabled=q==='high'&&focus!==null;bloom.enabled=q!=='low';renderer.shadowMap.enabled=q!=='low';/* 中档仍保留泛光与阴影，避免自动降级变闷 */},
     setSize(w,h){composer.setSize(w,h);},
     setFocus(d){focus=d;bokeh.enabled=post.quality==='high'&&d!==null;if(d!==null)(bokeh.uniforms as Record<string,THREE.IUniform>).focus.value=d;},
     render(){outline.enabled=outline.selectedObjects.length>0;composer.render();},

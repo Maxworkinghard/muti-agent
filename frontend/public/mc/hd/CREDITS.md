@@ -1,45 +1,147 @@
-# Faithful 64x - Release 15
+# Faithful 64x（仅 Lab / ?material=hd 调试对比，**不是**产品默认）
 
 - 材质包：Faithful 64x（https://faithfulpack.net），从官方 Modrinth 页面下载
 - 许可：Faithful 许可（署名、附官网链接和许可原文、不得商用），原文见同目录 LICENSE.txt
-- 用到的贴图（38 张来自材质包）：
+- 用到的贴图（140 张来自材质包）：
+  - block/allium
+  - block/azalea_leaves
+  - block/azalea_plant
+  - block/azalea_top
+  - block/azure_bluet
   - block/bamboo_singleleaf
   - block/bamboo_stalk
+  - block/barrel_bottom
+  - block/barrel_side
+  - block/barrel_top
+  - block/bell_bottom
+  - block/bell_top
+  - block/birch_leaves
+  - block/birch_log
+  - block/birch_log_top
+  - block/birch_planks
+  - block/blue_wool
   - block/bookshelf
-  - block/brown_wool
-  - block/cyan_terracotta
+  - block/brewing_stand
+  - block/brewing_stand_base
+  - block/brown_concrete
+  - block/bush
+  - block/cactus_side
+  - block/cactus_top
+  - block/cake_bottom
+  - block/cake_side
+  - block/cake_top
+  - block/candle
+  - block/cartography_table_side1
+  - block/cartography_table_side2
+  - block/cartography_table_side3
+  - block/cartography_table_top
+  - block/cauldron_bottom
+  - block/cauldron_inner
+  - block/cauldron_side
+  - block/cauldron_top
+  - block/cherry_leaves
+  - block/cherry_log
+  - block/cherry_log_top
+  - block/coarse_dirt
+  - block/cornflower
+  - block/cyan_wool
   - block/dandelion
+  - block/dark_oak_planks
   - block/dirt
   - block/dirt_path_side
   - block/dirt_path_top
   - block/fern
   - block/flower_pot
+  - block/flowering_azalea_side
+  - block/flowering_azalea_top
   - block/glass
   - block/glass_pane_top
+  - block/glowstone
   - block/grass_block_side
   - block/grass_block_side_overlay
   - block/grass_block_top
-  - block/iron_door_bottom
-  - block/iron_door_top
+  - block/gravel
+  - block/iron_chain
+  - block/lantern
+  - block/lectern_base
+  - block/lectern_front
+  - block/lectern_sides
+  - block/lectern_top
+  - block/lever
+  - block/light_blue_stained_glass
+  - block/light_blue_wool
   - block/light_gray_concrete
-  - block/light_gray_wool
+  - block/lilac_bottom
+  - block/lilac_top
+  - block/lily_of_the_valley
+  - block/lily_pad
+  - block/lime_wool
+  - block/magenta_wool
+  - block/moss_block
+  - block/oak_door_bottom
+  - block/oak_door_top
   - block/oak_leaves
   - block/oak_log
   - block/oak_log_top
   - block/oak_planks
+  - block/orange_tulip
   - block/orange_wool
+  - block/oxeye_daisy
+  - block/oxidized_copper
+  - block/oxidized_cut_copper
+  - block/peony_bottom
+  - block/peony_top
+  - block/pink_petals
+  - block/pink_petals_stem
+  - block/pink_tulip
+  - block/pink_wool
+  - block/polished_blackstone
+  - block/polished_deepslate
+  - block/poppy
   - block/potted_azalea_bush_plant
   - block/potted_azalea_bush_side
   - block/potted_azalea_bush_top
+  - block/potted_flowering_azalea_bush_plant
+  - block/potted_flowering_azalea_bush_side
+  - block/potted_flowering_azalea_bush_top
+  - block/purple_wool
   - block/quartz_block_bottom
-  - block/quartz_block_side
-  - block/quartz_block_top
+  - block/red_sandstone
+  - block/red_sandstone_bottom
+  - block/red_sandstone_top
+  - block/red_tulip
+  - block/red_wool
   - block/redstone_lamp
   - block/redstone_lamp_on
+  - block/rooted_dirt
+  - block/rose_bush_bottom
+  - block/rose_bush_top
+  - block/sand
+  - block/sandstone
+  - block/sandstone_bottom
   - block/sandstone_top
   - block/sea_lantern
+  - block/short_grass
   - block/smooth_stone
+  - block/spruce_hanging_sign
   - block/spruce_planks
+  - block/stripped_dark_oak_log
+  - block/stripped_dark_oak_log_top
+  - block/stripped_oak_log
+  - block/stripped_oak_log_top
+  - block/stripped_spruce_log
+  - block/stripped_spruce_log_top
+  - block/sugar_cane
+  - block/tall_grass_bottom
+  - block/tall_grass_top
+  - block/terracotta
+  - block/torch
+  - block/white_concrete
+  - block/white_stained_glass
+  - block/white_tulip
   - block/white_wool
+  - block/wildflowers
+  - block/wildflowers_stem
+  - block/yellow_wool
 - 旗帜：entity/banner/banner_base.png、entity/banner/gradient_up.png、entity/banner/curly_border.png、entity/banner/rhombus.png、entity/banner/circle.png
 - 优先使用包里的 `_n`、`_s`；缺失的法线按亮度生成，粗糙度按材质类别生成（G：粗糙度，B：金属度）

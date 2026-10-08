@@ -13,6 +13,7 @@ export class Builder {
     if(id.endsWith('_leaves'))Object.assign(defaults,{distance:'7',persistent:'true',waterlogged:'false'});
     if(id==='lever')Object.assign(defaults,{face:'floor',facing:'east',powered:'false'});
     if(id==='redstone_lamp')defaults.lit='false';
+    if(id==='light')Object.assign(defaults,{level:'15',waterlogged:'false'});
     if(id==='lantern')defaults.hanging='false';
     if(id==='barrel'||id==='lectern')defaults.facing=id==='barrel'?'up':'north';
     if(id==='barrel')defaults.open='false';

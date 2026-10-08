@@ -1,11 +1,11 @@
-import {useEffect,useRef,useState} from 'react';
+﻿import {useEffect,useRef,useState} from 'react';
 import * as THREE from 'three';
 import type {AgentState,ChatMessage,DiscussionResult,EngineEvent,MindView,Participant} from '../types';
 import {loadAssets,type Assets,type MaterialPack} from '../mc/assets';
 import {buildBlockMesh,disposeObject,type BlockShading} from '../mc/blockMesh';
 import {buildMcRoom} from '../mc/rooms/scenes';
 import type {McSceneKind} from '../types';
-import {createSceneProps} from '../mc/props/sceneProps';
+import {createStyledProps} from '../mc/props/styledProps';
 import {createSceneDirector,stepScene,type SceneDirectorState} from '../mc/sceneDirector';
 import {Builder} from '../mc/rooms/builders';
 import {validateRoom} from '../mc/rooms/validate';
@@ -17,7 +17,9 @@ import {SpectatorCamera} from '../mc/spectator';
 import {RoomPhysics} from '../mc/rooms/physics';
 import {createPlayer,type Player} from '../mc/player';
 import {createParticles} from '../mc/particles';
-import {createEnvironment} from '../mc/sky';
+import {createEnvironment,createSkyDome,type Environment} from '../mc/sky';
+import type {Look} from '../mc/style';
+import type {Room} from '../mc/rooms/debate';
 import {createDebateProps,type PropState} from '../mc/props/debateProps';
 import {batchMovingParts} from '../mc/props/batching';
 import {createPropIndirectLight} from '../mc/props/indirectLight';
@@ -33,6 +35,29 @@ import {Hud,identity} from '../mc/hud/Hud';
 export interface McStageProps {inspect?:string;inspectActor?:string;events?:readonly EngineEvent[];participants:Participant[];status:Record<string,{state:AgentState;action:string}>;round:{n:number;label:string};totalRounds:number;session:Session;messages:ChatMessage[];minds:Record<string,MindView>;focus:string|null;errors:Array<{id:string;agentId?:string;message:string}>;result:DiscussionResult|null;theme:string;muted:boolean;onFocus:(id:string|null)=>void;onLoaded:(error?:string)=>void;onStageDone:(kind:'round'|'speech',key:string)=>void;visible?:boolean;gallery?:boolean;onSnapshot?:(s:DirectorState,outputs:Outputs,stats:{fps:number;calls:number;loadedMs:number;quality:Quality})=>void;material?:MaterialPack}
 export interface McStageProps {sceneKind?:McSceneKind}
 function storedQuality():Quality|null{try{return savedQuality(localStorage);}catch{return null;}}
+/** 按房间的光线设定摆太阳和半球光：太阳不再跟着辩论进度落山，屋里一直是明亮的白天。 */
+function applyLook(scene:THREE.Scene,env:Environment,look:Look,room:Room):THREE.Mesh|null {
+  env.hemi.color.set(look.sky);env.hemi.groundColor.set(look.ground);env.hemi.intensity=look.ambient;
+  const center=new THREE.Vector3((room.bounds.min[0]+room.bounds.max[0])/2,1,(room.bounds.min[2]+room.bounds.max[2])/2);
+  const az=THREE.MathUtils.degToRad(look.sun.azimuth),el=THREE.MathUtils.degToRad(look.sun.elevation);
+  const dir=new THREE.Vector3(Math.cos(el)*Math.cos(az),Math.sin(el),-Math.cos(el)*Math.sin(az)).normalize();
+  env.direction.copy(dir);env.elevation=el;
+  env.sun.color.set(look.sun.color);env.sun.intensity=look.sun.intensity;env.sun.shadow.intensity=look.sun.shadow;env.sun.shadow.radius=look.outdoor?2.2:3.2;
+  env.sun.position.copy(center).addScaledVector(dir,60);env.sun.target.position.copy(center);env.sun.target.updateMatrixWorld();
+  const half=Math.max(room.bounds.max[0]-room.bounds.min[0],room.bounds.max[2]-room.bounds.min[2])*.75+3;
+  const sc=env.sun.shadow.camera;sc.left=-half;sc.right=half;sc.top=half;sc.bottom=-half;sc.near=1;sc.far=150;sc.updateProjectionMatrix();
+  env.daylight=1;
+  if(look.outdoor){
+    // 真户外：打开天空盒，短软影、晴天蓝，告别绿地毯+死灰天。
+    env.sky.visible=!look.skyTop;env.sky.material.uniforms.sunPosition.value.copy(dir);
+    env.sky.material.uniforms.turbidity.value=2;env.sky.material.uniforms.rayleigh.value=2.4;
+    scene.background=null;scene.fog=new THREE.Fog(look.haze??look.background,look.fog?.[0]??70,look.fog?.[1]??200);
+    if(look.skyTop){const dome=createSkyDome(look.skyTop,look.haze??look.background);dome.position.set(center.x,0,center.z);scene.add(dome);return dome;}
+  }else{
+    env.sky.visible=false;scene.background=new THREE.Color(look.background);scene.fog=null;
+  }
+  return null;
+}
 export function McStage3D(props:McStageProps){
   const hostRef=useRef<HTMLDivElement>(null),latest=useRef(props);latest.current=props;
   const kind=props.sceneKind??'debate',roomRef=useRef(buildMcRoom(kind)),stateRef=useRef<DirectorState>((kind==='debate'?createDirector:createSceneDirector)(props.participants,roomRef.current,props.theme,matchMedia('(prefers-reduced-motion: reduce)').matches));
@@ -81,10 +106,12 @@ export function McStage3D(props:McStageProps){
     const renderer=new THREE.WebGLRenderer({antialias:false,alpha:false,powerPreference:'high-performance'});
     void (async()=>{
       try{
-        assets=await loadAssets((n,step)=>{if(!disposed)setProgress({n,step});},Math.min(8,renderer.capabilities.getMaxAnisotropy()),latest.current.material,kind==='meadow'?['block/water_still.png']:[]);if(disposed){assets.dispose();renderer.dispose();return;}
+        const look=roomRef.current.look;
+        assets=await loadAssets((n,step)=>{if(!disposed)setProgress({n,step});},Math.min(8,renderer.capabilities.getMaxAnisotropy()),latest.current.material??roomRef.current.material,kind==='meadow'?['block/water_still.png']:[],roomRef.current.paint);if(disposed){assets.dispose();renderer.dispose();return;}
         setCredit(assets.credit);
         const room=roomRef.current,validation=validateRoom(room,assets);if(validation.errors.length)throw new Error((room.title??'辩论室')+'检查失败：'+validation.errors[0]);
-        renderer.info.autoReset=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.AgXToneMapping;renderer.toneMappingExposure=.95;
+        // 带色板的房间用中性色调映射：颜色按原图的样子出来，不被压灰。
+        renderer.info.autoReset=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=look?THREE.NeutralToneMapping:THREE.AgXToneMapping;renderer.toneMappingExposure=look?.exposure??1.08;
         renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.domElement.className='mc-canvas';renderer.domElement.setAttribute('aria-label','我的世界'+(room.title??'辩论室'));host.prepend(renderer.domElement);
         const scene=new THREE.Scene(),env=createEnvironment(scene,kind==='debate'?undefined:new THREE.Vector3((room.bounds.min[0]+room.bounds.max[0])/2,2,(room.bounds.min[2]+room.bounds.max[2])/2)),cam=new StageCamera(room,renderer.domElement);cameraRef.current=cam;
         const roomPhysics=new RoomPhysics(room,assets);
@@ -96,20 +123,33 @@ export function McStage3D(props:McStageProps){
         const outsideDown=(e:PointerEvent)=>{if(!(e.target instanceof Node)||!renderer.domElement.contains(e.target)){freeView?.setActive(false);spectator.deactivate();}};
         document.addEventListener('pointerdown',outsideDown);
         // 屋顶同样挡天光；先初始化天色，不能把室内当作露天的满亮天光。
-        env.update(0,0);if(room.outdoor){env.sun.intensity=1.1;env.hemi.intensity=.38;env.daylight=.85;}
-        const light=propagate([...room.blocks,...room.ceiling]);updateLightTable(assets.lightTexture,env.daylight);
-        const shading:BlockShading={lightMap:assets.lightTexture,indirect:{value:.26},direct:{value:1}};
-        const staticMesh=buildBlockMesh(room.blocks,assets,light,shading);scene.add(staticMesh);
-        // 实体天花板：默认机位在门内，不再为了全景剖开屋顶。
+        env.update(0,0);if(room.outdoor&&!look){env.sun.intensity=1.1;env.hemi.intensity=.55;env.daylight=.85;}
+        const skyDome=look?applyLook(scene,env,look,room):null;
+        const cutaway=room.cutaway??[];
+        const light=propagate([...room.blocks,...cutaway,...room.ceiling]);updateLightTable(assets.lightTexture,env.daylight);
+        // 自带色板（paint）的房间贴图已经画好颜色，不再染色；用真实方块贴图的房间照原版按生物群系给草和树叶染色。
+        const shading:BlockShading={lightMap:assets.lightTexture,indirect:{value:look?.indirect??.26},direct:{value:1},tint:!look||!room.paint,colors:look?.tint};
+        // 新画风的窗玻璃不投影：阳光穿过窗户照进屋，在地上落出光斑（屋顶和墙照样挡光）。
+        const glassy=(b:{id:string})=>!!look&&b.id.includes('glass');
+        const staticMesh=buildBlockMesh(room.blocks.filter(b=>!glassy(b)),assets,light,shading);scene.add(staticMesh);
+        const glassMesh=buildBlockMesh(room.blocks.filter(glassy),assets,light,shading);glassMesh.traverse(o=>{o.castShadow=false;});scene.add(glassMesh);
+        // 天花板和朝镜头的那面墙：镜头在屋外、屋顶以上时藏起来（剖面俯视），进屋的视角照常显示。
+        // 它们不投影，换视角时屋里的光影不跟着变。
         const ceiling=buildBlockMesh(room.ceiling,assets,light,shading);ceiling.name='room-ceiling';scene.add(ceiling);
+        const front=buildBlockMesh(cutaway,assets,light,shading);front.name='room-cutaway';scene.add(front);
+        if(look)for(const o of [ceiling,front])o.traverse(x=>{x.castShadow=false;});
+        // 屋顶挡太阳（look.roof）：一块不画出来、只投影的板子，阳光只从窗户进屋，在地上落出光斑。
+        let roof:THREE.Mesh|null=null;
+        if(look?.roof&&!look.outdoor){const [x0,,z0]=room.bounds.min,[x1,y1,z1]=room.bounds.max;roof=new THREE.Mesh(new THREE.BoxGeometry(x1-x0+2,.3,z1-z0+2),new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false}));roof.position.set((x0+x1)/2,y1+.15,(z0+z1)/2);roof.castShadow=true;roof.receiveShadow=false;roof.name='roof-shadow';scene.add(roof);}
+        const cutawayEye=(p:THREE.Vector3)=>!!look&&(p.y>room.bounds.max[1]-.25||p.z>room.bounds.max[2]+.05||p.z<room.bounds.min[2]-.05||p.x<room.bounds.min[0]-.05||p.x>room.bounds.max[0]+.05);
         // 仅两盏主灯笼投影，桌面是视觉重心；低强度顶灯填暗部。
-        const lanternLights=room.lights.map((fixture,i)=>{const l=new THREE.PointLight(fixture.kind==='lantern'?'#ffe0b2':'#ffe9d0',fixture.intensity,fixture.distance,2);l.name=`${fixture.kind}-light-${i}`;l.position.set(...fixture.position);
+        const lanternLights=room.lights.map((fixture,i)=>{const l=new THREE.PointLight(fixture.color??(fixture.kind==='lantern'?'#ffe0b2':'#ffe9d0'),fixture.intensity,fixture.distance,2);l.name=`${fixture.kind}-light-${i}`;l.position.set(...fixture.position);
           l.castShadow=fixture.shadow;l.shadow.camera.near=.2;l.shadow.camera.far=fixture.distance;l.shadow.mapSize.set(1024,1024);l.shadow.bias=-.0002;l.shadow.normalBias=.025;l.shadow.radius=2.5;l.shadow.intensity=.72;l.shadow.autoUpdate=false;l.shadow.needsUpdate=true;
           scene.add(l);return l;});
         const entities=createEntities(assets,room);scene.add(entities.root);
         const critters=kind==='debate'?createCritters(assets,stateRef.current.now):{root:new THREE.Group(),critters:[] as never[],setMusicPlaying(_playing:boolean){},dispose(){}};scene.add(critters.root);
         const cast=latest.current.participants.map(p=>({id:p.agentId,anchor:p.seatIndex,side:(p.side??'host') as 'pro'|'con'|'host',name:p.persona.name,identity:identity(p,latest.current.participants,kind)}));
-        const stageProps=kind==='debate'?createDebateProps(room,cast,assets):createSceneProps(room,cast,assets);scene.add(stageProps.root);
+        const stageProps=kind==='debate'?createDebateProps(room,cast,assets):createStyledProps(room,cast,assets);scene.add(stageProps.root);
         // 交互器件保持游戏形态，灯具照亮全屋，阳光辅助。
         const players=new Map<string,Player>();for(const p of latest.current.participants){const player=createPlayer(p,kind==='podcast'||kind==='meadow'?null:stageProps.createBook(assets),stageProps.contacts);scene.add(player.root);players.set(p.agentId,player);}
         // 预备评委本人和室内机位的材质，第一次进入自由视角时直接使用已就绪的模型。
@@ -124,13 +164,15 @@ export function McStage3D(props:McStageProps){
         const captureEnvironment=()=>{const hidden=[stageProps.root,propBatches.root,particles.points,shafts.mesh,dust.points,...[...players.values()].map(p=>p.root)].filter(o=>o.visible);hidden.forEach(o=>o.visible=false);cubeCamera.update(renderer,scene);hidden.forEach(o=>o.visible=true);envTexture?.dispose();envTexture=pmrem.fromCubemap(cubeTarget.texture).texture;stageProps.setEnvironment(envTexture,.32);players.forEach(p=>{p.material.envMap=envTexture;p.material.envMapIntensity=.12;p.material.needsUpdate=true;});};
         // 光柱、浮尘和云（第 11.4 节）：高档算体积光，中档用假光柱面片；浮尘高、中档都有。
         const rig:LightRig={sun:env.sun,sunDirection:env.direction,spots:[]};
-        const shafts=createFakeShafts(room.windows),dust=createDust(rig),clouds=createClouds(assets.textures.get('environment/clouds.png')!);scene.add(shafts.mesh,dust.points,clouds.mesh);
-        const post=createPost(renderer,scene,cam.camera,qualityRef.current,rig);
+        const shafts=createFakeShafts(look?[]:room.windows),dust=createDust(rig),clouds=createClouds(assets.textures.get('environment/clouds.png')!);scene.add(shafts.mesh,dust.points,clouds.mesh);
+        // 新画风不要光柱和浮尘：它们把画面蒙上一层灰黄，显得旧。云只在露天看得见。
+        if(look){shafts.mesh.visible=false;dust.points.visible=false;clouds.mesh.visible=!!look.outdoor&&!look.skyTop;}
+        const post=createPost(renderer,scene,cam.camera,qualityRef.current,rig,!!look,look?.saturation);
         const draws=new Map<string,number>();let firstDraw=-1;
         if(import.meta.env.DEV)scene.traverse(o=>{if(!(o instanceof THREE.Mesh))return;let before=0;const prior=o.onBeforeRender;o.onBeforeRender=function(...args){prior.apply(this,args);before=renderer.info.render.calls;if(firstDraw<0)firstDraw=before;};o.onAfterRender=(_r,_s,_c,_g,mat)=>{let owner:THREE.Object3D|null=o;while(owner?.parent&&owner.parent!==scene)owner=owner.parent;const key=(owner?.name||'world')+':'+mat.type;draws.set(key,(draws.get(key)??0)+renderer.info.render.calls-before);};});
         if(import.meta.env.DEV)(window as unknown as {__mcStage:unknown}).__mcStage={scene,renderer,post,env,camera:cam.camera,stageCamera:cam,players,props:stageProps,room,assets,get freeView(){return freeView;}};
         let appliedQuality:Quality|null=null;
-        const applyQuality=(q:Quality)=>{if(q===appliedQuality)return;shafts.mesh.visible=q==='medium';dust.points.visible=q!=='low';const shadowsChanged=(appliedQuality==='low')!==(q==='low');appliedQuality=q;post.setQuality(q);renderer.setPixelRatio(q==='high'?Math.min(devicePixelRatio,2):1);renderer.transmissionResolutionScale=.5;stageProps.setReflections(q!=='low');stageProps.setEnvironment(q==='low'?null:envTexture,q==='low'?0:.32);players.forEach(p=>{p.material.envMap=q==='low'?null:envTexture;p.material.needsUpdate=true;});env.setShadow(q==='high'?4096:2048);
+        const applyQuality=(q:Quality)=>{if(q===appliedQuality)return;shafts.mesh.visible=!look&&q==='medium';dust.points.visible=!look&&q!=='low';const shadowsChanged=(appliedQuality==='low')!==(q==='low');appliedQuality=q;post.setQuality(q);renderer.setPixelRatio(q==='high'?Math.min(devicePixelRatio,2):1);renderer.transmissionResolutionScale=.5;stageProps.setReflections(q!=='low');stageProps.setEnvironment(q==='low'?null:envTexture,q==='low'?0:.32);players.forEach(p=>{p.material.envMap=q==='low'?null:envTexture;p.material.needsUpdate=true;});env.setShadow(q==='high'?4096:2048);
           lanternLights.forEach((l,i)=>{l.castShadow=room.lights[i].shadow&&q!=='low';const size=q==='high'?1024:512;if(l.shadow.mapSize.x!==size){l.shadow.mapSize.set(size,size);l.shadow.map?.dispose();l.shadow.map=null;}l.shadow.needsUpdate=true;});
           if(shadowsChanged)scene.traverse(o=>{if(o instanceof THREE.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])m.needsUpdate=true;});resize();};
         const galleryBuilder=new Builder();const unique=[...new Map(room.blocks.map(b=>[b.id,b])).values()];unique.forEach((b,i)=>galleryBuilder.put(2+i%9*2,2,3+Math.floor(i/9)*3,b.id,b.props));const gallery=buildBlockMesh(galleryBuilder.connect(),assets,light,shading);gallery.visible=false;scene.add(gallery);
@@ -154,9 +196,9 @@ export function McStage3D(props:McStageProps){
           const frozen=s.session==='paused'||s.session==='stopped'||!!s.globalError;
           // 天色跟辩论进度：开场前是下午两点，最后一轮接近傍晚，出结果时太阳贴着地平线。
           const total=Math.max(1,latest.current.totalRounds),progress=s.resultStage>=0?1:Math.min(1,Math.max(0,(s.round-1)/total+(s.round?.5/total:0)));
-          if(!frozen&&!room.outdoor&&env.update(progress,dt))updateLightTable(assets!.lightTexture,env.daylight);
+          if(!look&&!frozen&&!room.outdoor&&env.update(progress,dt))updateLightTable(assets!.lightTexture,env.daylight);
           // 灯具亮度稳定，傍晚也使用正常曝光；不把辅助天光的降低补偿成整屋发白。
-          renderer.toneMappingExposure=.96;
+          renderer.toneMappingExposure=look?.exposure??1.08;
           if(!frozen){clouds.update(dt,env.sun.color,env.daylight);dust.update(s.now/1000,host.clientHeight);}shafts.update(rig);
           if(qualityRef.current!=='low'&&(envProgress<0||Math.abs(progress-envProgress)>.12)){envProgress=progress;captureEnvironment();}
           if(!frozen){staticMesh.traverse(o=>o.userData.animate?.(s.now));entities.update(s);critters.setMusicPlaying(sounds.musicActive);for(const c of critters.critters)c.update(s,dt);}
@@ -179,7 +221,9 @@ export function McStage3D(props:McStageProps){
           else if(freeView&&viewRef.current==='walk')freeView.camera(cam.camera);
           else cam.update(players,dt);
           // 景深：全景里焦点跟着正在说话的人，人物视角和评委席不加。
-          const speaker=Object.values(s.actors).find(a=>a.desired==='speaking'&&!a.error);if(viewRef.current==='overview'&&speaker&&players.get(speaker.id)){players.get(speaker.id)!.root.getWorldPosition(center);post.setFocus(cam.camera.position.distanceTo(center));}else post.setFocus(null);
+          const speaker=Object.values(s.actors).find(a=>a.desired==='speaking'&&!a.error);if(!look&&viewRef.current==='overview'&&speaker&&players.get(speaker.id)){players.get(speaker.id)!.root.getWorldPosition(center);post.setFocus(cam.camera.position.distanceTo(center));}else post.setFocus(null);
+          // 剖面俯视：镜头到了屋顶以上或墙外，就把天花板和朝镜头的墙藏起来。
+          const opened=cutawayEye(cam.camera.position);ceiling.visible=!opened&&!galleryRef.current;front.visible=!opened&&!galleryRef.current;
           const project=(id:string)=>{const p=players.get(id);if(!p)return null;const v=p.eye.clone().add(new THREE.Vector3(0,.45,0)).project(cam.camera);return {x:(v.x*.5+.5)*host.clientWidth,y:(-v.y*.5+.5)*host.clientHeight,depth:v.z,visible:v.z<1&&v.z>-1&&v.x>-1.1&&v.x<1.1&&v.y>-1.1&&v.y<1.1};};
           // 名字牌：先量尺寸再摆。离镜头近的先摆在头顶；挤在一起或压到辩题屏上的，先往本队外侧挪，挪不开再往上叠。
           // 上一帧的位置还能用就接着用，免得名字牌来回跳。
@@ -200,7 +244,7 @@ export function McStage3D(props:McStageProps){
             tagOffsets.set(t.id,best);const r=rect(...best);placed.push(r);t.el.style.left=(r[0]+r[2])/2+'px';t.el.style.top=r[3]+'px';
           }
           const visibleBubbles=[...anchors.current.entries()].filter(([k,el])=>k.endsWith(':bubble')&&el.isConnected).map(([,el])=>el);if(visibleBubbles.length===2){const [a,b]=visibleBubbles,r1=a.getBoundingClientRect(),r2=b.getBoundingClientRect();if(r1.left<r2.right&&r1.right>r2.left&&r1.top<r2.bottom&&r1.bottom>r2.top){a.style.left=Math.max(a.offsetWidth/2+8,host.clientWidth*.26)+'px';b.style.left=Math.min(host.clientWidth-b.offsetWidth/2-8,host.clientWidth*.74)+'px';}}
-          gallery.visible=!!galleryRef.current;staticMesh.visible=entities.root.visible=stageProps.root.visible=propBatches.root.visible=!galleryRef.current;ceiling.visible=!galleryRef.current;
+          gallery.visible=!!galleryRef.current;glassMesh.visible=staticMesh.visible=entities.root.visible=stageProps.root.visible=propBatches.root.visible=!galleryRef.current;if(!look)ceiling.visible=!galleryRef.current;
           post.outline.selectedObjects=s.focus&&players.has(s.focus)?[players.get(s.focus)!.root]:[];post.outline.visibleEdgeColor.set(teamColor(s.actors[s.focus??'']?.side??'host'));post.outline.hiddenEdgeColor.copy(post.outline.visibleEdgeColor);
           if(qualityRef.current!==appliedQuality)applyQuality(qualityRef.current);
           // 太阳阴影隔一帧重画一次：人动得慢，看不出差别，能省下一大块填充。
@@ -214,7 +258,7 @@ export function McStage3D(props:McStageProps){
           const hsig=JSON.stringify([s.session,s.bubbles,s.chat,s.title,s.toast,s.focus,s.globalError,Object.values(s.actors).map(a=>[a.id,a.error,a.mind,a.actionText])]);if(time-lastHud>100||hsig!==hudSignature){lastHud=time;hudSignature=hsig;setHud(s);}
           latest.current.onSnapshot?.(s,outputs,{fps,calls,loadedMs,quality:qualityRef.current});raf=requestAnimationFrame(frame);
         };
-        cleanup=()=>{cancelAnimationFrame(raf);observer.disconnect();document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('click',click);renderer.domElement.removeEventListener('pointerleave',leave);cam.dispose();sounds.dispose();players.forEach(p=>p.dispose());particles.dispose();propBatches.dispose();propIndirect.dispose();stageProps.dispose();entities.dispose();critters.dispose();freeView?.dispose();document.removeEventListener('pointerdown',outsideDown);disposeObject(staticMesh);disposeObject(ceiling);disposeObject(gallery);lanternLights.forEach(l=>l.dispose());shafts.dispose();dust.dispose();clouds.dispose();env.dispose();envTexture?.dispose();cubeTarget.dispose();pmrem.dispose();post.dispose();renderer.dispose();renderer.domElement.remove();assets?.dispose();};
+        cleanup=()=>{cancelAnimationFrame(raf);observer.disconnect();document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('click',click);renderer.domElement.removeEventListener('pointerleave',leave);cam.dispose();sounds.dispose();players.forEach(p=>p.dispose());particles.dispose();propBatches.dispose();propIndirect.dispose();stageProps.dispose();entities.dispose();critters.dispose();freeView?.dispose();document.removeEventListener('pointerdown',outsideDown);disposeObject(staticMesh);disposeObject(glassMesh);disposeObject(ceiling);disposeObject(front);if(roof)disposeObject(roof);if(skyDome){disposeObject(skyDome);((skyDome.material as THREE.MeshBasicMaterial).map)?.dispose();}disposeObject(gallery);lanternLights.forEach(l=>l.dispose());shafts.dispose();dust.dispose();clouds.dispose();env.dispose();envTexture?.dispose();cubeTarget.dispose();pmrem.dispose();post.dispose();renderer.dispose();renderer.domElement.remove();assets?.dispose();};
         // 开场前先把着色器编译完（Windows 上走 D3D 编译很慢），免得第一帧卡好几秒。
         const disposeStage=cleanup;cleanup=()=>{spectator.dispose();spectatorRef.current=null;cameraRef.current=null;disposeStage();};
         setProgress({n:.85,step:'准备画面'});captureEnvironment();envProgress=0;await renderer.compileAsync(scene,cam.camera);if(disposed)return;

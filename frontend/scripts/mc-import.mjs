@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises';
+﻿import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const output=path.join(root,'public/mc');
 const mc=process.env.MC_DIR ?? 'F:/MC/.minecraft';
 const savedMaterial=await fs.readFile(path.join(output,'manifest.json'),'utf8').then(b=>JSON.parse(b).material).catch(()=>undefined);
-const material=process.argv.find(x=>x.startsWith('--material='))?.slice(11)??process.env.MC_MATERIAL??savedMaterial??'hd';
+const material=process.argv.find(x=>x.startsWith('--material='))?.slice(11)??process.env.MC_MATERIAL??savedMaterial??'style';
 if(!['original','hd','style'].includes(material))throw new Error('材质选项应为 original、hd 或 style');
 const read=async p=>{try{return await fs.readFile(p);}catch{throw new Error('读不到游戏资源：'+p);}};
 const json=b=>JSON.parse(new TextDecoder().decode(b));
@@ -63,11 +63,26 @@ try {
     if(n.startsWith('assets/minecraft/items/')&&n.endsWith('.json'))itemDefs[n.split('/').at(-1).slice(0,-5)]=json(jar[n]);
     if(n.startsWith('assets/minecraft/models/item/')&&n.endsWith('.json'))itemModels[n.split('/models/')[1].slice(0,-5)]=json(jar[n]);
   }
+  // 叠加材质包：frontend/mc-packs 里的 zip（按文件名顺序），再加 MC_OVERLAY 指定的（逗号分隔的路径）。
+  // 方块状态、方块模型、方块贴图按材质包覆盖原版，比如 Better Leaves 的蓬松树叶。
+  // 只取原版方块用得到的部分：minecraft 命名空间的方块状态和贴图，以及 minecraft 和材质包自己命名空间的方块模型（不要其它模组的）。
+  const packDir=path.join(root,'mc-packs'),bundled=(await fs.readdir(packDir).catch(()=>[])).filter(f=>f.endsWith('.zip')).sort().map(f=>path.join(packDir,f));
+  const overlays=[...bundled,...(process.env.MC_OVERLAY??'').split(',').map(s=>s.trim()).filter(Boolean)],overlaid=[];
+  for(const p of overlays){const pack=unzipSync(await read(p));let n=0;const own=new Set(Object.keys(pack).map(k=>k.match(/^assets\/([^/]+)\/models\/block\//)?.[1]).filter(ns=>ns&&!Object.keys(pack).some(k=>k.startsWith('assets/'+ns+'/blockstates/'))));
+    for(const [name,data] of Object.entries(pack)){const m=name.match(/^assets\/([^/]+)\/(blockstates|models|textures)\/(.+)$/);if(!m)continue;const [,ns,kind,rest]=m;
+      if(kind==='blockstates'&&ns==='minecraft'&&rest.endsWith('.json')&&states[rest.slice(0,-5)]){states[rest.slice(0,-5)]=json(data);n++;}
+      else if(kind==='models'&&rest.startsWith('block/')&&rest.endsWith('.json')&&(ns==='minecraft'||own.has(ns))){models[(ns==='minecraft'?'':ns+':')+rest.slice(0,-5)]=json(data);n++;}
+      else if(kind==='textures'&&ns==='minecraft'&&rest.startsWith('block/')&&/\.png(\.mcmeta)?$/.test(rest)&&jar['assets/minecraft/textures/'+rest.replace(/\.mcmeta$/,'')]){jar['assets/minecraft/textures/'+rest]=data;n++;}}
+    overlaid.push({pack:path.basename(p),files:n});}
+  if(overlaid.length)console.log('叠加材质包：'+overlaid.map(o=>o.pack+'（'+o.files+' 个文件）').join('，'));
   await writeJson('blocks.json',{states,models});await writeJson('items.json',{items:itemDefs,models:itemModels});
   const blocks=atlas(names.filter(n=>n.startsWith('assets/minecraft/textures/block/')&&n.endsWith('.png')),jar);
   await write('atlas.png',blocks.png);await writeJson('atlas.json',blocks.table);
   const items=atlas(names.filter(n=>n.startsWith('assets/minecraft/textures/item/')&&n.endsWith('.png')),jar);
   await write('item-atlas.png',items.png);await writeJson('item-atlas.json',items.table);
+  // --blocks-only：只重做方块状态、模型和方块图集（换叠加材质包时用），不动声音、字体、高清包和清单。
+  if(process.argv.includes('--blocks-only')){const old=JSON.parse(await fs.readFile(path.join(output,'manifest.json'),'utf8'));await writeJson('manifest.json',{...old,overlays:overlaid.map(o=>o.pack)});
+    console.log(JSON.stringify({version,states:Object.keys(states).length,models:Object.keys(models).length,blockTextures:Object.keys(blocks.table.textures).length,overlaid}));process.exit(0);}
   let textureCount=0; const texturePaths=[];
   const prefixes=['entity/bell/','entity/enchantment/','entity/banner/','entity/decorated_pot/','entity/cat/','entity/parrot/','entity/allay/','painting/','gui/sprites/tooltip/','gui/sprites/toast/','gui/sprites/widget/','particle/'];
   const exact=['block/water_still.png','entity/player/wide/steve.png','misc/shadow.png','misc/enchanted_glint_item.png','environment/clouds.png','environment/celestial/sun.png','gui/book.png','colormap/grass.png','colormap/foliage.png'];
@@ -97,6 +112,6 @@ try {
   let hd=null;
   if(packPath){hd=await buildHd({root,output,jar,packPath,pack:unzipSync(await read(packPath)),states,models,write,writeJson});console.log('高清材质：'+packPath+'，'+hd.textures+' 张贴图（原版放大补齐 '+hd.upscaled+' 张），拼图 '+hd.size.join('×'));}
   else{await fs.rm(path.join(output,'hd'),{recursive:true,force:true});console.log('没有找到高清材质包，只导出原版素材');}
-  await writeJson('manifest.json',{version,material,jarSha1:crypto.createHash('sha1').update(bytes).digest('hex'),blocks:'blocks.json',items:'items.json',atlas:'atlas.png',atlasIndex:'atlas.json',itemAtlas:'item-atlas.png',itemAtlasIndex:'item-atlas.json',font:'font/mc.ttf',textures:texturePaths,sounds,counts:{states:Object.keys(states).length,models:Object.keys(models).length,blockTextures:Object.keys(blocks.table.textures).length,itemTextures:Object.keys(items.table.textures).length,textures:textureCount,paintings:Object.keys(paintings).length,glyphs:glyphCount}});
+  await writeJson('manifest.json',{version,material,overlays:overlaid.map(o=>o.pack),jarSha1:crypto.createHash('sha1').update(bytes).digest('hex'),blocks:'blocks.json',items:'items.json',atlas:'atlas.png',atlasIndex:'atlas.json',itemAtlas:'item-atlas.png',itemAtlasIndex:'item-atlas.json',font:'font/mc.ttf',textures:texturePaths,sounds,counts:{states:Object.keys(states).length,models:Object.keys(models).length,blockTextures:Object.keys(blocks.table.textures).length,itemTextures:Object.keys(items.table.textures).length,textures:textureCount,paintings:Object.keys(paintings).length,glyphs:glyphCount}});
   console.log(JSON.stringify({version,output,states:Object.keys(states).length,models:Object.keys(models).length,blockTextures:Object.keys(blocks.table.textures).length,textures:textureCount,glyphs:glyphCount,soundFiles:Object.values(sounds).flat().length},null,2));
 }catch(e){console.error(e.message);process.exitCode=1;}

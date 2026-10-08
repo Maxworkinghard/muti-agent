@@ -9,7 +9,8 @@ try{
   const cast=room=>room.anchors.map((_,i)=>({agentId:'fixture-'+i,seatIndex:i,persona:{...RATIONAL_PERSONAS[i%RATIONAL_PERSONAS.length],name:'成员'+i},personalityId:'default',color:'#6f8b79',isLead:i===0}));
   for(const kind of MC_SCENE_KINDS){const room=buildMcRoom(kind),source=SCENES[kind],variant=SCENES[kind+'-mc'];
     assert.equal(variant.sourceSceneId,kind);assert.equal(variant.recommendedMode,source.recommendedMode);assert.equal(variant.maxSeats,source.maxSeats);assert.equal(source.mcStage,undefined);assert.equal(room.anchors.length,source.maxSeats);
-    for(const pack of ['original','hd','style']){
+    // 带色板的房间（新画风）固定用原版 16×16 图集重画，不加载高清和旧候选材质，只按原版图集检查。
+    for(const pack of room.paint||room.material?[room.material??'original']:['original','hd','style']){
       const dir=pack==='original'?'public/mc':'public/mc/'+pack,atlas=JSON.parse(await fs.readFile(dir+'/atlas.json','utf8')),result=validateRoom(room,{...blocks,atlas});
       assert.deepEqual(result.errors,[],kind+' / '+pack+': '+result.errors.slice(0,4).join(';'));console.log('Pass room:',kind,pack,JSON.stringify(result.checks));
     }

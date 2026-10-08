@@ -19,7 +19,7 @@ const vite=await createServer({configFile:false,logLevel:'error',server:{middlew
 let controls;
 try {
   const [{SpectatorCamera},{buildDebateRoom}]=await Promise.all([vite.ssrLoadModule('/src/mc/spectator.ts'),vite.ssrLoadModule('/src/mc/rooms/debate.ts')]);
-  const room=buildDebateRoom(),camera=new THREE.PerspectiveCamera(70,1,.03,300);camera.position.set(...room.bounds.max);camera.lookAt(...room.cameraTarget);
+  const room=buildDebateRoom(),zone=room.flight??room.bounds,camera=new THREE.PerspectiveCamera(70,1,.03,300);camera.position.set(zone.max[0]+5,zone.max[1]+5,zone.max[2]+5);camera.lookAt(...room.cameraTarget);
   controls=new SpectatorCamera(room,canvas);let exits=0;controls.onExit=()=>exits++;
   const key=(code,down=true)=>win.dispatchEvent(event(down?'keydown':'keyup',{code,key:code,metaKey:false,altKey:false}));
   const advance=(seconds=1)=>{for(let n=0;n<Math.round(seconds/.05);n++)controls.update(.05,camera);};
@@ -30,11 +30,11 @@ try {
   const backward=move(['KeyS']);assert.ok(forward.clone().add(backward).length()<1e-7);
   const left=move(['KeyA']),right=move(['KeyD']);assert.ok(left.x<0&&right.x>0);assert.ok(left.clone().add(right).length()<1e-7);
   const up=move(['Space']),down=move(['ControlLeft']);assert.ok(up.y>0&&down.y<0);
-  assert.ok(controls.position.y>room.bounds.min[1]&&controls.position.y<room.bounds.max[1],'升降越过了地板或天花板');
+  assert.ok(controls.position.y>zone.min[1]&&controls.position.y<zone.max[1],'升降越过了地板或飞行范围');
   const boosted=move(['KeyW','ShiftLeft'],.2);assert.ok(boosted.length()>1&&boosted.length()<=12.9*.2+1e-7,'Shift 加速距离不对');
   const diagonal=move(['KeyW','KeyD'],.2);assert.ok(diagonal.length()>0&&diagonal.length()<=4.3*.2+1e-7,'斜向移动不应加速');
   key('KeyW');for(let i=0;i<200;i++)controls.update(.05,camera);key('KeyW',false);
-  const p=controls.position;assert.ok(p.x>room.bounds.min[0]&&p.x<room.bounds.max[0]&&p.y>room.bounds.min[1]&&p.y<room.bounds.max[1]&&p.z>room.bounds.min[2]&&p.z<room.bounds.max[2],'镜头穿出了室内');
+  const p=controls.position;assert.ok(p.x>zone.min[0]&&p.x<zone.max[0]&&p.y>zone.min[1]&&p.y<zone.max[1]&&p.z>zone.min[2]&&p.z<zone.max[2],'镜头飞出了允许的范围');
   const stopped=controls.position;advance(2);assert.ok(controls.position.distanceTo(stopped)<1e-7,'松键后不得继续滑动');
   console.log('Pass：按钮进入即获焦点；WASD/升降/Shift 加速方向与速度正确；斜向等速、松键停止。');
 
@@ -44,7 +44,8 @@ try {
   console.log('Pass：切到输入框和窗口失焦立即停住，重新进入不带旧按键。');
 
   controls.exit();
-  camera.position.set((room.bounds.min[0]+room.bounds.max[0])/2,2.8,(room.bounds.min[2]+room.bounds.max[2])/2);camera.lookAt(...room.cameraTarget);
+  // 在屋里平视着进入（默认机位的看点在地面上，从屋中间看过去几乎是正下方，不适合测转向）。
+  const mid=[(room.bounds.min[0]+room.bounds.max[0])/2,2.8,(room.bounds.min[2]+room.bounds.max[2])/2];camera.position.set(...mid);camera.lookAt(mid[0],2.8,mid[2]-5);
   controls.enter(camera,false);controls.update(0,camera);
   const beforeDirection=camera.getWorldDirection(new THREE.Vector3());
   canvas.dispatchEvent(event('pointerdown',{button:2,buttons:2,clientX:100,clientY:100,pointerId:1}));

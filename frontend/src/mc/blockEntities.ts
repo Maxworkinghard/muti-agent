@@ -12,7 +12,9 @@ export function createEntities(assets:Assets,room:Room){
   const root=new THREE.Group(),banners:THREE.Mesh[]=[],owned:Array<THREE.Texture|THREE.Material>=[];
   for(const b of room.banners){
     const canvas=document.createElement('canvas'),density=assets.credit?4:1;canvas.width=canvas.height=64*density;const c=canvas.getContext('2d')!;c.imageSmoothingEnabled=false;
-    const layers=[['banner_base',b.side==='pro'?'#59798d':'#a16d68'],['gradient_up',b.side==='pro'?'#86a0a5':'#bf9180'],['curly_border','#f1e4cc'],['rhombus','#f1e4cc'],['circle',b.side==='pro'?'#59798d':'#a16d68']];
+    // 新画风的队旗：饱和的蓝、红底，金色花边（照 scene-debate.png 墙上那两面旗）。
+    const st=!!room.look,team=b.side==='pro'?(st?'#3d6db5':'#59798d'):(st?'#c0473f':'#a16d68');
+    const layers=[['banner_base',team],['gradient_up',b.side==='pro'?(st?'#5a88cf':'#86a0a5'):(st?'#d8665c':'#bf9180')],['curly_border',st?'#e0b84f':'#f1e4cc'],['rhombus',st?'#e0b84f':'#f1e4cc'],['circle',team]];
     for(const [name,color] of layers){const temp=document.createElement('canvas');temp.width=temp.height=canvas.width;const tc=temp.getContext('2d')!;tc.drawImage(assets.textures.get('entity/banner/'+name+'.png')!.image as CanvasImageSource,0,0,temp.width,temp.height);tc.globalCompositeOperation='source-in';tc.fillStyle=color;tc.fillRect(0,0,temp.width,temp.height);c.drawImage(temp,0,0);}
     const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;owned.push(t);
     const material=new THREE.MeshStandardMaterial({map:t,alphaTest:.1,side:THREE.DoubleSide,roughness:.95,envMapIntensity:0});owned.push(material);

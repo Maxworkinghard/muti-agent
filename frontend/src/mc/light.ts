@@ -1,7 +1,7 @@
 import {directions,fullBlock,key,type Block} from './blockModel';
 import type * as THREE from 'three';
 export interface LightGrid {block:Map<string,number>;sky:Map<string,number>;bounds:{min:[number,number,number];max:[number,number,number]};sample(x:number,y:number,z:number):[number,number]}
-export const emission=(b:Block)=>b.id==='lantern'||b.id==='sea_lantern'?15:b.id==='redstone_lamp'&&b.props.lit==='true'?15:b.id.includes('torch')?14:b.id.endsWith('candle')&&b.props.lit==='true'?3*Number(b.props.candles??1):0;
+export const emission=(b:Block)=>b.id==='light'?Number(b.props.level??15):b.id==='lantern'||b.id==='sea_lantern'?15:b.id==='redstone_lamp'&&b.props.lit==='true'?15:b.id.includes('torch')?14:b.id.endsWith('candle')&&b.props.lit==='true'?3*Number(b.props.candles??1):0;
 export function propagate(blocks:Block[]):LightGrid {
   const cells=new Map(blocks.map(b=>[key(b.x,b.y,b.z),b]));const block=new Map<string,number>(),sky=new Map<string,number>();
   const min:[number,number,number]=[-1,0,-1],max:[number,number,number]=[Math.max(23,...blocks.map(b=>b.x+2)),Math.max(12,...blocks.map(b=>b.y+3)),Math.max(25,...blocks.map(b=>b.z+2))];

@@ -55,7 +55,6 @@ export function createPlayer(p:Participant,card:THREE.Object3D|null,contacts?:Pr
     const idleBreath=s.reduced||a.error?0:(a.sit>.5?.6+.4*Math.sin(poseNow/1000*(.8+(a.id.length%3)*.12)):0)*.012;
     const idleShift=!s.reduced&&listening&&a.sit>.5&&seed2<1.4?Math.sin(Math.min(1,(1.4-seed2)/.5)*Math.PI)*.05:0;
     const idleHead=!s.reduced&&listening&&phase>6.2&&phase<7.4?Math.sin((phase-6.2)/1.2*Math.PI)*.14:0;
-    const isSpeakerVisible=speaking&&typeof a.look==='object';
     // 情绪的身体语言：压力大前倾，信心足后靠，憋屈低头塌肩，火气大抱臂（第 11.5 节）。
     const leanTarget=s.reduced?0:control?(p.side==='host'?.08:.35):(mood('压力')>=6?.17:0)+(mood('憋屈')>=6?.12:0)-(mood('信心')>=7?.08:0)+crouch*.5+(a.desired==='thinking'?.12:0)+idleShift*.3+(idle.kind==='leanBack'?-.1*k:idle.kind==='write'||idle.kind==='pointNote'?.07*k:0);
     pose.lean=approach(pose.lean,leanTarget,dt*(control?12:4));pose.crossed=approach(pose.crossed,listening&&!action&&mood('火气')>=6&&!s.reduced?1:0,dt*3);

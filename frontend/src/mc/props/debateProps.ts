@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type {TaskEvent} from '../../types';
 import type {Room} from '../rooms/debate';
-import {createMaterials,type PropMaterials} from './materials';
-import {mesh,rbox,mergeStatic,teamColor} from './geometry';
+import {createMaterials} from './materials';
+import {mesh,rbox,mergeStatic} from './geometry';
 export {mergeStatic} from './geometry';
 import {createTable} from './table';
 import {createChair} from './chair';
@@ -12,6 +12,7 @@ import {createBell} from './bell';
 import {createBoard} from './board';
 import {createTableDecor,createWallArt} from './decor';
 import {wideFloor} from './surfaceTextures';
+import {createKit,at} from './furniture';
 /**
  * 台上的物件：像素风的暖木桌椅和绿植书堆（配色对齐 2D 场景），交互器件全是我的世界原味——
  * 桌上扳拉杆开麦、红石灯亮，主持按讲台按钮换阶段、拍桌铃、翻讲稿（第 0.2 节：先表达信息，物理上说得通）。
@@ -24,18 +25,19 @@ export interface PropState {tasks?:TaskEvent[]}
 export interface DebateProps {contacts:PropContacts;root:THREE.Group;fixtures:Fixture[];beamScale:number;update(s:PropState):void;setEnvironment(map:THREE.Texture|null,intensity?:number):void;setReflections(enabled:boolean):void;createBook(assets?:{itemAtlas:{width:number;height:number;textures:Record<string,{x:number;y:number;width:number;height:number}>};itemTexture:THREE.Texture}):THREE.Group;dispose():void}
 export interface AtlasLike {width:number;height:number;textures:Record<string,{x:number;y:number;width:number;height:number}>}
 export interface DebateProps {contacts:PropContacts;root:THREE.Group;fixtures:Fixture[];beamScale:number;update(s:PropState):void;setEnvironment(map:THREE.Texture|null,intensity?:number):void;setReflections(enabled:boolean):void;createBook(assets?:{itemAtlas:AtlasLike;itemTexture:THREE.Texture}):THREE.Group;dispose():void}
-export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:AtlasLike;itemTexture:THREE.Texture;atlas:AtlasLike;atlasTexture:THREE.Texture;textures:Map<string,THREE.Texture>}):DebateProps {
+export function createDebateProps(room:Room,cast:PropCast[],items:{itemAtlas:AtlasLike;itemTexture:THREE.Texture;atlas:AtlasLike;atlasTexture:THREE.Texture;textures:Map<string,THREE.Texture>}):DebateProps {
   // 方块贴图在图集里：给单个方块形状的道具（红石灯）把 UV 映射到指定贴图块上。
   const tileBox=items?(geo:THREE.BufferGeometry,tile:string):THREE.BufferGeometry=>{
     const t=items.atlas.textures[tile];if(!t)return geo;
     const uv=geo.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,(t.x+uv.getX(i)*t.width)/items.atlas.width,1-(t.y+(1-uv.getY(i))*t.height)/items.atlas.height);
     return geo;}:((geo:THREE.BufferGeometry)=>geo);
   const root=new THREE.Group();root.name='debate-props';
-  const m=createMaterials(),owned:Array<THREE.Material|THREE.Texture>=[];
+  const styled=!!room.look,m=createMaterials(styled),owned:Array<THREE.Material|THREE.Texture>=[],kit=createKit(items);owned.push(...kit.owned);
   const keep=<T extends THREE.Material|THREE.Texture>(x:T)=>{owned.push(x);return x;};
-  const layout=room.layout,byAnchor=new Map(cast.map(p=>[p.anchor,p]));
+  const layout=room.layout;
   // 顶灯只填暗部；两盏铜框灯笼与各自主光的位置完全一致。
-  for(const fixture of room.lights){
+  // 新画风的灯具由房间自己摆（吊灯、壁灯），这里只给旧画风画灯笼和顶灯。
+  for(const fixture of styled?[]:room.lights){
     const [x,y,z]=fixture.position;
     if(fixture.kind==='lantern'){
       // 点光代表扩散罩整面出光，近处框架不再把它当一个裸灯泡遮成巨大硬影。
@@ -48,8 +50,13 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
     root.add(mesh(rbox(1.04,.035,fixture.length+.04,.004),m.woodDark,x,5.982,z,false));
     root.add(mesh(rbox(.92,.014,fixture.length-.08,.003),m.flame,x,5.957,z,false));
   }
+  // 新画风：地面是一张像素地面图（湖绿方砖、赛场线、主持台定位圆都画在上面）；其余家具由房间自己摆。
+  if(styled){
+    if(room.floorArt)for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0,art=room.floorArt;const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);const quad=mesh(g,kit.pixels(w*16,d*16,c=>art(c,w,d),{transparent:!!room.floorOverlay}),(f.x0+f.x1)/2,f.y,(f.z0+f.z1)/2,false);quad.name='floor-art';root.add(quad);}
+    room.decorate?.(kit,root);
+  }
   // 宽暖木板沿房间纵向铺设，整面纹理只用一次。
-  if(room.floor.length){
+  else if(room.floor.length){
     for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0,tex=keep(wideFloor(w,d));
       const mat=new THREE.MeshStandardMaterial({name:'wood-floor',map:tex,bumpMap:tex,bumpScale:.006,roughness:.64});m.owned.push(mat);
       const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);
@@ -77,10 +84,10 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
   }
   root.userData.surfaces={wood:{roughness:m.wood.roughness,metalness:m.wood.metalness,grain:!!m.wood.map},cloth:{roughness:m.clothJudge.roughness,metalness:m.clothJudge.metalness,weave:!!m.clothJudge.map},copper:{roughness:m.brass.roughness,metalness:m.brass.metalness},floor:{pattern:'wide-staggered-planks',boardWidth:.85,minLength:3.8,repeat:1}};
   // 桌子和椅子。
-  for(const t of layout.tables)root.add(createTable(t,m));
+  for(const t of layout.tables)root.add(room.makeTable?at(room.makeTable(kit,t),t.center[0],t.center[1],t.center[2],t.skirtYaw):createTable(t,m));
   const chairs:Array<{group:THREE.Group;home:THREE.Vector3;back:THREE.Vector3;slide:number;actor?:number}>=[],dynamic=new Set<THREE.Object3D>();
   for(const c of layout.chairs){
-    const g=createChair(c,m);root.add(g);
+    const g=room.makeChair?at(room.makeChair(kit,c),c.position[0],c.position[1],c.position[2],c.yaw) as THREE.Group:createChair(c,m);root.add(g);
     chairs.push({group:g,home:g.position.clone(),back:new THREE.Vector3(-Math.sin(c.yaw),0,-Math.cos(c.yaw)),slide:c.slide,actor:c.actor});
     if(c.actor!==undefined)dynamic.add(g);
   }
@@ -97,10 +104,10 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
   for(const t of layout.tables){const end=t.length/2-.55;const decor=createTableDecor(m,t.side==='judge'?'judge':t.side,end);
     // 摆件放在桌面上：y 要加桌面高度（第 12.12 节第 4 条，底面贴着桌面）。
     decor.position.set(t.center[0],t.center[1]+t.height,t.center[2]);decor.rotation.y=t.skirtYaw;root.add(decor);}
-  for(const [x,name] of [[room.bounds.min[0]+1.95,'sunset'],[room.bounds.max[0]-1.95,'sea']] as const){const texture=items?.textures.get('painting/'+name+'.png');if(texture){const art=createWallArt(m,texture);art.position.set(x,4.75,1.06);root.add(art);}}
+  if(!styled)for(const [x,name] of [[room.bounds.min[0]+1.95,'sunset'],[room.bounds.max[0]-1.95,'sea']] as const){const texture=items?.textures.get('painting/'+name+'.png');if(texture){const art=createWallArt(m,texture);art.position.set(x,4.75,1.06);root.add(art);}}
   // 讲台：按钮、翻页、主持的开麦灯、桌铃。
   const hostGlow=m.glow('#ff5a33',2.6);
-  const {podium,podiumButton,flip,flipPage,shelf,hostLamp}=createPodium(layout,m,keep,dynamic,hostGlow);root.add(podium);
+  const {podium,podiumButton,flip,flipPage,shelf}=createPodium(layout,m,keep,dynamic,hostGlow);root.add(podium);
   const {bell,dome,plunger}=createBell(m);bell.name='desk-bell';shelf.add(bell);dynamic.add(bell);
   // 辩题板和墙上的三盏阶段灯。
   const {board,drawBoard}=createBoard(layout,m,keep);root.add(board);
@@ -127,7 +134,7 @@ export function createDebateProps(room:Room,cast:PropCast[],items?:{itemAtlas:At
     setEnvironment(map,intensity=.9){m.env(map,intensity);},
     setReflections(){/* 无透射面；反光由环境贴图与各材质粗糙度控制。 */},
     createBook(assets){return createHandBook(items??assets,bookMaterial);},
-    dispose(){root.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});for(const x of [...m.owned,...owned])x.dispose();}};
+    dispose(){root.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});for(const x of [...m.owned,...owned,...kit.owned])x.dispose();}};
   // 拉杆从朝人一侧（0.62）扳到另一侧（-0.62），跟着亮度走，动作像游戏里的一样干脆。
   function stickRotation(stick:THREE.Object3D,level:number){stick.rotation.x=.62-1.24*level;}
   return props;

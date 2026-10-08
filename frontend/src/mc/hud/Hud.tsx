@@ -3,6 +3,9 @@ import {role,sideName} from '../../engines/rational/schedule';
 import {actionBar,teamColor,type DirectorState} from '../director';
 import {QUALITY_LABEL,type Quality} from '../post';
 export function identity(p:Participant,cast:Participant[],kind:McSceneKind='debate'){if(kind==='debate')return p.side==='host'?'主持人':sideName(p)+role(cast.filter(x=>x.side===p.side),p);const seat=p.seatIndex+1;return kind==='podcast'?(seat===1?'主持人':'嘉宾'):kind==='classroom'?(seat===1?'讲台':'学生席 '+(seat-1)):kind==='office'?(p.isLead?'负责人':'工位 '+seat):'成员 '+seat;}
+/** 名字牌上只标有意义的身份（辩手位、主持、嘉宾、负责人、讲台）；“成员 3”“工位 5”这类编号不贴在人头上，悬停卡片里仍有。 */
+function showRole(p:Participant,cast:Participant[],kind:McSceneKind){const role=identity(p,cast,kind);if(kind==='debate'||kind==='podcast')return role;if(kind==='office')return p.isLead?role:null;if(kind==='classroom')return p.seatIndex===0?role:null;return null;}
+const roleColor=(kind:McSceneKind)=>({office:'#d98a4e',classroom:'#6f9e6b',podcast:'#c0625a'} as Record<string,string>)[kind]??'#5f82b0';
 export function Hud({kind='debate',s,cast,view,setView,reset,anchor,hover,credit,quality,setQuality,freeControl}:{kind?:McSceneKind;s:DirectorState;cast:Participant[];view:string;setView:(v:string)=>void;reset:()=>void;anchor:(id:string,kind:string,el:HTMLElement|null)=>void;hover:{id:string;x:number;y:number}|null;credit:string|null;quality:Quality;setQuality:(q:Quality)=>void;freeControl:{active:boolean;locked:boolean}}){
   const age=s.title?s.now-s.title.born:99999,titleOpacity=age<500?age/500:age<3000?1:age<4000?1-(age-3000)/1000:0;const me=s.bubbles.find(b=>b.speakerId===view),person=hover?s.actors[hover.id]:null;
   const coarse=typeof matchMedia!=='undefined'&&matchMedia('(pointer:coarse)').matches;
@@ -14,7 +17,7 @@ export function Hud({kind='debate',s,cast,view,setView,reset,anchor,hover,credit
     {view==='walk'&&<div className="mc-free-hint">WASD 走动 · 拖动鼠标看四周 · 滚轮远近 · F5 切人称 · Esc 退出</div>}
     {view==='__blocked__'&&<div className="mc-free-hint">自由视角需要键盘，在电脑上使用</div>}
     {view==='walk'&&<div ref={el=>anchor('walk','name',el)} className="mc-name"><span style={{color:'#FFAA00'}}>[评委]</span> 你</div>}
-    {cast.map(p=><div key={p.agentId} ref={el=>anchor(p.agentId,'name',el)} className="mc-name" style={{display:view===p.agentId?'none':undefined}}><span style={{color:teamColor(p.side??'host')}}>[{identity(p,cast,kind)}]</span> {p.persona.name}{s.actors[p.agentId]?.error&&<b className="mc-error-mark"> !</b>}</div>)}
+    {cast.map(p=>{const role=showRole(p,cast,kind);return <div key={p.agentId} ref={el=>anchor(p.agentId,'name',el)} className="mc-name" style={{display:view===p.agentId?'none':undefined}}>{role&&<span className="mc-role" style={{background:kind==='debate'?teamColor(p.side??'host'):roleColor(kind)}}>{role}</span>}{p.persona.name}{s.actors[p.agentId]?.error&&<b className="mc-error-mark"> !</b>}</div>;})}
     {s.bubbles.filter(b=>b.speakerId!==view).map(b=><div key={b.id} ref={el=>anchor(b.speakerId,'bubble',el)} className="mc-tooltip mc-bubble" style={{opacity:Math.min(1,Math.max(0,(b.expires-s.now)/200))}}><div style={{color:teamColor(s.actors[b.speakerId]?.side??'host')}}>{b.header}</div><p>{b.text}{b.cut?'——':''}</p></div>)}
     <div className="mc-chat" aria-live="polite">{s.chat.filter(c=>s.now-c.born<10500).map(c=><div key={c.id} style={{color:c.color,fontStyle:c.private?'italic':undefined,opacity:Math.min(1,(10500-(s.now-c.born))/500)}}>{c.text}</div>)}</div>
     {s.title&&titleOpacity>0&&<div className="mc-title" style={{color:s.title.color,opacity:titleOpacity}}><strong>{s.title.text}</strong><div>{s.title.sub}</div></div>}

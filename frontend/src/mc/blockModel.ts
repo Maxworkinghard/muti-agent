@@ -31,5 +31,5 @@ export function transformPoint(point:number[],e:ModelElement,ref:ModelRef):THREE
   if(e.rotation){const r=e.rotation,o=new THREE.Vector3(...r.origin.map(n=>n/16) as [number,number,number]),axis=new THREE.Vector3(...({x:[1,0,0],y:[0,1,0],z:[0,0,1]}[r.axis]) as [number,number,number]);v.sub(o);if(r.rescale){const scale=1/Math.cos(r.angle*Math.PI/180);for(const a of ['x','y','z'] as const)if(a!==r.axis)v[a]*=scale;}v.applyAxisAngle(axis,r.angle*Math.PI/180).add(o);}
   v.subScalar(.5);v.applyAxisAngle(new THREE.Vector3(1,0,0),-(ref.x??0)*Math.PI/180);v.applyAxisAngle(new THREE.Vector3(0,1,0),-(ref.y??0)*Math.PI/180);return v.addScalar(.5);
 }
-export function fullBlock(b:Block|undefined):boolean {return !!b && !/(stairs|slab|pane|fence|door|carpet|lantern|chain|lever|candle|bell|banner|lectern|sign|shelf|flower|grass|leaves|azalea)/.test(b.id);}
+export function fullBlock(b:Block|undefined):boolean {return !!b && b.id!=='light' && b.id!=='air' && !/(stairs|slab|pane|fence|door|carpet|lantern|chain|lever|candle|bell|banner|lectern|sign|shelf|flower|grass|leaves|azalea)/.test(b.id);}
 export function defaultUv(e:ModelElement,f:string):number[]{const [x,y,z]=e.from,[X,Y,Z]=e.to;return ({up:[x,z,X,Z],down:[x,16-Z,X,16-z],north:[16-X,16-Y,16-x,16-y],south:[x,16-Y,X,16-y],west:[z,16-Y,Z,16-y],east:[16-Z,16-Y,16-z,16-y]} as Record<string,number[]>)[f];}

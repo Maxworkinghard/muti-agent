@@ -26,7 +26,7 @@
 
 ![教室](frontend/public/scenes/scene-classroom.png)
 
-加了 3D 场景之后，像素场景和各模式的默认场景都不变。在场景列表下方的「新增 3D 场景」中，还可单独选择六个「· 我的世界」房间：圆桌会议室、辩论室、办公室、教室、草地野餐和播客访谈间，各自对应同名的二维场景。仅主动选择这些新增场景时才加载 3D 房间，讨论中也能切回场景原图。`stage-lab.html` 可单独预览这六个房间，开发服务和生产构建均包含此页。高清贴图的来源与许可见 [`frontend/public/mc/hd/CREDITS.md`](frontend/public/mc/hd/CREDITS.md)。
+加了 3D 场景之后，像素场景和各模式的默认场景都不变。在场景列表下方的「新增 3D 场景」中，还可单独选择六个「· 我的世界」房间：圆桌会议室、辩论室、办公室、教室、草地野餐和播客访谈间，各自对应同名的二维场景。仅主动选择这些新增场景时才加载 3D 房间，讨论中也能切回场景原图。`stage-lab.html` 可单独预览这六个房间，开发服务和生产构建均包含此页。房间用原版方块贴图，树叶叠加了 MIT 授权的 Better Leaves 材质包（放在 [`frontend/mc-packs/`](frontend/mc-packs/README.md)，声明见 [`frontend/public/mc/THIRD-PARTY.md`](frontend/public/mc/THIRD-PARTY.md)）；高清贴图只在预览页对比用，来源与许可见 [`frontend/public/mc/hd/CREDITS.md`](frontend/public/mc/hd/CREDITS.md)。
 
 ## 四个模式
 

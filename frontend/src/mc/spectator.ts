@@ -44,7 +44,7 @@ export class SpectatorCamera {
   }
   enter(camera:THREE.PerspectiveCamera,captureMouse=true){
     if(!this.entered){
-      const {min,max}=this.room.bounds,p=camera.position;
+      const {min,max}=this.room.flight??this.room.bounds,p=camera.position;
       if(p.x>min[0]+.18&&p.x<max[0]-.18&&p.z>min[2]+.18&&p.z<max[2]-.18&&p.y>min[1]+.18&&p.y<max[1]-.18&&!this.physics?.cameraBlocked(p)){
         this.pos.copy(camera.position);camera.getWorldDirection(this.forward);
       }else{
@@ -109,7 +109,7 @@ export class SpectatorCamera {
       if(this.movement.lengthSq()>0){
         this.movement.normalize().multiplyScalar(this.speed*(this.keys.has('ShiftLeft')||this.keys.has('ShiftRight')?3:1)*Math.min(.05,Math.max(0,dt)));
         if(this.physics)this.physics.moveCamera(this.pos,this.movement);else this.pos.add(this.movement);
-        const {min,max}=this.room.bounds;
+        const {min,max}=this.room.flight??this.room.bounds;
         this.pos.set(THREE.MathUtils.clamp(this.pos.x,min[0]+.18,max[0]-.18),THREE.MathUtils.clamp(this.pos.y,min[1]+.18,max[1]-.18),THREE.MathUtils.clamp(this.pos.z,min[2]+.18,max[2]-.18));
       }
     }

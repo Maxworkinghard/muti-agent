@@ -109,7 +109,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
         </div>
       </section>
 
-      <footer className="setup-foot">
+      <footer className="setup-foot" style={{ ['--btn-primary' as string]: mode.color }}>
         <span>{mode.name} · {scenes.find((s) => s.id === draft.sceneId)?.name} · {draft.theme || '（还没有主题）'}</span>
         <button className="px-btn primary" disabled={Boolean(scenes.find(s=>s.id===draft.sceneId)?.mcStage)&&!mcReady} onClick={onNext}>下一步：选择人物 ▶</button>
       </footer>

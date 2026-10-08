@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import {Pass} from 'three/examples/jsm/postprocessing/Pass.js';
 /**
  * 场景只画一遍：画进一张带深度纹理的目标，环境光遮蔽和景深都直接读这张深度，
@@ -13,6 +13,18 @@ export class ScenePass extends Pass {
 }
 /** 把无效值和无穷大清掉再进后面的效果：一个坏像素会被泛光、环境光遮蔽扩散成整屏黑。它读的是场景目标，不是上一步的结果。 */
 export const SANITIZE={uniforms:{tDiffuse:{value:null}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:'uniform sampler2D tDiffuse;varying vec2 vUv;void main(){vec4 c=texture2D(tDiffuse,vUv);if(any(isnan(c))||any(isinf(c)))c=vec4(0.0,0.0,0.0,1.0);gl_FragColor=min(c,vec4(64.0));}'};
+/** 新画风的调色：不加暖色，只把饱和度和中间调对比提一点，颜色干净，接近二维原图。saturation 是饱和度倍数（1 不变）。 */
+export function cleanLut(size=32,saturation=1.2){
+  const data=new Uint8Array(size*size*size*4),clamp=(x:number)=>Math.min(1,Math.max(0,x));
+  for(let b=0;b<size;b++)for(let g=0;g<size;g++)for(let r=0;r<size;r++){
+    let R=r/(size-1),G=g/(size-1),B=b/(size-1);
+    const curve=(x:number)=>clamp(x+.05*(x-.5)*(1-Math.abs(2*x-1)));R=curve(R);G=curve(G);B=curve(B);
+    const m=.2126*R+.7152*G+.0722*B;R=clamp(m+(R-m)*(saturation+.02));G=clamp(m+(G-m)*saturation);B=clamp(m+(B-m)*(saturation-.02));
+    data.set([R*255,G*255,B*255,255].map(Math.round),((b*size+g)*size+r)*4);
+  }
+  const t=new THREE.Data3DTexture(data,size,size,size);t.format=THREE.RGBAFormat;t.type=THREE.UnsignedByteType;t.minFilter=t.magFilter=THREE.LinearFilter;t.wrapS=t.wrapT=t.wrapR=THREE.ClampToEdgeWrapping;t.unpackAlignment=1;t.needsUpdate=true;
+  return t;
+}
 /**
  * 调色表：在色调映射之后的 sRGB 上做。
  */
@@ -27,7 +39,7 @@ export function warmLut(size=32){
     const bell=l*(1-l)*4;
     R+=(.02*bell)*warm;G+=(.008*bell)*warm;B+=(-.016*bell-.008*l)*warm;
     const curve=(x:number)=>clamp(x+.03*(x-.42)*(1-Math.abs(2*x-1)));R=curve(R);G=curve(G);B=curve(B);
-    const m=(R+G+B)/3;R=clamp(m+(R-m)*1.1);G=clamp(m+(G-m)*1.1);B=clamp(m+(B-m)*1.1);
+    const m=(R+G+B)/3;R=clamp(m+(R-m)*1.16);G=clamp(m+(G-m)*1.14);B=clamp(m+(B-m)*1.12);
     data.set([R*255,G*255,B*255,255].map(Math.round),((b*size+g)*size+r)*4);
   }
   const t=new THREE.Data3DTexture(data,size,size,size);t.format=THREE.RGBAFormat;t.type=THREE.UnsignedByteType;t.minFilter=t.magFilter=THREE.LinearFilter;t.wrapS=t.wrapT=t.wrapR=THREE.ClampToEdgeWrapping;t.unpackAlignment=1;t.needsUpdate=true;

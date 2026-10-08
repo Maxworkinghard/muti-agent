@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 export type Keep=<T extends THREE.Material|THREE.Texture>(x:T)=>T;
@@ -11,8 +11,6 @@ export function createFlatBatch(){
 export const FONT='"PingFang SC","Microsoft YaHei","Noto Sans SC","Source Han Sans SC",sans-serif';
 export const rbox=(w:number,h:number,d:number,r=.01,seg=3)=>new RoundedBoxGeometry(w,h,d,seg,Math.max(.0005,Math.min(r,w/2-1e-4,h/2-1e-4,d/2-1e-4)));
 export function mesh(geo:THREE.BufferGeometry,mat:THREE.Material,x=0,y=0,z=0,cast=true){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;return m;}
-/** 垂下来的布：横向起伏几道褶，看起来像桌裙。 */
-export function pleated(width:number,height:number,amp:number,folds:number){const g=new THREE.PlaneGeometry(width,height,Math.max(8,folds*6),1);const p=g.getAttribute('position');for(let i=0;i<p.count;i++){const x=p.getX(i);p.setZ(i,amp*Math.sin((x/width+.5)*folds*Math.PI*2));}g.computeVertexNormals();return g;}
 export function textCanvas(w:number,h:number,draw:(c:CanvasRenderingContext2D)=>void){const el=document.createElement('canvas');el.width=w;el.height=h;draw(el.getContext('2d')!);const t=new THREE.CanvasTexture(el);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;}
 /**
  * 不会动的零件按材质合并成一个网格（相对 base 的坐标）：几百个小零件各画一次太慢，
@@ -37,4 +35,4 @@ export function mergeStatic(base:THREE.Object3D,dynamic:ReadonlySet<THREE.Object
     for(const m of meshes)m.removeFromParent();
     const one=new THREE.Mesh(merged,material);one.castShadow=cast;one.receiveShadow=true;base.add(one);}
 }
-export function teamColor(side:string){return side==='pro'?'#1f3f86':side==='con'?'#7e2420':'#4b5058';}
+export function teamColor(side:string){return side==='pro'?'#3d8bff':side==='con'?'#ff4d9a':'#f0c84a';}

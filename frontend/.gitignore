@@ -6,3 +6,6 @@ server-dist
 .env.production
 
 *.log
+
+# 视觉验收的截图和对比页（scripts/mc-shots.mjs 生成，体积大，不提交）
+.shots/

@@ -8,14 +8,14 @@ export interface Validation {checks:Record<string,number>;errors:string[]}
 /** 房间检查（第 4.7 节，第二轮加上写实物品）：方块合法、有依托、连接正确，人和视线不被挡，两队对称，光照够亮。 */
 export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atlas'>):Validation {
   const errors:string[]=[],checks:Record<string,number>={states:0,supports:0,connections:0,positions:0,mirror:0,camera:0,light:0,props:0};
-  const roomBlocks=[...room.blocks,...room.ceiling];
+  const cut=room.cutaway??[],roomBlocks=[...room.blocks,...cut,...room.ceiling];
   const cells=new Map(roomBlocks.map(b=>[key(b.x,b.y,b.z),b]));
   const boxes:Array<{name:string;box:THREE.Box3;soft?:boolean;cutaway?:boolean;obb?:OBB}>=[];
   const hitsRay=(b:{box:THREE.Box3;obb?:OBB},ray:THREE.Ray)=>b.obb?b.obb.intersectRay(ray,new THREE.Vector3()):ray.intersectBox(b.box,new THREE.Vector3());
   const solid=(x:number,y:number,z:number)=>fullBlock(cells.get(key(x,y,z)));
   const support=(b:Block,ok:boolean)=>{checks.supports++;if(!ok)errors.push('缺少依托 '+b.id+' '+key(b.x,b.y,b.z));};
-  for(const b of [...room.blocks,...room.ceiling]){
-    try{for(const ref of blockModels(assets,b)){const model=resolveModel(assets.models,ref.model);for(const e of model.elements??[]){for(const face of Object.values(e.faces)){const t=resolveTexture(model,face.texture);if(!assets.atlas.textures[t])errors.push('缺少贴图 '+t+'（房间改过以后要重新运行 npm run mc:import）');}const ps:number[][]=[];for(const x of [e.from[0],e.to[0]])for(const y of [e.from[1],e.to[1]])for(const z of [e.from[2],e.to[2]])ps.push([x/16,y/16,z/16]);boxes.push({name:b.id+' '+key(b.x,b.y,b.z),soft:b.id.endsWith('carpet'),cutaway:room.ceiling.includes(b),box:new THREE.Box3().setFromPoints(ps.map(p=>transformPoint(p,e,ref).add(new THREE.Vector3(b.x,b.y,b.z))))});} }checks.states++;}catch(e){errors.push(String(e));}
+  for(const b of roomBlocks){
+    try{for(const ref of blockModels(assets,b)){const model=resolveModel(assets.models,ref.model);for(const e of model.elements??[]){for(const face of Object.values(e.faces)){const t=resolveTexture(model,face.texture);if(!assets.atlas.textures[t])errors.push('缺少贴图 '+t+'（房间改过以后要重新运行 npm run mc:import）');}const ps:number[][]=[];for(const x of [e.from[0],e.to[0]])for(const y of [e.from[1],e.to[1]])for(const z of [e.from[2],e.to[2]])ps.push([x/16,y/16,z/16]);boxes.push({name:b.id+' '+key(b.x,b.y,b.z),soft:b.id.endsWith('carpet'),cutaway:room.ceiling.includes(b)||cut.includes(b),box:new THREE.Box3().setFromPoints(ps.map(p=>transformPoint(p,e,ref).add(new THREE.Vector3(b.x,b.y,b.z))))});} }checks.states++;}catch(e){errors.push(String(e));}
     const below=cells.get(key(b.x,b.y-1,b.z)),above=cells.get(key(b.x,b.y+1,b.z));
     if(b.id==='lantern')support(b,b.props.hanging==='true'?!!above&&(fullBlock(above)||above.id==='iron_chain'||above.id.endsWith('fence')||above.id.endsWith('log')):!!below);
     if(b.id==='iron_chain')support(b,!!above);
@@ -37,9 +37,11 @@ export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atl
   for(const b of (room.kind&&room.kind!=='debate'?[]:room.blocks).filter(b=>b.x>=1&&b.x<mirrorX/2&&b.z>=2&&b.z<=9)){checks.mirror++;const other=cells.get(key(mirrorX-b.x,b.y,b.z));const props={...b.props};if(b.props.east!==undefined){props.east=b.props.west;props.west=b.props.east;}for(const p of ['facing']){if(props[p]==='east')props[p]='west';else if(props[p]==='west')props[p]='east';}const str=(o:Record<string,string>)=>JSON.stringify(Object.entries(o).sort());if(other?.id!==b.id.replace('blue','red')||str(other.props)!==str(props))errors.push('两队不对称 '+key(b.x,b.y,b.z));}
   // 默认机位要能看到七个人的头，以及辩题板的四个角。
   const eye=new THREE.Vector3(...room.camera),sc=room.layout.board;
-  if(room.camera.some((v,i)=>v<=room.bounds.min[i]+.18||v>=room.bounds.max[i]-.18))errors.push('默认机位不在室内净空间');
+  // 剖面俯视的房间：默认机位在屋外高处，天花板和朝镜头的墙在这个视角里藏起来，不算遮挡。
+  const opened=!!room.cutaway;
+  if(!opened&&room.camera.some((v,i)=>v<=room.bounds.min[i]+.18||v>=room.bounds.max[i]-.18))errors.push('默认机位不在室内净空间');
   const targets=[...room.anchors.map((a,i)=>(room.kind?room.standingSeats?.includes(i):a.seat===a.stand)?new THREE.Vector3(a.stand[0],a.stand[1]+1.62,a.stand[2]):new THREE.Vector3(a.seat[0],a.seat[1]+1.15,a.seat[2])),...[-1,1].flatMap(x=>[-1,1].map(y=>new THREE.Vector3(sc.position[0]+x*(sc.width/2-.05),sc.position[1]+y*(sc.height/2-.05),sc.position[2]+.04)))];
-  for(const target of targets){checks.camera++;const direction=target.clone().sub(eye),dist=direction.length();const ray=new THREE.Ray(eye,direction.normalize());const hits=boxes.filter(b=>{const hit=hitsRay(b,ray);return hit&&hit.distanceTo(eye)<dist-.05;});if(hits.length)errors.push('镜头遮挡 '+target.toArray().map(n=>n.toFixed(2))+' '+hits.map(b=>b.name).join(';'));}
+  for(const target of targets){checks.camera++;const direction=target.clone().sub(eye),dist=direction.length();const ray=new THREE.Ray(eye,direction.normalize());const hits=boxes.filter(b=>{if(opened&&b.cutaway)return false;const hit=hitsRay(b,ray);return hit&&hit.distanceTo(eye)<dist-.05;});if(hits.length)errors.push('镜头遮挡 '+target.toArray().map(n=>n.toFixed(2))+' '+hits.map(b=>b.name).join(';'));}
   const lights=propagate(roomBlocks);for(const a of room.anchors)for(const p of [a.seat,a.stand]){checks.light++;const values=lights.sample(p[0],p[1]+1,p[2]);if(Math.max(...values)<9)errors.push('人物位置光照不足 '+p+' '+values);}
   return {checks,errors};
 }

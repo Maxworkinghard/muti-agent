@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import type {PropMaterials} from './materials';
 import {mesh,rbox} from './geometry';
 /** 北墙上的风景画，使用细灰框，保留游戏贴图。 */
@@ -12,7 +12,7 @@ export function createWallArt(m:PropMaterials,art:THREE.Texture){
   return g;
 }
 /** 桌面保留笔记本和小盆栽，留出开麦、书写和扶桌的位置。 */
-const BOOKS={pro:['#3e6d9a','#e7c96a','#b15546'],con:['#b15546','#3f8f62','#e7c96a'],judge:['#7a5b8a','#6b4a37','#3e6d9a']};
+const BOOKS={pro:['#3d8bff','#f0c84a','#ff4d9a'],con:['#ff4d9a','#3dba6e','#f0c84a'],judge:['#9b6fe0','#d4a86a','#3d8bff']};
 export function createTableDecor(m:PropMaterials,side:'pro'|'con'|'judge',endX:number){
   const g=new THREE.Group();
   let seed=side==='pro'?3:side==='con'?5:9;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};

@@ -1,4 +1,4 @@
-import type { SceneDef, SceneId, Seat } from '../types';
+import type { SceneDef, SceneId } from '../types';
 
 // 坐标是座位中心在 1536x1024 底图上的百分比位置
 const p = (x: number, y: number) => ({ x: +(x / 15.36).toFixed(2), y: +(y / 10.24).toFixed(2) });
@@ -100,7 +100,7 @@ export const SCENES: Record<string, SceneDef> = {
     ...ORIGINAL_SCENES.debate,
     id: 'debate-mc', name: '辩论室 · 我的世界', sourceSceneId: 'debate', mcStage: 'debate',
     previewImage: '/mc/preview-debate.jpg',
-    description: '《我的世界》里的辩论室：发言人按话筒开麦、舞台灯跟着照，主持按铃换轮，辩题屏展示讨论进度，情绪会冒粒子',
+    description: '《我的世界》里的辩论室：正反两方隔着场地对坐，发言人按话筒开麦，主持按铃换轮，辩题板展示讨论进度，情绪会冒粒子',
   },
   ...Object.fromEntries((['roundtable','office','classroom','meadow','podcast'] as const).map(sourceId=>{
     const source=ORIGINAL_SCENES[sourceId];

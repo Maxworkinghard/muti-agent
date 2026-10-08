@@ -8,7 +8,7 @@ import {RoomPhysics,type BodyObstacle} from './rooms/physics';
  * 自由视角（第 12.13 节）：评委席上的“你”站起来，WASD 在辩论室里走动，镜头像游戏 F5 的第三人称跟在身后。
  * 走路有重力和起伏，0.6 米以内的台阶直接迈上去，被挡住沿墙滑开，出不了辩论室；F5 切三种人称，Esc 退出走回座位。
  */
-const WALK=4.3,RUN=5.6,SNEAK=1.3,JUMP=7.6,GRAVITY=22,UP=new THREE.Vector3(0,1,0);
+const WALK=4.3,RUN=5.6,SNEAK=1.3,JUMP=7.6,GRAVITY=22;
 export class FreeView {
   root=new THREE.Group();head=new THREE.Vector3();active=false;mode=0;distance=3.2;
   private pos=new THREE.Vector3(8,1,11.6);

@@ -1,3 +1,4 @@
+import { sourceTextures } from './mc-textures.mjs';
 // 高清材质：取房间与天花板用到的方块贴图，缺少的用原版补齐。
 // 同时生成法线贴图（亮度做 Sobel）和粗糙度/金属度贴图（按材质类别查表），三张图位置一一对应。
 import fs from 'node:fs/promises';
@@ -20,7 +21,7 @@ function material(name) {
 }
 
 /** 收集礼堂用到的方块贴图：用游戏自己的方块状态和模型解析，和渲染走同一套代码。 */
-async function usedTextures(root, states, models) {
+async function usedTextures(root, states, models, known) {
   const vite = await createServer({ root, configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
     const [{ buildMcRoom, MC_SCENE_KINDS }, model] = await Promise.all([
@@ -34,10 +35,13 @@ async function usedTextures(root, states, models) {
     used.add('block/redstone_lamp_on');
     // 运行时会切换状态的方块（灯笼等）两种状态都收。
     const variants = (b) => [b, ...(b.id === 'lantern' ? [{ ...b, props: { ...b.props, hanging: b.props.hanging === 'true' ? 'false' : 'true' } }] : [])];
-    for (const block of rooms.flatMap(room=>[...room.blocks,...room.ceiling])) for (const b of variants(block)) for (const ref of model.blockModels({ states }, b)) {
+    // 朝镜头那面墙（cutaway）也是房间方块，一起收。
+    for (const block of rooms.flatMap(room=>[...room.blocks,...room.ceiling,...(room.cutaway??[])])) for (const b of variants(block)) for (const ref of model.blockModels({ states }, b)) {
       const m = model.resolveModel(models, ref.model);
       for (const e of m.elements ?? []) for (const face of Object.values(e.faces)) used.add(model.resolveTexture(m, face.texture));
     }
+    // 道具直接用的方块贴图（家具、地毯、吊灯……），从源码里找。
+    for (const name of await sourceTextures(root, known)) used.add(name);
     return [...used].sort();
   } finally {
     await vite.close();
@@ -116,7 +120,7 @@ function pack(entries, padding) {
 }
 
 export async function buildHd({ root, output, jar, packPath, pack: zip, states, models, write, writeJson }) {
-  const used = await usedTextures(root, states, models);
+  const used = await usedTextures(root, states, models, new Set(Object.keys(jar).filter(n => /^assets\/minecraft\/textures\/block\/.+\.png$/.test(n)).map(n => n.slice('assets/minecraft/textures/'.length, -4))));
   const resolution = 64, entries = [], upscaled = [];
   for (const name of used) {
     const file = `assets/minecraft/textures/${name}.png`;
@@ -151,7 +155,7 @@ export async function buildHd({ root, output, jar, packPath, pack: zip, states, 
     const target='hd/textures/'+relative;await write(target,PNG.sync.write(hd));entities[relative]=target;
   }
   await write('hd/CREDITS.md', [
-    `# ${packName}`,
+    '# Faithful 64x（仅 Lab / ?material=hd 调试对比，**不是**产品默认）',
     '',
     '- 材质包：Faithful 64x（https://faithfulpack.net），从官方 Modrinth 页面下载',
     '- 许可：Faithful 许可（署名、附官网链接和许可原文、不得商用），原文见同目录 LICENSE.txt',

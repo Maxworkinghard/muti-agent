@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
+import {paintTile,type Painter} from './style';
 export interface ModelFace { texture: string; uv?: number[]; rotation?: number; cullface?: string; tintindex?: number }
 export interface ModelElement { from: number[]; to: number[]; rotation?: { origin: number[]; axis: 'x'|'y'|'z'; angle: number; rescale?: boolean }; shade?: boolean; light_emission?: number; faces: Record<string,ModelFace> }
 export interface Model { parent?: string; textures?: Record<string,string|{sprite:string;force_translucent?:boolean}>; elements?: ModelElement[]; ambientocclusion?: boolean; display?: Record<string,{rotation?:number[];translation?:number[];scale?:number[]}> }
@@ -7,7 +8,7 @@ export interface BlockState { variants?: Record<string,ModelRef|ModelRef[]>; mul
 export interface AtlasTile { x:number;y:number;width:number;height:number;alpha:'opaque'|'cutout'|'translucent';animation?:{width?:number;height?:number;frametime?:number;frames?:Array<number|{index:number;time:number}>;interpolate?:boolean} }
 export interface Atlas { width:number;height:number;textures:Record<string,AtlasTile> }
 export type MaterialPack='original'|'hd'|'style';
-export interface Manifest {version:string;jarSha1:string;blocks:string;items:string;atlas:string;atlasIndex:string;itemAtlas:string;itemAtlasIndex:string;font:string;textures:string[];sounds:Record<string,string[]>;counts:Record<string,number>;material?:MaterialPack}
+export interface Manifest {/** 叠加在原版上的材质包（mc-packs 里的 zip 名） */overlays?:string[];version:string;jarSha1:string;blocks:string;items:string;atlas:string;atlasIndex:string;itemAtlas:string;itemAtlasIndex:string;font:string;textures:string[];sounds:Record<string,string[]>;counts:Record<string,number>;material?:MaterialPack}
 interface HdManifest {pack:string;resolution:number;atlas:string;normal?:string;orm?:string;atlasIndex:string;textures:number;credit:string;entities?:Record<string,string>}
 export interface Assets {manifest:Manifest;states:Record<string,BlockState>;models:Record<string,Model>;itemModels:Record<string,Model>;items:Record<string,unknown>;atlas:Atlas;atlasTexture:THREE.Texture;
   /** 高清材质包的法线、粗糙度/金属度贴图；没有导入高清时为 null，方块按原版的平面材质画 */normalTexture:THREE.Texture|null;ormTexture:THREE.Texture|null;
@@ -37,11 +38,28 @@ function tileMipmaps(texture:THREE.Texture,atlas:Atlas){
   }
   texture.mipmaps=mipmaps;texture.generateMipmaps=false;texture.needsUpdate=true;
 }
-export async function loadAssets(progress:(n:number,s:string)=>void,anisotropy=1,material?:MaterialPack,extraTextures:string[]=[]):Promise<Assets>{
+/**
+ * 按房间的色板重画用到的方块贴图：画进图集原来的位置，四周 2 像素的边也照着补，缩小采样时不串色。
+ * 只改这一次加载的图集，游戏原始资源不动。
+ */
+function applyPaint(texture:THREE.Texture,atlas:Atlas,paint:Record<string,Painter>){
+  const image=texture.image as HTMLImageElement,canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+  const c=canvas.getContext('2d')!;c.imageSmoothingEnabled=false;c.drawImage(image,0,0);
+  for(const [name,painter] of Object.entries(paint)){
+    const t=atlas.textures[name];if(!t)continue;const w=t.width,tile=paintTile(painter,16);
+    c.clearRect(t.x-2,t.y-2,w+4,w+4);c.drawImage(tile,t.x,t.y,w,w);
+    c.drawImage(canvas,t.x,t.y,1,w,t.x-2,t.y,2,w);c.drawImage(canvas,t.x+w-1,t.y,1,w,t.x+w,t.y,2,w);
+    c.drawImage(canvas,t.x-2,t.y,w+4,1,t.x-2,t.y-2,w+4,2);c.drawImage(canvas,t.x-2,t.y+w-1,w+4,1,t.x-2,t.y+w,w+4,2);
+  }
+  texture.image=canvas;texture.needsUpdate=true;
+}
+export async function loadAssets(progress:(n:number,s:string)=>void,anisotropy=1,material?:MaterialPack,extraTextures:string[]=[],paint?:Record<string,Painter>):Promise<Assets>{
   progress(.05,'读取方块');let manifest:Manifest;
   try{manifest=await getJson<Manifest>('manifest.json');}catch{throw new Error('还没导入游戏资源：在 frontend 目录运行 npm run mc:import');}
-  // 高清材质可选：读不到就用原版，不报错（第 11.3 节）。
-  const chosen=material??manifest.material??'hd';
+  // 高清材质可选：读不到就用原版，不报错（第 11.3 节）。房间自带色板时用原版 16×16 的格子重画，不叠写实凹凸。
+  const requested=material??manifest.material??'style';
+  // 房间自带 paint 时不用 HD 法线凹凸；style/original 可叠加 paint。Lab 仍可用 ?material=hd|original|style。
+  const chosen=paint&&requested==='hd'?'original':requested;
   const hd=chosen==='original'?null:await optionalPack('hd');
   const style=chosen==='style'?await optionalPack('style'):null;
   const pack=style??hd;
@@ -51,9 +69,10 @@ export async function loadAssets(progress:(n:number,s:string)=>void,anisotropy=1
   used.push(...extraTextures.filter(p=>!used.includes(p)));
   const [atlasTexture,itemTexture,normalTexture,ormTexture,...images]=await Promise.all([texture(loader,pack?pack.atlas:manifest.atlas),texture(loader,manifest.itemAtlas),pack?.normal?texture(loader,pack.normal,false):Promise.resolve(null),pack?.orm?texture(loader,pack.orm,false):Promise.resolve(null),...used.map(p=>texture(loader,hd?.entities?.[p]??'textures/'+p))]);
   const textures=new Map(used.map((p,i)=>[p,images[i]]));progress(.55,'生成光照');
+  if(paint)applyPaint(atlasTexture,atlas,paint);
   for(const t of [atlasTexture,normalTexture,ormTexture]){if(!t)continue;tileMipmaps(t,atlas);t.minFilter=pack===hd&&hd?THREE.LinearMipmapLinearFilter:THREE.NearestMipmapNearestFilter;t.anisotropy=pack===hd&&hd?anisotropy:1;}
   tileMipmaps(itemTexture,itemAtlas);
   const font=new FontFace('MCFont','url(/mc/'+manifest.font+')');await font.load();document.fonts.add(font);
   const lightTexture=new THREE.DataTexture(new Uint8Array(16*16*4),16,16);lightTexture.colorSpace=THREE.NoColorSpace;lightTexture.magFilter=THREE.LinearFilter;lightTexture.minFilter=THREE.LinearFilter;
-  return {manifest,...blocks,itemModels:items.models,items:items.items,atlas,atlasTexture,normalTexture,ormTexture,credit:pack?.credit??'原版 16×16',itemAtlas,itemTexture,textures,lightTexture,dispose(){for(const t of [atlasTexture,itemTexture,normalTexture,ormTexture])t?.dispose();lightTexture.dispose();textures.forEach(t=>t.dispose());document.fonts.delete(font);}};
+  return {manifest,...blocks,itemModels:items.models,items:items.items,atlas,atlasTexture,normalTexture,ormTexture,credit:paint?null:pack?.credit??['原版 16×16',...(manifest.overlays??[]).map(o=>o.replace(/\.zip$/,'').replace(/-/g,' '))].join(' · '),itemAtlas,itemTexture,textures,lightTexture,dispose(){for(const t of [atlasTexture,itemTexture,normalTexture,ormTexture])t?.dispose();lightTexture.dispose();textures.forEach(t=>t.dispose());document.fonts.delete(font);}};
 }

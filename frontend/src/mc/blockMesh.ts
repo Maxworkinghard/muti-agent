@@ -5,7 +5,9 @@ import type {LightGrid} from './light';
 interface AnimationFace {vertex:number;tile:Assets['atlas']['textures'][string];coords:number[][]}
 interface Batch {position:number[];uv:number[];color:number[];normal:number[];light:number[];ao:number[];index:number[];animations:AnimationFace[]}
 /** 方块的公用着色参数：游戏光照网格（方块光、天光）当作间接光，强度可以整体调。 */
-export interface BlockShading {lightMap:THREE.Texture;indirect:{value:number};direct:{value:number}}
+/** 游戏里不按生物群系染色的方块：材质包的模型就算带了染色编号也不染（樱花、杜鹃、苍白橡树的叶子本来就是自己的颜色）。 */
+const UNTINTED=/^(cherry|azalea|flowering_azalea|pale_oak)_leaves$/;
+export interface BlockShading {lightMap:THREE.Texture;indirect:{value:number};direct:{value:number};/** false：不按生物群系给草和树叶染色（新画风的贴图已经画好了颜色） */tint?:boolean;/** 染色用的颜色，不设就用原版平原 */colors?:{grass?:string;foliage?:string;birch?:string;spruce?:string}}
 /** 游戏原版的顶点环境光遮蔽：两侧都被挡住时最暗，按挡住的格数分四档。 */
 const AO_LEVELS=[.42,.62,.8,1];
 function vertexAo(cells:Map<string,Block>,b:Block,normal:THREE.Vector3,p:THREE.Vector3){
@@ -41,7 +43,7 @@ export function buildBlockMesh(blocks:Block[],assets:Assets,light:LightGrid,shad
       const rotation=((f.rotation??0)/90+(ref.uvlock&&Math.abs(normal.y)>.5?(ref.y??0)/90:0))%4;coords=coords.map((_,i)=>coords[(i+rotation)%4]);
       if(ref.uvlock){coords=points.map(p=>{const x=(p.x-b.x)*16,y=(p.y-b.y)*16,z=(p.z-b.z)*16;return Math.abs(normal.y)>.5?[x,normal.y>0?z:16-z]:Math.abs(normal.x)>.5?[normal.x>0?16-z:z,16-y]:[normal.z>0?x:16-x,16-y];});}
       if(tile.animation)batch.animations.push({vertex:base,tile,coords});
-      const tint=new THREE.Color(f.tintindex===undefined?'#ffffff':b.id.includes('birch')?'#80A755':b.id.includes('spruce')?'#619961':b.id.includes('leaves')?'#77AB2F':'#91BD59');
+      const tc=shading.colors??{},tint=new THREE.Color(f.tintindex===undefined||shading.tint===false||UNTINTED.test(b.id)?'#ffffff':b.id==='lily_pad'?'#208030':b.id.includes('birch')?tc.birch??'#80A755':b.id.includes('spruce')?tc.spruce??'#619961':b.id.includes('leaves')?tc.foliage??'#77AB2F':tc.grass??'#91BD59');
       // 方块完整贴在格子边界上的面用原版的顶点遮蔽；楼梯、灯笼等内部的面按周围取样。
       const onBoundary=points.every(p=>[p.x,p.y,p.z].some((v,i)=>Math.abs(normal.getComponent(i))>.5&&Math.abs(v-Math.round(v))<1e-4));
       for(let i=0;i<4;i++){
