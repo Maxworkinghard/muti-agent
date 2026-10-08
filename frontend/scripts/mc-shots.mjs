@@ -5,6 +5,7 @@
 // 先开开发服务：npm run dev（默认端口 5180）。然后：
 //   node scripts/mc-shots.mjs shoot <标签> [房间 ...] [--material=original,hd,style] [--shots=overview,fixed,...]
 //   node scripts/mc-shots.mjs compare <改前标签> <改后标签>
+//   node scripts/mc-shots.mjs lab <标签> [镜头 ...]   拍 avatar-lab.html（Q 版人物 / 椅子 / 地面实验台），镜头名见 LAB_SHOTS
 //   --v=2 拍 src/mc/v2 的重建场景（页面带 &v=2，机位用 cams.json 里的 <房间>@v2，文件名带 -v2）
 //   --quality=high|medium 画质档（默认 high）
 // 照片在 frontend/.shots/<标签>/，对比页是 frontend/.shots/compare-<改前>-<改后>.html。
@@ -120,6 +121,45 @@ async function shoot(label, rooms) {
   }
 }
 
+/** avatar-lab.html 的镜头：名字 → 页面参数。照片在 .shots/<标签>/lab-<名字>.png。 */
+const LAB_SHOTS = {
+  'rt-front': 'mode=row&group=roundtable&view=front', 'rt-side': 'mode=row&group=roundtable&view=side', 'rt-back': 'mode=row&group=roundtable&view=back', 'rt-34': 'mode=row&group=roundtable&view=34', 'rt-sit': 'mode=row&group=roundtable&pose=sit&view=34',
+  'emotion-front': 'mode=row&group=emotion&view=front', 'ent-front': 'mode=row&group=ent&view=front', 'product-front': 'mode=row&group=product&view=front', 'all-front': 'mode=row&group=all&view=front', 'all-sit': 'mode=row&group=all&pose=sit&view=34',
+  'expr-rt-a': 'mode=expr&ids=math-intuitionist-001,skeptic-001,socratic-questioner-001,pragmatic-philosopher-001', 'expr-rt-b': 'mode=expr&ids=logic-analyst-001,jie-mo,hao-hao,leng-cui', 'expr-emotion': 'mode=expr&ids=fu-du-ji,shu-dong,nuan-bao-bao,pao-zhang',
+  'poses': 'mode=poses&id=jie-mo&view=34', 'chairs-34': 'mode=chairs&view=34', 'chairs-side': 'mode=chairs&view=side', 'chairs-front': 'mode=chairs&view=front', 'floors': 'mode=floors',
+};
+async function lab(label, names) {
+  const out = path.join(shotsDir, label); fs.mkdirSync(out, { recursive: true });
+  const cdp = 9400 + Math.floor(Math.random() * 400), profile = path.join(tmpdir(), 'mc-shots-lab-' + process.pid);
+  const chrome = spawn(process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--no-first-run', '--disable-extensions', '--mute-audio', '--user-data-dir=' + profile, '--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader', '--hide-scrollbars', '--window-size=1520,1100', '--remote-debugging-port=' + cdp, 'about:blank'], { stdio: 'ignore', windowsHide: true });
+  let ws;
+  try {
+    let target;
+    for (let i = 0; i < 80 && !target; i++) { try { target = (await (await fetch(`http://127.0.0.1:${cdp}/json/list`)).json()).find(t => t.type === 'page'); } catch {} if (!target) await sleep(250); }
+    if (!target) throw new Error('无头浏览器没有启动（可以用 CHROME_PATH 指定 chrome.exe）');
+    ws = new WebSocket(target.webSocketDebuggerUrl); await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+    let id = 0; const pending = new Map(), logs = [];
+    ws.onmessage = e => { const m = JSON.parse(e.data); if (m.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(m.params.type)) logs.push(m.params.type + ': ' + m.params.args.map(a => a.value ?? a.description).join(' ')); if (m.method === 'Runtime.exceptionThrown') logs.push('exception: ' + m.params.exceptionDetails.exception?.description); const r = pending.get(m.id); if (!r) return; pending.delete(m.id); m.error ? r.reject(new Error(JSON.stringify(m.error))) : r.resolve(m.result); };
+    const send = (method, params = {}) => new Promise((resolve, reject) => { const rid = ++id; pending.set(rid, { resolve, reject }); ws.send(JSON.stringify({ id: rid, method, params })); });
+    const evaluate = async expr => { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? '页面脚本出错'); return r.result?.value; };
+    await send('Page.enable'); await send('Runtime.enable');
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 960, deviceScaleFactor: 1, mobile: false });
+    for (const name of names) {
+      const query = LAB_SHOTS[name] ?? name; logs.length = 0; const t0 = Date.now();
+      await send('Page.navigate', { url: `http://localhost:${port}/avatar-lab.html?${query}&shot` });
+      let ready = false; for (let i = 0; i < 160 && !ready; i++) { await sleep(250); ready = await evaluate('!!window.__labReady').catch(() => false); }
+      await sleep(300);
+      const png = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1440, height: 960, scale: 1 } });
+      const file = path.join(out, `lab-${name.replace(/[^\w.-]+/g, '_')}.png`); fs.writeFileSync(file, Buffer.from(png.data, 'base64'));
+      console.log(JSON.stringify({ name, ready, ms: Date.now() - t0, file: path.relative(root, file), logs: logs.filter(l => !/\[personas\]/.test(l)).slice(0, 6) }));
+    }
+  } finally {
+    try { ws?.close(); } catch {}
+    chrome.kill(); await sleep(500);
+    try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
+  }
+}
+
 /** 并排对比页：每个房间、每种贴图、每个镜头一行，左边改前、右边改后，下面列出统计。 */
 function compare(a, b) {
   const tags = new Set(); for (const label of [a, b]) for (const f of fs.existsSync(path.join(shotsDir, label)) ? fs.readdirSync(path.join(shotsDir, label)) : []) { const m = f.match(/^(.+)-metrics\.json$/); if (m) tags.add(m[1]); }
@@ -142,4 +182,5 @@ function compare(a, b) {
 
 if (rest[0] === 'shoot' && rest[1]) await shoot(rest[1], rest.slice(2).length ? rest.slice(2) : ROOMS);
 else if (rest[0] === 'compare' && rest[1] && rest[2]) compare(rest[1], rest[2]);
-else console.log('用法：node scripts/mc-shots.mjs shoot <标签> [房间 ...] [--material=room,original,hd,style] [--shots=overview,fixed,...]\n      node scripts/mc-shots.mjs compare <改前标签> <改后标签>');
+else if (rest[0] === 'lab' && rest[1]) await lab(rest[1], rest.slice(2).length ? rest.slice(2) : Object.keys(LAB_SHOTS));
+else console.log('用法：node scripts/mc-shots.mjs shoot <标签> [房间 ...] [--material=room,original,hd,style] [--shots=overview,fixed,...]\n      node scripts/mc-shots.mjs compare <改前标签> <改后标签>\n      node scripts/mc-shots.mjs lab <标签> [' + Object.keys(LAB_SHOTS).join('|') + ' ...]');

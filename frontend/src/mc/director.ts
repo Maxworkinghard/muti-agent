@@ -2,6 +2,7 @@ import type {AgentState,ChatMessage,DiscussionResult,EngineEvent,MindView,Partic
 import {readMs} from '../data/stageRules';
 import type {Room,ActorAnchor} from './rooms/debate';
 import type {Point} from './rooms/builders';
+import {SCALE} from './design/scale';
 export type Session='waiting'|'running'|'paused'|'finished'|'stopped';
 export type Target='camera'|'bell'|'lectern'|{agent:string};
 /** mic：按自己话筒底座的按钮；nextRound：主持按讲台上的「下一轮」；tapBell：拍讲台上的桌铃；flipScript：翻一页讲稿。 */
@@ -24,7 +25,7 @@ const lerp=(a:Point,b:Point,t:number)=>a.map((n,i)=>n+(b[i]-n)*t) as Point;
 const ease=(n:number)=>n*n*(3-2*n);
 const angular=(a:number,b:number)=>Math.atan2(Math.sin(b-a),Math.cos(b-a));
 function phase(label:string){return /立论/.test(label)?0:/交锋|质询/.test(label)?1:2;}
-function targetPoint(target:Target,a:Actor,s:DirectorState,room:Room):Point {if(typeof target==='object'){const other=s.actors[target.agent];return other?[other.position[0],other.position[1]+1.62-other.sit*.578,other.position[2]]:room.judge;}const podium=room.layout.podium.position;return target==='camera'?room.judge:target==='bell'?[podium[0]+.4,podium[1]+1.03,podium[2]-.02]:[podium[0],podium[1]+1.12,podium[2]];}
+function targetPoint(target:Target,a:Actor,s:DirectorState,room:Room):Point {if(typeof target==='object'){const other=s.actors[target.agent];return other?[other.position[0],other.position[1]+SCALE.eyeStand-other.sit*SCALE.sitDrop,other.position[2]]:room.judge;}const podium=room.layout.podium.position;return target==='camera'?room.judge:target==='bell'?[podium[0]+.4,podium[1]+1.03,podium[2]-.02]:[podium[0],podium[1]+1.12,podium[2]];}
 function destination(a:Actor,action:Extract<Action,{kind:'walk'}>):Point{return action.to==='stand'?a.anchor.stand:a.anchor.seat;}
 function duration(a:Actor,action:Action,room:Room,reduced:boolean){if(action.kind==='signal')return 0;if(action.kind==='wait')return action.ms;if(reduced)return 0;return action.kind==='walk'?Math.max(180,distance(a.position,destination(a,action))/2.2*1000):action.kind==='crouch'?action.times*500:action.kind==='cheer'?1600:action.kind==='clap'?1400:action.kind==='flipScript'?500:300;}
 /** No timer, DOM, renderer or wall-clock reads. Caller owns the pausable stage clock. */

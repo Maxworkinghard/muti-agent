@@ -225,7 +225,7 @@ export function McStage3D(props:McStageProps){
           const speaker=Object.values(s.actors).find(a=>a.desired==='speaking'&&!a.error);if(!look&&viewRef.current==='overview'&&speaker&&players.get(speaker.id)){players.get(speaker.id)!.root.getWorldPosition(center);post.setFocus(cam.camera.position.distanceTo(center));}else post.setFocus(null);
           // 剖面俯视：镜头到了屋顶以上或墙外，就把天花板和朝镜头的墙藏起来。
           const opened=cutawayEye(cam.camera.position);ceiling.visible=!opened&&!galleryRef.current;front.visible=!opened&&!galleryRef.current;
-          const project=(id:string)=>{const p=players.get(id);if(!p)return null;const v=p.eye.clone().add(new THREE.Vector3(0,.45,0)).project(cam.camera);return {x:(v.x*.5+.5)*host.clientWidth,y:(-v.y*.5+.5)*host.clientHeight,depth:v.z,visible:v.z<1&&v.z>-1&&v.x>-1.1&&v.x<1.1&&v.y>-1.1&&v.y<1.1};};
+          const project=(id:string)=>{const p=players.get(id);if(!p)return null;const v=p.eye.clone().add(new THREE.Vector3(0,.62,0)).project(cam.camera);return {x:(v.x*.5+.5)*host.clientWidth,y:(-v.y*.5+.5)*host.clientHeight,depth:v.z,visible:v.z<1&&v.z>-1&&v.x>-1.1&&v.x<1.1&&v.y>-1.1&&v.y<1.1};};
           // 名字牌：先量尺寸再摆。离镜头近的先摆在头顶；挤在一起或压到辩题屏上的，先往本队外侧挪，挪不开再往上叠。
           // 上一帧的位置还能用就接着用，免得名字牌来回跳。
           const tags:Array<{id:string;el:HTMLElement;x:number;y:number;w:number;h:number;depth:number;out:number}>=[];

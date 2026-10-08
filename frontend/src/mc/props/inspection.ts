@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type {Room} from '../rooms/debate';
+import {SCALE} from '../design/scale';
 /** 仅供 mc-lab 拍物品与人物的比例近景，生产页面沿用全景/评委席/人物视角。 */
 export function inspectionCamera(kind:string,room:Room,index:number){
   if(room.kind&&room.kind!=='debate'){
@@ -11,7 +12,7 @@ export function inspectionCamera(kind:string,room:Room,index:number){
     return {pos:position.toArray() as [number,number,number],target:target.toArray() as [number,number,number],fov};
   }
   const a=room.anchors[index]??room.anchors[0],desk=room.layout.desk.find(d=>d.actor===index)??room.layout.desk[0],p=room.layout.podium.position;
-  let target=new THREE.Vector3(a.seat[0],a.stand[1]+1.15,a.seat[2]),distance=2.6,fov=42;
+  let target=new THREE.Vector3(a.seat[0],a.seat[1]+SCALE.eyeSit,a.seat[2]),distance=2.6,fov=42;
   const forward=new THREE.Vector3(Math.sin(a.homeYaw),0,Math.cos(a.homeYaw)),right=new THREE.Vector3(forward.z,0,-forward.x);
   let position=target.clone().addScaledVector(forward,distance).addScaledVector(right,.7);position.y+=.45;
   if(kind==='chair'){target.set(a.seat[0],a.stand[1]+.6,a.seat[2]);position=target.clone().addScaledVector(forward,-1.2).addScaledVector(right,1.6);position.y+=1;fov=48;}

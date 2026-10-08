@@ -4,6 +4,7 @@ import type {Assets} from '../assets';
 import {blockModels,resolveModel,resolveTexture,transformPoint,fullBlock,key,type Block} from '../blockModel';
 import {propagate} from '../light';
 import {propBoxes,type Room} from './debate';
+import {SCALE} from '../design/scale';
 export interface Validation {checks:Record<string,number>;errors:string[]}
 /** 房间检查（第 4.7 节，第二轮加上写实物品）：方块合法、有依托、连接正确，人和视线不被挡，两队对称，光照够亮。 */
 export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atlas'>):Validation {
@@ -29,8 +30,8 @@ export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atl
   for(const p of propBoxes(room)){checks.props++;const obb=new OBB(new THREE.Vector3(...p.center),new THREE.Vector3(...p.half),new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationY(p.yaw)));boxes.push({name:p.id,box:new THREE.Box3(),obb});}
   // 摆件的依托（第 12.12 节第 4 条）：桌面上的东西底面要贴着桌面（误差不超过 1 厘米）。
   for(const d of room.layout.desk)if(d.mic){const t=room.layout.tables.find(x=>x.side===d.side);if(t){checks.props++;if(Math.abs(d.mic[1]-(t.center[1]+t.height))>.01)errors.push('摆件悬空 '+d.id+' 桌面 '+(t.center[1]+t.height).toFixed(2)+' 东西 '+d.mic[1].toFixed(2));}}
-  // 人的身体按游戏人物的尺寸、跟着朝向转：连胳膊宽 0.8 米，前后 0.4 米。
-  const body=(point:number[],yaw:number,sitting=false)=>{const lo=sitting?.12:.08,hi=sitting?1.25:1.87;return new OBB(new THREE.Vector3(point[0],point[1]+(lo+hi)/2,point[2]),new THREE.Vector3(.4,(hi-lo)/2,.2),new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationY(yaw)));};
+  // 人的身体按 Q 版人物的尺寸、跟着朝向转：连头发宽 0.8 米，躯干和腿前后 0.4 米（大头会伸出去，不算）；高度仍按旧骨架的上限（包得住新的头发和帽子）。
+  const body=(point:number[],yaw:number,sitting=false)=>{const lo=sitting?.12:.08,hi=sitting?1.25:1.87;return new OBB(new THREE.Vector3(point[0],point[1]+(lo+hi)/2,point[2]),new THREE.Vector3(SCALE.bodyHalfX,(hi-lo)/2,SCALE.bodyHalfZ),new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationY(yaw)));};
   const checkPoint=(point:number[],yaw:number,name:string,sitting=false)=>{checks.positions++;const box=body(point,yaw,sitting);const hits=boxes.filter(b=>!b.soft&&(b.obb?b.obb.intersectsOBB(box):box.intersectsBox3(b.box)));if(hits.length)errors.push(name+' 碰撞 '+hits.map(b=>b.name).join(';'));};
   room.anchors.forEach((a,i)=>{const host=room.kind?!!room.standingSeats?.includes(i):a.seat===a.stand;checkPoint(a.seat,a.homeYaw,'座位'+i,!host);checkPoint(a.stand,a.homeYaw,'站位'+i);if(!host)for(let t=0;t<=1;t+=.1)checkPoint(a.seat.map((n,k)=>n+(a.stand[k]-n)*t),a.homeYaw,'起身'+i);});
   const mirrorX=room.bounds.min[0]+room.bounds.max[0]-1;
@@ -40,7 +41,7 @@ export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atl
   // 剖面俯视的房间：默认机位在屋外高处，天花板和朝镜头的墙在这个视角里藏起来，不算遮挡。
   const opened=!!room.cutaway;
   if(!opened&&room.camera.some((v,i)=>v<=room.bounds.min[i]+.18||v>=room.bounds.max[i]-.18))errors.push('默认机位不在室内净空间');
-  const targets=[...room.anchors.map((a,i)=>(room.kind?room.standingSeats?.includes(i):a.seat===a.stand)?new THREE.Vector3(a.stand[0],a.stand[1]+1.62,a.stand[2]):new THREE.Vector3(a.seat[0],a.seat[1]+1.15,a.seat[2])),...[-1,1].flatMap(x=>[-1,1].map(y=>new THREE.Vector3(sc.position[0]+x*(sc.width/2-.05),sc.position[1]+y*(sc.height/2-.05),sc.position[2]+.04)))];
+  const targets=[...room.anchors.map((a,i)=>((room.kind?room.standingSeats?.includes(i):a.seat===a.stand)||Math.abs(a.seat[1]-a.stand[1])<.01)?new THREE.Vector3(a.stand[0],a.stand[1]+SCALE.eyeStand,a.stand[2]):new THREE.Vector3(a.seat[0],a.seat[1]+SCALE.eyeSit,a.seat[2])),...[-1,1].flatMap(x=>[-1,1].map(y=>new THREE.Vector3(sc.position[0]+x*(sc.width/2-.05),sc.position[1]+y*(sc.height/2-.05),sc.position[2]+.04)))];
   for(const target of targets){checks.camera++;const direction=target.clone().sub(eye),dist=direction.length();const ray=new THREE.Ray(eye,direction.normalize());const hits=boxes.filter(b=>{if(opened&&b.cutaway)return false;const hit=hitsRay(b,ray);return hit&&hit.distanceTo(eye)<dist-.05;});if(hits.length)errors.push('镜头遮挡 '+target.toArray().map(n=>n.toFixed(2))+' '+hits.map(b=>b.name).join(';'));}
   const lights=propagate(roomBlocks);for(const a of room.anchors)for(const p of [a.seat,a.stand]){checks.light++;const values=lights.sample(p[0],p[1]+1,p[2]);if(Math.max(...values)<9)errors.push('人物位置光照不足 '+p+' '+values);}
   return {checks,errors};

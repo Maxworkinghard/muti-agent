@@ -1,18 +1,23 @@
+import { EYE_SIT, EYE_STAND, SEAT_H, SIT_DROP } from '../avatar/rig';
 /**
- * 人物和家具的尺度。数字来自现有角色骨架和房间检查，不另起一套身高。
- * - 站立脚底 y=1，坐下时身体根在 1.5（validateRoom / sceneDirector 用这个判断坐姿）。
- * - 站立眼睛约 1.62，坐下眼睛约 1.15（镜头遮挡检查用的头高）。
- * - 身体半宽 0.4、半深 0.2（validateRoom 的碰撞箱）。
- * - 桌面 0.95：这个骨架坐下时前臂能平放；不要改成真实人类的 0.75，否则手会悬空。
+ * 人物和家具的尺度。数字来自 Q 版人物骨架（avatar/rig.ts）和房间检查，不另起一套身高。
+ * - 站立脚底 y=1，坐下时座位锚点在 1.5 = 地面 + 统一座面高 0.50（validateRoom / sceneDirector 用这个判断坐姿）。
+ * - 坐下时人物根点比锚点低 sitDrop（0.4167，旧骨架 0.578）。
+ * - 站立眼睛 1.1875（旧 1.62），坐下眼睛在锚点上方 0.771（旧检查用 1.15）：镜头遮挡检查和导演“看向某人”都用它。
+ * - 身体半宽 0.4、半深 0.2（validateRoom 的碰撞箱，一个盒子包整个人：取躯干和腿的深度，大头前后 0.58 会伸出去，不算碰撞）。
+ * - 桌面：旧场景仍是 0.95；Q 版人物坐着时 0.95 到肩膀，湖畔圆桌（v2）降到 0.78（见 v2/roundtable）。
  */
 export const SCALE = {
   standFoot: 1,
   sitRoot: 1.5,
-  eyeStand: 1.62,
-  eyeSit: 1.15,
+  seatHeight: SEAT_H,
+  sitDrop: SIT_DROP,
+  eyeStand: EYE_STAND,
+  eyeSit: EYE_SIT,
   bodyHalfX: 0.4,
   bodyHalfZ: 0.2,
   tableHeight: 0.95,
+  chibiTableHeight: 0.78,
   /** 圆桌边缘到座位根点。太近腿进桌，太远人像围着空地。 */
   roundGapMin: 0.28,
   roundGapMax: 0.62,
