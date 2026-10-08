@@ -5,6 +5,8 @@
 // 先开开发服务：npm run dev（默认端口 5180）。然后：
 //   node scripts/mc-shots.mjs shoot <标签> [房间 ...] [--material=original,hd,style] [--shots=overview,fixed,...]
 //   node scripts/mc-shots.mjs compare <改前标签> <改后标签>
+//   --v=2 拍 src/mc/v2 的重建场景（页面带 &v=2，机位用 cams.json 里的 <房间>@v2，文件名带 -v2）
+//   --quality=high|medium 画质档（默认 high）
 // 照片在 frontend/.shots/<标签>/，对比页是 frontend/.shots/compare-<改前>-<改后>.html。
 //
 // 每个房间拍的镜头：
@@ -27,6 +29,7 @@ const SHOTS = ['overview', 'fixed', 'judge', 'personA', 'personB', 'table', 'cha
 const NAMES = { overview: '默认全景', fixed: '固定机位', judge: '观摩位', personA: '人物视角 A', personB: '人物视角 B', table: '桌子近景', chair: '椅子近景', board: '话题板近景', hud: '产品画面' };
 const args = process.argv.slice(2), flags = Object.fromEntries(args.filter(a => a.startsWith('--')).map(a => a.slice(2).split('='))), rest = args.filter(a => !a.startsWith('--'));
 const port = Number(flags.port ?? process.env.PORT ?? 5180), SETTLE = Number(flags.settle ?? 5000);
+const V2 = flags.v === '2', VQ = V2 ? '&v=2' : '', QUALITY = ['high', 'medium', 'low'].includes(flags.quality) ? flags.quality : 'high';
 const cams = JSON.parse(fs.readFileSync(path.join(root, 'scripts/mc-shots.cams.json'), 'utf8'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -67,7 +70,7 @@ async function shoot(label, rooms) {
     await send('Emulation.setDeviceMetricsOverride', { width: 1480, height: 1000, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: `http://localhost:${port}/mc-lab.html?cover` }); await sleep(1500);
     // 固定用高档画质，免得软件渲染帧率低时自动降档。
-    await evaluate(`localStorage.setItem('mc-stage-quality-v2', 'high'); true`);
+    await evaluate(`localStorage.setItem('mc-stage-quality-v2', ${JSON.stringify(QUALITY)}); true`);
     const waitLoaded = async selector => { let state = null; for (let i = 0; i < 400; i++) { await sleep(250); state = await evaluate(`(() => { const c = document.querySelector('.mc-canvas'); const err = document.querySelector(${JSON.stringify(selector)}); return { loaded: !!c && !document.querySelector('.mc-loading') && !!c.dataset.loadedMs && !!window.__mcStage, error: err?.textContent ?? null }; })()`).catch(() => null); if (state?.error || state?.loaded) break; } return state; };
     const capture = async (file, selector) => { const rect = await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`); const png = await send('Page.captureScreenshot', { format: 'png', clip: { x: rect.x, y: rect.y, width: rect.w, height: rect.h, scale: 1 } }); fs.writeFileSync(file, Buffer.from(png.data, 'base64')); };
     const cameraInfo = `(() => { const c = window.__mcStage.camera; const d = c.getWorldDirection(c.position.clone()); const t = c.position.clone().addScaledVector(d, 10); return { pos: c.position.toArray().map(v => +v.toFixed(3)), target: t.toArray().map(v => +v.toFixed(3)), fov: +c.fov.toFixed(2) }; })()`;
@@ -83,8 +86,8 @@ async function shoot(label, rooms) {
     const setInspect = v => evaluate(`(() => { const sel = [...document.querySelectorAll('.mc-lab-controls select')].find(s => [...s.options].some(o => o.value === 'board')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, ${JSON.stringify(v)}); sel.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
     const summary = [];
     for (const room of rooms) for (const material of materials) {
-      logs.length = 0; const t0 = Date.now(), tag = material === 'room' ? room : `${room}@${material}`, metrics = { room, material, shots: {} };
-      await send('Page.navigate', { url: `http://localhost:${port}/mc-lab.html?scene=${room}&cover${material === 'room' ? '' : '&material=' + material}` });
+      logs.length = 0; const t0 = Date.now(), tag = (material === 'room' ? room : `${room}@${material}`) + (V2 ? '-v2' : '') + (QUALITY === 'high' ? '' : '-' + QUALITY), cam = cams[V2 ? room + '@v2' : room], metrics = { room, material, shots: {} };
+      await send('Page.navigate', { url: `http://localhost:${port}/mc-lab.html?scene=${room}&cover${material === 'room' ? '' : '&material=' + material}${VQ}` });
       // 舞台放大到 1440×960 再拍。
       for (let i = 0; i < 40; i++) { const ok = await evaluate(`(() => { if (!document.head) return false; const st = document.createElement('style'); st.textContent = '.mc-lab-cover .mc-lab-stage{width:1440px!important;max-width:none!important}'; document.head.appendChild(st); return true; })()`).catch(() => false); if (ok) break; await sleep(100); }
       const state = await waitLoaded('.mc-lab-error');
@@ -92,8 +95,8 @@ async function shoot(label, rooms) {
       await evaluate(`(async () => { if (!window.__mcRaycaster) { const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('/.vite/deps/three.js')); window.__mcRaycaster = (await import(url)).Raycaster; } return true; })()`);
       const shot = async (name, prep) => { if (!want(name)) return; await prep?.(); await sleep(SETTLE); metrics.shots[name] = { camera: await evaluate(cameraInfo) }; const file = path.join(out, `${tag}-${name}.png`); await capture(file, '.mc-lab-stage'); if (name === 'overview' || name === 'fixed') { metrics.shots[name].people = await evaluate(people); metrics.shots[name].stats = imageStats(file); if (name === 'overview') metrics.shots[name].perf = await evaluate(`(() => { const s = window.__mcStage, info = s.renderer.info.render; return { calls: info.calls, triangles: info.triangles, loadedMs: +(document.querySelector('.mc-canvas')?.dataset.loadedMs) || null }; })()`); } };
       await shot('overview');
-      if (cams[room]?.fixed) { await shot('fixed', () => useCamera(cams[room].fixed)); await restoreCamera(); }
-      for (const c of cams[room]?.details ?? []) { await shot('detail-' + c.name, () => useCamera(c)); await restoreCamera(); }
+      if (cam?.fixed) { await shot('fixed', () => useCamera(cam.fixed)); await restoreCamera(); }
+      for (const c of cam?.details ?? []) { await shot('detail-' + c.name, () => useCamera(c)); await restoreCamera(); }
       await shot('judge', () => setView('judge'));
       const ids = await evaluate(`[...document.querySelector('.mc-views select').options].map(o => o.value).filter(v => v && v !== 'walk')`);
       await shot('personA', () => setView(ids[0])); if (ids.length > 1) await shot('personB', () => setView(ids[Math.floor(ids.length / 2)]));
@@ -101,7 +104,7 @@ async function shoot(label, rooms) {
       for (const v of ['table', 'chair', 'board']) await shot(v, () => setInspect(v));
       await setInspect('');
       if (material === 'room' && want('hud')) {
-        await send('Page.navigate', { url: `http://localhost:${port}/stage-lab.html?scene=${room}-mc` });
+        await send('Page.navigate', { url: `http://localhost:${port}/stage-lab.html?scene=${room}-mc${VQ}` });
         const s2 = await waitLoaded('.stage-lab-world [role=alert]');
         if (s2?.loaded) { await sleep(SETTLE); await capture(path.join(out, `${tag}-hud.png`), '.stage-lab-world'); metrics.shots.hud = {}; }
       }

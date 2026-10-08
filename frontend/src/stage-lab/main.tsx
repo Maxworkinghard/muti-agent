@@ -8,6 +8,8 @@ import './style.css';
 
 const scenes = Object.values(SCENES).filter((scene) => scene.mcStage);
 const requested = new URLSearchParams(location.search).get('scene');
+/** ?v=2 预览 src/mc/v2 的重建场景（没有新实现的场景仍是旧的） */
+const version = new URLSearchParams(location.search).get('v') === '2' ? 2 : 1;
 const colors = ['#4f9db8', '#b95c51', '#728d55', '#9f7cae', '#cc9954', '#66768b', '#947453', '#638f85'];
 
 function Lab() {
@@ -41,7 +43,7 @@ function Lab() {
       <option value={-1}>无人发言</option>{participants.map((p, i) => <option key={p.agentId} value={i}>{p.persona.name}</option>)}
     </select></label><a href="/">返回工作台</a></header>
     <section className="stage-lab-world stage-3d-ready" aria-label={scene.name}>
-      <McStage3D key={id} sceneKind={kind} participants={participants}
+      <McStage3D key={id} sceneKind={kind} version={version} participants={participants}
         status={Object.fromEntries(participants.map((p, i) => [p.agentId, { state: speaker === i ? 'speaking' as const : 'idle' as const, action: '' }]))}
         round={{ n: 1, label: '预览' }} totalRounds={1} session="running" messages={[]}
         minds={{}} focus={null} errors={[]} result={null} theme="3D 场景预览"

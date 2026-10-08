@@ -4,6 +4,7 @@ import type {AgentState,ChatMessage,DiscussionResult,EngineEvent,MindView,Partic
 import {loadAssets,type Assets,type MaterialPack} from '../mc/assets';
 import {buildBlockMesh,disposeObject,type BlockShading} from '../mc/blockMesh';
 import {buildMcRoom} from '../mc/rooms/scenes';
+import {buildMcRoomV2} from '../mc/v2/registry';
 import type {McSceneKind} from '../types';
 import {createStyledProps} from '../mc/props/styledProps';
 import {createSceneDirector,stepScene,type SceneDirectorState} from '../mc/sceneDirector';
@@ -33,7 +34,7 @@ import {StageCamera} from '../mc/camera';
 import {createDirector,step,teamColor,type DirectorState,type Input,type Session,type Outputs} from '../mc/director';
 import {Hud,identity} from '../mc/hud/Hud';
 export interface McStageProps {inspect?:string;inspectActor?:string;events?:readonly EngineEvent[];participants:Participant[];status:Record<string,{state:AgentState;action:string}>;round:{n:number;label:string};totalRounds:number;session:Session;messages:ChatMessage[];minds:Record<string,MindView>;focus:string|null;errors:Array<{id:string;agentId?:string;message:string}>;result:DiscussionResult|null;theme:string;muted:boolean;onFocus:(id:string|null)=>void;onLoaded:(error?:string)=>void;onStageDone:(kind:'round'|'speech',key:string)=>void;visible?:boolean;gallery?:boolean;onSnapshot?:(s:DirectorState,outputs:Outputs,stats:{fps:number;calls:number;loadedMs:number;quality:Quality})=>void;material?:MaterialPack}
-export interface McStageProps {sceneKind?:McSceneKind}
+export interface McStageProps {sceneKind?:McSceneKind;/** 场景实现版本：2 用 src/mc/v2 的重建场景（还没有新实现的场景照旧），不设就是旧场景 */version?:1|2}
 function storedQuality():Quality|null{try{return savedQuality(localStorage);}catch{return null;}}
 /** 按房间的光线设定摆太阳和半球光：太阳不再跟着辩论进度落山，屋里一直是明亮的白天。 */
 function applyLook(scene:THREE.Scene,env:Environment,look:Look,room:Room):THREE.Mesh|null {
@@ -60,7 +61,7 @@ function applyLook(scene:THREE.Scene,env:Environment,look:Look,room:Room):THREE.
 }
 export function McStage3D(props:McStageProps){
   const hostRef=useRef<HTMLDivElement>(null),latest=useRef(props);latest.current=props;
-  const kind=props.sceneKind??'debate',roomRef=useRef(buildMcRoom(kind)),stateRef=useRef<DirectorState>((kind==='debate'?createDirector:createSceneDirector)(props.participants,roomRef.current,props.theme,matchMedia('(prefers-reduced-motion: reduce)').matches));
+  const kind=props.sceneKind??'debate',roomRef=useRef(props.version===2?buildMcRoomV2(kind)??buildMcRoom(kind):buildMcRoom(kind)),stateRef=useRef<DirectorState>((kind==='debate'?createDirector:createSceneDirector)(props.participants,roomRef.current,props.theme,matchMedia('(prefers-reduced-motion: reduce)').matches));
   const inputs=useRef<Input[]>([]),previous=useRef<McStageProps|null>(null),anchors=useRef(new Map<string,HTMLElement>());
   const eventCursor=useRef(0);
   const [hud,setHud]=useState(stateRef.current),[progress,setProgress]=useState({n:0,step:'读取方块'}),[loaded,setLoaded]=useState(false),[view,setView]=useState('overview'),[hover,setHover]=useState<{id:string;x:number;y:number}|null>(null);

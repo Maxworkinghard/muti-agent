@@ -7,7 +7,7 @@ import type {McSceneKind} from '../../types';
 import * as THREE from 'three';
 import type {Look,Painter} from '../style';
 import type {Kit} from '../props/furniture';
-import type {BoardStyle} from '../props/boards';
+import type {BoardInfo,BoardStyle} from '../props/boards';
 /** seat 是坐下时的身体基准点（脚底往上 0.578 才是坐姿的根），stand 是站起来时脚底的位置。 */
 export interface ActorAnchor {seat:Point;stand:Point;homeYaw:number;mic:string;chair?:string}
 /** 道具的摆放。尺寸单位是米，1 格 = 1 米；渲染和房间检查共用这一份。 */
@@ -47,7 +47,9 @@ export interface Room {
   /** 地面图只是叠在真实方块地面上的一层（比如细细的赛场线），透明的地方露出方块 */
   floorOverlay?:boolean;
   /** boardFrame：话题板边框，平涂颜色或 'block/xxx' 方块贴图 */
-  boardStyle?:BoardStyle; boardFrame?:string; boardYaw?:number; decorateBoard?:(k:Kit,sign:THREE.Object3D)=>void; animate?:(now:number)=>void; waterColor?:string;
+  boardStyle?:BoardStyle; boardFrame?:string;
+  /** 房间自己画话题板（v2 场景用）；不设就按 boardStyle 用公共样式画 */
+  drawBoard?:(c:CanvasRenderingContext2D,W:number,H:number,info:BoardInfo)=>void; boardYaw?:number; decorateBoard?:(k:Kit,sign:THREE.Object3D)=>void; animate?:(now:number)=>void; waterColor?:string;
 }
 export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;yaw:number}> {
   const boxes:Array<{id:string;center:Point;half:Point;yaw:number}>=[];

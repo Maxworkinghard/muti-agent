@@ -13,6 +13,7 @@
     "test:mc-stage": "node scripts/check-mc-stage.mjs",
     "test:mc-physics": "node scripts/check-mc-physics.mjs",
     "test:mc-spectator": "node scripts/check-mc-spectator.mjs",
+    "test:mc-v2": "node scripts/check-mc-v2.mjs",
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "build:server": "vite build --config vite.server.config.ts",

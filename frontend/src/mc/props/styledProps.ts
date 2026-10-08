@@ -43,7 +43,7 @@ export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):Debat
   const names=cast.map(p=>p.name).join(' · ');
   const drawInfo=(s:Parameters<DebateProps['update']>[0])=>{const tasks=s.tasks??[],last=tasks.at(-1),key=JSON.stringify([s.theme,s.round,s.label,s.finished,last?.id,last?.status]);if(key===boardKey)return;boardKey=key;
     const detail=room.kind==='office'&&last?`${cast.find(p=>p.id===last.from)?.name??'成员'} → ${cast.find(p=>p.id===last.to)?.name??'成员'}：${last.title}`:room.kind==='podcast'?`主持 ${cast[0]?.name??'—'} · 嘉宾 ${cast[1]?.name??'—'}`:names;
-    drawBoard(style,ctx,W,H,{title:room.title??'讨论空间',theme:s.theme,phase:s.round?`第 ${s.round} 轮 · ${s.label}`:'等待开场',detail,finished:s.finished});boardTexture.needsUpdate=true;};
+    const info={title:room.title??'讨论空间',theme:s.theme,phase:s.round?`第 ${s.round} 轮 · ${s.label}`:'等待开场',detail,finished:s.finished};if(room.drawBoard)room.drawBoard(ctx,W,H,info);else drawBoard(style,ctx,W,H,info);boardTexture.needsUpdate=true;};
   mergeStatic(root,dynamic,flat);for(const c of chairs)mergeStatic(c.g,new Set(),flat);
   const empty=new THREE.Object3D();root.add(empty);
   const contacts:PropContacts={mics:new Map(),nextRound:empty,bell:empty,script:empty};
