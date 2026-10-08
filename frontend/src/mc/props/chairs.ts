@@ -30,7 +30,7 @@ const grain=(base:string,seed:number,v:boolean):Painter=>p=>{const r=rng(seed);p
   for(let i=0;i<10;i++){const len=4+Math.floor(r()*10),a=Math.floor(r()*16),b=Math.floor(r()*16),c=r()<.55?tone(base,.88):tone(base,1.08);if(v)p.rect(b,a,1,len,c);else p.rect(a,b,len,1,c);}
   if(r()<.6){const x=1+Math.floor(r()*13),y=1+Math.floor(r()*13);if(v)p.rect(x,y,1,2,tone(base,.72));else p.rect(x,y,2,1,tone(base,.72));}};
 /** 软包：浅底（颜色由材质色乘上去）、拉扣的十字褶和扣子 */
-const tufted:Painter=p=>{p.fill('#e6dfd0');for(let y=0;y<16;y+=8)for(let x=0;x<16;x+=8){p.rect(x+3,y+4,3,1,'#d8cfbd').rect(x+4,y+3,1,3,'#d8cfbd').px(x+4,y+4,'#a89c86');}p.rect(0,0,16,1,'#fbf7ee');};
+const tufted:Painter=p=>{p.fill('#e6dfd0');for(let y=0;y<16;y+=8)for(let x=0;x<16;x+=8){const o=(y/8)%2*4;p.px(x+3+o,y+4,'#a89c86').px(x+2+o,y+4,'#d8cfbd').px(x+3+o,y+3,'#eee8dc');}p.rect(0,0,16,1,'#f4efe4');};
 /** 网布靠背：深灰底、很淡的细网眼（贴图密度 64，网眼 1.5 厘米） */
 const mesh:Painter=p=>{p.fill('#3f444b');for(let y=0;y<16;y+=2)for(let x=(y%4?1:0);x<16;x+=2)p.px(x,y,'#363a40');p.rect(0,0,16,1,'#4a5058');};
 /** 布面：浅底（颜色由材质色乘上去），一道很淡的斜纹，没有砖缝一样的横竖线 */
@@ -105,7 +105,7 @@ function debate(k:V2Kit,fabric:string){
   // 靠背：胡桃框 + 软包板（前面在 CHAIR.back）
   k.box(g,.48,.04,.06,walH,0,TOP-.02,zb,PX);k.box(g,.4,.22,.045,pad,0,S+.16,CHAIR.back-.0225,PX);
   // 扶手：前立柱 + 胡桃扶手（内侧 ±0.37）+ 扶手上一条软包
-  for(const s of [-1,1]){const ax=s*(CHAIR.armIn+.03);k.box(g,.045,.2,.045,walV,ax,S+.06,zf,PX);k.box(g,.06,.04,zf-zb+.06,walH,ax,S+.18,(zf+zb)/2,PX);k.box(g,.05,.02,zf-zb-.02,pad,ax,S+.21,(zf+zb)/2,PX);
+  for(const s of [-1,1]){const ax=s*(CHAIR.armIn+.03);k.box(g,.045,.2,.045,walV,ax,S+.06,zf,PX);k.box(g,.06,.04,zf-zb+.06,walH,ax,S+.18,(zf+zb)/2,PX);k.box(g,.07,.035,zf-zb-.02,pad,ax,S+.217,(zf+zb)/2,PX);
     k.box(g,CHAIR.armIn+.03-.21,.04,.04,walH,s*(.21+(CHAIR.armIn+.03-.21)/2),S-.11,zf,PX);}
   return g;
 }

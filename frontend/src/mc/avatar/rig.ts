@@ -30,8 +30,11 @@ export const NECK_Y=HIP_Y+RIG.torso.h;                   // 55
 /** 头的整体放大倍数（骨骼缩放，挂在头骨上的头发、帽子、眼镜一起放大） */
 export const HEAD_SCALE=1.1;
 export const HEAD_TOP=NECK_Y+RIG.head.h*HEAD_SCALE;      // 94.6
-/** 头部局部坐标的几个面：左右半宽、前后半深（脸在 +z） */
-export const HEAD={hx:RIG.head.w/2,hz:RIG.head.d/2,h:RIG.head.h};
+/**
+ * 头部局部坐标的几个面：左右半宽、前后半深（脸在 +z）。脸那一面两侧的竖棱切掉 2 T（脸板 fx=±16、头的两侧面到 hz-2 为止），
+ * 斜着、侧着看头不是一只方箱子，脸颊到侧面有一道转折。
+ */
+export const HEAD={hx:RIG.head.w/2,hz:RIG.head.d/2,h:RIG.head.h,fx:RIG.head.w/2-2,cut:2};
 /** 统一座面高（地面以上，米）。所有新椅子的座面顶都在这里。 */
 export const SEAT_H=.5;
 /** 坐下时根点比座位锚点（座面顶）低多少：髋轴要在座面上方半个腿厚，根点 = 锚点 - (髋高 - 半腿厚)。34 T ≈ 0.708 */

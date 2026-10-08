@@ -23,7 +23,7 @@ export function buildAvatar(input:Look,side='host'):Avatar{
 }
 function build(input:Look,side:string,size:number):Avatar{
   const res=resolveLook(input),L=res.look,atlas=new Atlas(size),m=new Mesher(atlas.size);
-  const HY=HIP_Y,NY=NECK_Y,{hx,hz,h:hh}=HEAD,tw=RIG.torso.w,th=RIG.torso.h,td=RIG.torso.d;
+  const HY=HIP_Y,NY=NECK_Y,{hx,hz,h:hh,fx,cut}=HEAD,tw=RIG.torso.w,th=RIG.torso.h,td=RIG.torso.d;
   const skin=L.skin,hairC=L.hair.color,top=L.top.color,trim=L.top.trim??tone(top,1.3);
   const outer=L.outer,oc=outer?.color??top,otrim=outer?.trim??tone(oc,.75);
   const bottomC=L.bottom.color;
@@ -134,11 +134,13 @@ function build(input:Look,side:string,size:number):Avatar{
   const hc=hairColors(hairC,L.hair.tie??'#d94f5c',tone,mix);
   const faceRect=atlas.alloc(FACE_W,FACE_H);
   // 头的侧面：靠脸的一半亮、靠后脑的一半暗一档，下面一条从下巴斜着升到耳下的下颌线，侧面不是一块平板
-  const sidePanel=(frontAtLeft:boolean)=>panel(RIG.head.d,hh,p=>{const D=RIG.head.d;p.fill(skin);p.rect(0,0,D,12,hc[3]);
+  const sidePanel=(frontAtLeft:boolean)=>panel(RIG.head.d-cut,hh,p=>{const D=RIG.head.d-cut;p.fill(skin);p.rect(0,0,D,12,hc[3]);
     for(let u=0;u<D;u++){const back=frontAtLeft?u/(D-1):1-u/(D-1),col=frontAtLeft?u:u;if(back>.55)p.rect(col,12,1,hh-12,tone(skin,.95));const jaw=Math.round(hh-3-back*7);p.rect(col,jaw,1,hh-jaw,tone(skin,.9));p.px(col,jaw,tone(skin,.86));}});
   const headSideP=sidePanel(true),headSideN=sidePanel(false);
   const headBack=panel(RIG.head.w,hh,p=>{p.fill(hc[3]);p.rect(0,hh-8,RIG.head.w,8,tone(skin,.92));p.rect(0,hh-8,RIG.head.w,1,tone(hc[3],.9));});
-  m.box(-hx,NY,-hz,hx,NY+hh,hz,3,{pz:faceRect,nz:headBack,px:headSideP,nx:headSideN,py:solid(hc[3]),ny:solid(tone(skin,.84))});
+  // 头 = 后面一大块（两侧面到 hz-cut 为止）+ 前面一块脸板（宽 ±fx），两侧竖棱各切掉 cut
+  m.box(-hx,NY,-hz,hx,NY+hh,hz-cut,3,{pz:solid(tone(skin,.92)),nz:headBack,px:headSideP,nx:headSideN,py:solid(hc[3]),ny:solid(tone(skin,.84))});
+  m.box(-fx,NY,hz-cut,fx,NY+hh,hz,3,{pz:faceRect,nz:null,px:solid(tone(skin,.95)),nx:solid(tone(skin,.95)),py:solid(hc[3]),ny:solid(tone(skin,.84))});
   // 耳朵（侧发盖住时被头发挡掉）
   // 耳朵：小一点（4×7），外侧只有一块很淡的耳窝和亮一档的上沿，不画成一圈一圈的框
   const ear=panel(4,7,p=>{p.fill(tone(skin,.95));p.rect(1,2,2,3,tone(skin,.88)).rect(0,0,4,1,tone(skin,1.02));});
@@ -178,9 +180,11 @@ function build(input:Look,side:string,size:number):Avatar{
       if(round){H(a+.5,9,z0,a+1.5,10,z1,c);H(bb-1.5,9,z0,bb-.5,10,z1,c);H(a+.5,17,z0,a+1.5,18,z1,c);H(bb-1.5,17,z0,bb-.5,18,z1,c);}
       const sx=a<0?-1:1,ox=sx<0?a:bb;H(sx<0?-hx-.4:ox,15,z0-.6,sx<0?ox:hx+.4,16,z0+.4,c);H(sx<0?-hx-.8:hx,15,2,sx<0?-hx:hx+.8,16,z0,c);}
     H(-4,14.5,z0,4,15.5,z1,c);}
-  if(res.hat==='beanie'){const c=accColor('beanie','#c0503a'),hx2=sideOut+.8,hb=backOut+.8;H(-hx2,24,-hb,hx2,topOut+5,hz+3.4,c);H(-hx2-.8,23,-hb-.8,hx2+.8,28,hz+4.2,tone(c,.82));
+  // 帽子的帽顶分两级、四角切掉：从背后、侧面看是圆顶，不是一只盒子
+  const crown=(y0:number,y1:number,X:number,Zb:number,Zf:number,c:string)=>{const m=Math.max(y0+(y1-y0)*.55,topOut+.6);H(-X+2,y0,-Zb,X-2,m,Zf,c);for(const s of [-1,1])H(s>0?X-2:-X,y0,-Zb+2,s>0?X:-X+2,m,Zf-1,c);H(-X+2.5,m,-Zb+2.5,X-2.5,y1,Zf-1.2,c);for(const s of [-1,1])H(s>0?X-2.5:-X+1,m,-Zb+4,s>0?X-1:-X+2.5,y1-1,Zf-2.5,tone(c,.97));};
+  if(res.hat==='beanie'){const c=accColor('beanie','#c0503a'),hx2=sideOut+.8,hb=backOut+.8;crown(24,topOut+5,hx2,hb,hz+3.4,c);H(-hx2-.8,23,-hb-.8,hx2+.8,28,hz+4.2,tone(c,.82));
     for(let x=-hx2+2;x<hx2-1;x+=4)H(x,23.2,hz+4.2,x+1,27.8,hz+4.5,tone(c,.7));H(-4.5,topOut+5,-4.5,4.5,topOut+11,4.5,mix(c,'#ffffff',.6));}
-  if(res.hat==='cap'){const c=accColor('cap','#3f6a9a'),hx2=sideOut+.7,hb=backOut+.7;H(-hx2,26,-hb,hx2,topOut+5,hz+3.4,c);H(-14,25,hz+3.4,14,27,hz+12,tone(c,.85));H(-1.5,topOut+5,-1.5,1.5,topOut+6.5,1.5,tone(c,1.2));H(-5,26,-hb-.3,5,30,-hb,tone(c,.7));
+  if(res.hat==='cap'){const c=accColor('cap','#3f6a9a'),hx2=sideOut+.7,hb=backOut+.7;crown(26,topOut+5,hx2,hb,hz+3.4,c);H(-14,25,hz+3.4,14,27,hz+12,tone(c,.85));H(-1.5,topOut+5,-1.5,1.5,topOut+6.5,1.5,tone(c,1.2));H(-5,26,-hb-.3,5,30,-hb,tone(c,.7));
     H(-hx2-.2,26,-hb-.2,hx2+.2,27.5,-hb+8,tone(c,.75));}
   if(res.hat==='beret'){const c=accColor('beret','#7a2e3a'),hx2=sideOut+.6,hb=backOut+.6;H(-hx2-4,topOut-1,-hb-1.5,hx2+1,topOut+4,hz+2,c);H(-hx2,topOut-3,-hb,hx2,topOut-1,hz+1.4,tone(c,.82));H(-1,topOut+4,-1,1,topOut+6,1,tone(c,.7));}
   if(res.hood){const c=accColor('hood',oc),r=tone(c,.85),X=hx+4,Zb=-hz-4,Zf=hz+1.5;
@@ -206,8 +210,9 @@ function build(input:Look,side:string,size:number):Avatar{
     if(a.kind==='bow'){const c=a.color??'#d9535f',cx=sx*11,t=topOut-2;H(cx-6,t,-2,cx-1,t+4,2,c);H(cx+1,t,-2,cx+6,t+4,2,c);H(cx-1,t+.5,-2.4,cx+1,t+3.5,2.4,tone(c,.8));}
     if(a.kind==='pen'){const c=a.color??'#2b3550',x=sx>0?sideOut-.4:-sideOut-.8;H(x,16,-6,x+1.2,17.2,8,c);H(x,16,8,x+1.2,17.2,10,'#d8c070');}
     if(a.kind==='earring'){const x=sx>0?hx+.2:-hx-1.2;H(x,7,0,x+1,9,1,a.color??'#e0c060');}
-    if(a.kind==='beard'){const c=a.color??tone(hairC,.95);H(-11,-4,hz-4,11,5.4,hz+2.4,c);H(-7,-6,hz-3,7,-4,hz+1.6,tone(c,.9));H(-6,7.4,hz,6,8.6,hz+1.6,c);
-      for(const s of [-1,1])H(s>0?15:-hx-.4,4,hz-5,s>0?hx+.4:-15,12,hz+.8,c);}
+    // 胡子：下巴上一块、往下收窄的一撮、嘴上一道小胡子；两颊只有贴着脸板边缘的细鬓（不再突出成两块砖）
+    if(a.kind==='beard'){const c=a.color??tone(hairC,.95);H(-10,-3,hz-4,10,5.4,hz+2.2,c);H(-7,-6,hz-3.5,7,-3,hz+1.6,tone(c,.92));H(-4,-8,hz-3,4,-6,hz+1,tone(c,.86));H(-6,7.4,hz,6,8.6,hz+1.4,c);
+      for(const s of [-1,1])H(s>0?fx-1.5:-fx,2,hz-1,s>0?fx:-fx+1.5,11,hz+.6,tone(c,.94));}
   }
   // 队别胸牌（旧皮肤上的挂绳胸牌，保留语义：正方蓝、反方红、其他金）
   const badge=TEAM[side]??'#c9973a',bz=outer&&!['apron','overalls'].includes(outer.kind)?OD/2:td/2;

@@ -63,7 +63,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
     const t=covered?Math.min(top,2):top;outer={side,top:t,back,front};
     const levels=Math.max(1,Math.round(t/2));
     for(let i=0;i<levels;i++){const k=covered?0:insets[i]??insets[insets.length-1],y0=h+i*2,y1=Math.min(h+t,y0+2),hide:FaceKey[]=i===0?[]:['ny'];
-      const X=hx+side-k,Zb=-hz-back+k,Zf=hz+front-Math.ceil(k/2),cb=covered?0:Math.min(4,2+i*1.5),cf=covered?0:Math.min(2,1+i*.5);
+      const X=hx+side-k,Zb=-hz-back+k,Zf=hz+front-Math.ceil(k/2),cb=covered?2.5:Math.min(6,3+i*2),cf=covered?1.5:Math.min(2.5,1.5+i*.5);
       put(-X+cb,y0,Zb,X-cb,y1,Zf,'paint',{hide});
       for(const s of [-1,1])put(s>0?X-cb:-X,y0,Zb+cb,s>0?X:-X+cb,y1,Zf-cf,'paint',{hide:[...hide,s>0?'nx':'px']});}
   };
@@ -110,7 +110,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
 
   switch(style){
     case 'tidy':{ // 清爽侧分：分缝在人物右侧（-x），刘海整片往人物左边扫，耳朵露出来
-      part=-7;dome(4,2,3,2,[0,2]);
+      part=-7;dome(5,2,3,2,[0,2,4.5]);
       sides(2,z=>z>11?15:z>-3?(o.tuck===false?12:19):z>-9?11:8);
       back(3,2,x=>Math.round(4+Math.abs(x)*.28));
       useFringe([{x0:-hx-1,x1:-12,tip:27,lean:1},{x0:-12,x1:-7,tip:25,lean:1},{x0:-7,x1:-1,tip:21,lean:1},{x0:-1,x1:5,tip:21,lean:1},{x0:5,x1:11,tip:22,lean:1},{x0:11,x1:hx+1,tip:24,lean:1}]);
@@ -126,7 +126,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
       }
       break;}
     case 'curly':{ // 蓬松卷发：一层发冠打底，外面一圈大卷团（顶上、两侧、后脑），轮廓是一团一团的；侧发到下巴，刘海圆头
-      texture='curl';dome(4,3,4,2,[0,2]);
+      texture='curl';dome(5,3,4,2,[0,2,4.5]);
       sides(3,z=>z>8?12:z>-4?10:8,1);
       back(4,3,()=>6);
       useFringe([{x0:-hx-2,x1:-11,tip:24,shape:'round'},{x0:-11,x1:-4,tip:22,shape:'round'},{x0:-4,x1:3,tip:23,shape:'round'},{x0:3,x1:10,tip:21,shape:'round'},{x0:10,x1:hx+2,tip:24,shape:'round'}]);
@@ -134,46 +134,47 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
         // 顶上一圈大卷团（大小、高低都不一样，互相压着）
         for(const [x,z,sz,dy] of [[-12,9,8,0],[-3,11,7,1],[7,10,8,0],[14,5,7,-1],[-15,-1,8,-1],[-5,1,9,1],[5,-1,8,1.5],[14,-5,7,0],[-11,-10,8,0],[0,-11,8,.5],[10,-12,7,0]] as const)lump(x,h+4.5+dy,z,sz,'top');
         // 两侧：上面三团、下面两团，前后错开
-        for(const sx of [-1,1])for(const [y,z,sz] of [[30,8,7],[29,-3,8],[27,-13,7],[21,3,6],[19,-8,7],[12,-3,6],[11,-12,6]] as const)lump(sx*(hx+4+(sz>6?.5:0)),y,z,sz);
+        for(const sx of [-1,1])for(const [y,z,sz] of [[30,8,6],[29,-3,6],[27,-12,6],[20,2,5],[19,-8,6],[12,-4,5],[11,-12,5]] as const)lump(sx*(hx+3+sz/2-1),y,z,sz);
         // 后脑：错开的三排，越往下越小
         for(const [x,y,sz] of [[-13,30,8],[-3,31,8],[7,30,8],[15,28,6],[-9,22,7],[2,21,8],[12,21,6],[-14,14,6],[-5,12,7],[5,13,6],[13,12,6]] as const)lump(x,y,-hz-5-(sz-6)/2,sz);}
       break;}
     case 'bob':{ // 齐刘海波波头：两侧和后面齐到下巴，下沿往外翘一点
-      dome(4,3,4,2,[0,2]);
+      dome(5,3,4,2,[0,2,4.5]);
       sides(3,z=>z>8?4:3,1,[4,4,5,5,4,6,4]);
       for(const s of [-1,1])put(s>0?hx+3:-hx-4,3,-hz,s>0?hx+4:-hx-3,7,hz+1,'paint',{tip:true});
       back(4,3,()=>3);
       useFringe([-hx-1,-12,-6,0,6,12].map((x0,i,a)=>({x0,x1:i===a.length-1?hx+1:a[i+1],tip:i%2?20:21,shape:'flat' as const})));
       break;}
     case 'sweep':{ // 侧分长刘海：一侧刘海斜着盖到眼角，另一侧短、别在耳后
-      part=-9;dome(4,2,3,2,[0,2]);
+      part=-9;dome(5,2,3,2,[0,2,4.5]);
       sides(2,z=>z>9?14:z>-3?17:10);
       back(3,2,x=>Math.round(7+Math.abs(x)*.12));
       useFringe([{x0:-hx-1,x1:-10,tip:26,lean:1},{x0:-10,x1:-4,tip:23,lean:1},{x0:-4,x1:2,tip:21,lean:1},{x0:2,x1:8,tip:18,lean:1},{x0:8,x1:13,tip:15,lean:1},{x0:13,x1:hx+1,tip:13,lean:1}]);
       break;}
     case 'curtain':{ // 中分：两片刘海从中缝往两边分开，外侧长到眉尾，两侧到下颌
-      part=0;dome(4,3,3,2,[0,2]);
+      part=0;dome(5,3,3,2,[0,2,4.5]);
       sides(3,z=>z>9?(o.tuck?8:5):z>-3?(o.tuck?19:5):7);
       back(3,3,()=>5);
       useFringe([{x0:-hx-1,x1:-13,tip:16,lean:-1},{x0:-13,x1:-8,tip:20,lean:-1},{x0:-8,x1:-3,tip:24,lean:-1},{x0:-3,x1:0,tip:28,shape:'flat'},{x0:0,x1:3,tip:28,shape:'flat'},{x0:3,x1:8,tip:24,lean:1},{x0:8,x1:13,tip:20,lean:1},{x0:13,x1:hx+1,tip:16,lean:1}]);
       break;}
     case 'lowtail':{ // 后梳低马尾：额头露出来，头发全梳到后面，在后颈扎一束垂下去
-      dome(3,2,3,1,[0,2]);line=x=>30-(Math.abs(x)<4?1:0)+(Math.abs(x)>13?-2:0);
+      // 发际线是一级级往中间收的“美人尖”：两边高、中间低，三条梳向后的发片前后错开
+      dome(3,2,3,1,[0,2]);line=x=>Math.abs(x)<4?28:Math.abs(x)<10?30:32;
       sides(2,z=>z>11?19:z>-3?19:9);
-      back(3,2,x=>Math.abs(x)<5?9:4);
-      put(-hx-.5,30,hz-.5,hx+.5,h,hz+1.2,'paint',{hide:['nz','py']});
-      tie(-4,4,-hz-5,4,9,-hz-2);
-      put(-4,-4,-hz-6,4,5,-hz-1.5,'paint',{tip:true});put(-3.2,-11,-hz-5.5,3.2,-4,-hz-1.8,'paint',{tip:true});put(-1.8,-14,-hz-4.8,1.8,-11,-hz-2.4,3);
+      back(3,2,x=>Math.abs(x)<5?8:4);
+      put(-4,28,hz-.5,4,h,hz+1.6,'paint',{hide:['nz']});for(const s of [-1,1])put(s>0?4:-10,30,hz-.5,s>0?10:-4,h,hz+1.2,'paint',{hide:['nz']});for(const s of [-1,1])put(s>0?10:-hx-.5,32,hz-.5,s>0?hx+.5:-10,h,hz+.9,'paint',{hide:['nz']});
+      tie(-4.5,3,-hz-5.5,4.5,9,-hz-2);
+      put(-4.5,-6,-hz-7,4.5,4,-hz-1.5,'paint',{tip:true});put(-3.6,-14,-hz-6.4,3.6,-6,-hz-2,'paint',{tip:true});put(-2.2,-18,-hz-5.6,2.2,-14,-hz-2.6,3);
       break;}
     case 'wavy':{ // 大波浪长发：侧发过下巴，后面垂到肩下，下沿一卷一卷
-      texture='wave';dome(4,4,4,2,[0,2]);
+      texture='wave';dome(5,4,4,2,[0,2,4.5]);
       sides(4,z=>z>8?2:z>-4?-2:-5,1);
       back(4,4,x=>-9-((Math.floor((x+22)/5))%2?2:0));
       useFringe([{x0:-hx-2,x1:-9,tip:20,lean:-1},{x0:-9,x1:-2,tip:22,lean:-1},{x0:-2,x1:5,tip:22,lean:1},{x0:5,x1:12,tip:21,lean:1},{x0:12,x1:hx+2,tip:18,lean:1}]);
       for(const s of [-1,1])for(const [y,z] of [[0,10],[-3,2],[-5,-8]] as const)curl(s*(hx+2),y,z,4,1);
       break;}
     case 'ponytail':{ // 高马尾：后脑偏上扎一束，往后翘再垂下来
-      dome(4,2,3,2,[0,2]);
+      dome(5,2,3,2,[0,2,4.5]);
       sides(2,z=>z>11?16:z>-3?18:10);
       back(3,2,x=>Math.round(6+Math.abs(x)*.15));
       useFringe([{x0:-hx-1,x1:-11,tip:23,lean:-1},{x0:-11,x1:-4,tip:21,lean:-1},{x0:-4,x1:3,tip:22},{x0:3,x1:10,tip:21,lean:1},{x0:10,x1:hx+1,tip:24,lean:1}]);
@@ -181,7 +182,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
       put(-4.5,17,-hz-10,4.5,29,-hz-4,'paint');put(-4,6,-hz-12,4,18,-hz-6,'paint');put(-3.4,-3,-hz-11.5,3.4,7,-hz-6.5,'paint',{tip:true});put(-2,-8,-hz-10.5,2,-3,-hz-7.5,3);
       break;}
     case 'twintails':{ // 双马尾：两边耳后各扎一束，垂到肩下
-      dome(4,2,3,2,[0,2]);
+      dome(5,2,3,2,[0,2,4.5]);
       sides(2,z=>z>11?15:z>-3?17:10);
       back(3,2,x=>Math.round(6+Math.abs(x)*.15));
       useFringe([{x0:-hx-1,x1:-12,tip:21},{x0:-12,x1:-6,tip:20,shape:'flat'},{x0:-6,x1:0,tip:21,shape:'flat'},{x0:0,x1:6,tip:20,shape:'flat'},{x0:6,x1:12,tip:21,shape:'flat'},{x0:12,x1:hx+1,tip:21}]);
@@ -197,7 +198,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
       if(!covered){tie(-4.5,h+3,-7,4.5,h+5,2);put(-5.5,h+5,-8,5.5,h+12,3,'paint');put(-3.5,h+12,-6,3.5,h+14,1,2);}
       break;}
     case 'odango':{ // 双丸子：头顶两侧各一个圆髻，扎发圈
-      dome(4,2,3,2,[0,2]);
+      dome(5,2,3,2,[0,2,4.5]);
       sides(2,z=>z>11?15:z>-3?16:10);
       back(3,2,x=>Math.round(6+Math.abs(x)*.15));
       useFringe([{x0:-hx-1,x1:-11,tip:22,lean:-1},{x0:-11,x1:-4,tip:21},{x0:-4,x1:3,tip:22},{x0:3,x1:10,tip:21},{x0:10,x1:hx+1,tip:22,lean:1}]);
@@ -225,13 +226,13 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
         for(const x of [-10,-3,4,11])spike(x,28,hz+1,9,5,.9,false);}
       break;}
     case 'shaggy':{ // 乱中长发：盖住耳朵，下沿参差，刘海一缕缕长短不齐
-      dome(4,4,4,2,[0,2]);
+      dome(5,4,4,2,[0,2,4.5]);
       sides(4,z=>[8,12,6,10,5,9,7][Math.floor((hz+1-z)/4.6)%7]??8,1,[4,5,4,5,4,5,5]);
       back(4,4,x=>[6,3,8,4,7,2,6,4,5][Math.floor((x+22)/5)%9]??5);
       useFringe([{x0:-hx-2,x1:-12,tip:21,lean:-1},{x0:-12,x1:-7,tip:18},{x0:-7,x1:-2,tip:22,lean:1},{x0:-2,x1:3,tip:19},{x0:3,x1:8,tip:23,lean:-1},{x0:8,x1:13,tip:19,lean:1},{x0:13,x1:hx+2,tip:21,lean:1}]);
       break;}
     case 'hime':{ // 姬发式：齐刘海、两颊一刀切的鬓发，后面长发垂到背上
-      dome(4,2,4,2,[0,2]);
+      dome(5,2,4,2,[0,2,4.5]);
       sides(2,z=>z>9?3:z>-3?12:-4);
       back(4,2,()=>-12);
       useFringe([-hx-1,-12,-6,0,6,12].map((x0,i,a)=>({x0,x1:i===a.length-1?hx+1:a[i+1],tip:20,shape:'flat' as const})));
@@ -248,7 +249,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
 export function hairColors(base:string,tie:string,tone:(c:string,f:number)=>string,mix:(a:string,b:string,t:number)=>string):[string,string,string,string,string]{
   const n=parseInt(base.slice(1),16),lum=(.2126*((n>>16)&255)+.7152*((n>>8)&255)+.0722*(n&255))/255;
   // 黑发的光泽偏冷（蓝紫），浅色头发的光泽往白里提
-  const light=lum<.22?mix(base,'#9aa8c8',.34):mix(base,'#fff6e0',.3);
+  const light=lum<.22?mix(base,'#a6b4d4',.46):mix(base,'#fff6e0',.3);
   return [base,tone(base,.8),light,tone(base,lum<.22?.7:.62),tie];
 }
 const hsh=(a:number,b:number)=>(((Math.floor(a)*73856093)^(Math.floor(b)*19349663))>>>0)%1000;
@@ -262,7 +263,7 @@ export function hairTexel(plan:HairPlan,face:FaceKey,x:number,y:number,z:number,
   const tex=plan.texture;
   if(face==='ny')return 3;
   // 寸头：贴头皮的短发，只有很淡的颗粒（暗点稀疏），顶上稍亮
-  if(tex==='buzz'){const d=hsh(x*3+y*5,z*3+(face==='py'?7:0));if(face==='py')return d%13===0?1:0;return d%17===0?1:y<box.y0+1?1:0;}
+  if(tex==='buzz'){const d=hsh(x*3+y*5,z*3+(face==='py'?7:0));if(face==='py')return d%37===0?1:d%29===0?2:0;return d%41===0?1:y<box.y0+1?1:0;}
   const fromTip=y-box.y0;
   if(face==='py'){
     // 头顶：发缕前后走向，分缝一道暗线，前三分之一一道弧形光泽（连成一片，只在缕缝处断一个像素）
@@ -284,7 +285,7 @@ export function hairTexel(plan:HairPlan,face:FaceKey,x:number,y:number,z:number,
   const split=h-9-((k.i*7)%7);
   if(k.d<1&&y<split)return 1;
   // 光泽：侧面和后面每缕靠左两列各一道短竖高光（3 T 和 2 T，错开 1 T），高低按缕错开——一缕一缕的反光，不是一圈虚线
-  if(face!=='pz'&&k.w>=4){const band=h-9+((k.i*5)%3);if(k.d>=1&&k.d<2&&y>band&&y<band+3)return 2;if(k.d>=2&&k.d<3&&y>band+1&&y<band+3)return 2;}
+  if(face!=='pz'&&k.w>=4){const band=h-10+((k.i*5)%3);if(k.d>=1&&k.d<2&&y>band&&y<band+4)return 2;if(k.d>=2&&k.d<3&&y>band+1&&y<band+3)return 2;}
   if(tex==='curl'&&hsh(s*2,y*2)%13===0)return y>h-14?2:1;
   // 下半截暗一档（侧面背光），发梢附近再暗
   if(box.tip&&fromTip<4&&k.i%3===0)return 1;

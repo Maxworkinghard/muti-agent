@@ -24,7 +24,7 @@ function plankH(c:Ctx,r:()=>number,x:number,y:number,len:number,wid:number,base:
   const streaks=1+Math.floor(r()*3);
   for(let i=0;i<streaks;i++){const l=5+Math.floor(r()*Math.max(1,len-8)),sx=x+1+Math.floor(r()*Math.max(1,len-l-2)),sy=y+1+Math.floor(r()*Math.max(1,wid-2));rect(c,sx,sy,Math.min(l,x+len-1-sx),1,tone(base,r()<.6?.92:1.06));}
   if(r()<.14&&len>8){const kx=x+3+Math.floor(r()*(len-7)),ky=y+1+Math.floor(r()*Math.max(1,wid-2));rect(c,kx,ky,2,1,tone(base,.72));}
-  rect(c,x,y+wid-1,len,1,tone(base,.66));rect(c,x+len-1,y,1,wid,tone(base,.62));
+  rect(c,x,y+wid-1,len,1,tone(base,.74));rect(c,x+len-1,y,1,wid,tone(base,.7));
 }
 /** 竖向的板（同上，转 90°） */
 function plankV(c:Ctx,r:()=>number,x:number,y:number,len:number,wid:number,base:string){
@@ -32,7 +32,7 @@ function plankV(c:Ctx,r:()=>number,x:number,y:number,len:number,wid:number,base:
   rect(c,x,y,1,len-1,tone(base,1.05));
   const streaks=1+Math.floor(r()*2);
   for(let i=0;i<streaks;i++){const l=4+Math.floor(r()*Math.max(1,len-7)),sy=y+1+Math.floor(r()*Math.max(1,len-l-2)),sx=x+1+Math.floor(r()*Math.max(1,wid-2));rect(c,sx,sy,1,Math.min(l,y+len-1-sy),tone(base,r()<.6?.92:1.06));}
-  rect(c,x+wid-1,y,1,len,tone(base,.66));rect(c,x,y+len-1,wid,1,tone(base,.62));
+  rect(c,x+wid-1,y,1,len,tone(base,.74));rect(c,x,y+len-1,wid,1,tone(base,.7));
 }
 /**
  * 石板（炉床、石木混拼）：砂浆缝 1 像素，左上两条亮边。石面上的痕迹每块不一样：没有、一道细裂、一道折线裂、
@@ -106,20 +106,17 @@ export function walnutHerringbone(c:Ctx,w:number,d:number,seed=307){
 }
 
 /**
- * 石木混拼：1 米一格，每格中间一块 12×12 像素（75 厘米）的石板，格与格之间 4 像素宽的橡木条；
- * 横向木条通长、竖向木条在交叉处断开，交叉处一个小方石（2×2 像素深色）钉住节点。
+ * 石木混拼：一行一行铺，每行 1 米高：石板 12×12 像素（75 厘米）+ 右边一根 4 像素宽的竖木条，行与行之间一根通长的横木条；
+ * 隔一行整行错开半格（像砌砖的错缝），石板在两组灰里按种子取色、相邻不同色，不是一张规整的方格网。
  */
 export function stoneWoodMix(c:Ctx,w:number,d:number,seed=409){
   const W=Math.round(w*16),D=Math.round(d*16),r=rng(seed),P=16,S=12;
   rect(c,0,0,W,D,'#6b5137');
-  let last:string|undefined;
+  let last:string|undefined,lastFlag:string|undefined;
   for(let gy=0;gy*P<D;gy++){
-    // 横向木条（通长，跨两格一块）
-    for(let x=0;x<W;x+=2*P){const b=nextTone(r,OAK,last);last=b;plankH(c,r,x,gy*P+S,2*P,4,b);}
-    for(let gx=0;gx*P<W;gx++){
-      const x=gx*P,y=gy*P;flag(c,r,x,y,S,S,nextTone(r,FLAG));
-      const b=nextTone(r,OAK,last);last=b;plankV(c,r,x+S,y,S,4,b);
-      rect(c,x+S+1,y+S+1,2,2,'#4a4640');
-    }
+    for(let x=-P;x<W;x+=2*P){const b=nextTone(r,OAK,last);last=b;plankH(c,r,x+(gy%2?P/2:0),gy*P+S,2*P,4,b);}
+    const pal=gy%2?FLAG:FLAG.slice().reverse();
+    for(let x=-(gy%2?P/2:0);x<W;x+=P){const y=gy*P,f=nextTone(r,pal,lastFlag);lastFlag=f;flag(c,r,x,y,S,S,f);
+      const b=nextTone(r,OAK,last);last=b;plankV(c,r,x+S,y,S,4,b);const nail=r();if(nail<.7)rect(c,x+S+1,y+S+1,2,2,nail<.45?'#4a4640':'#8a847a');}
   }
 }

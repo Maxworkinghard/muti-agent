@@ -60,9 +60,11 @@ function posed(r:Rig,kind:string,sit:number){
   const b=r.bones;legPose(b,r.knees,sit);
   let rx=-Math.PI/5*sit,ry=0,rz=0,lx=-Math.PI/5*sit,ly=0,lz=0;b[2].rotation.set(0,0,0);b[3].rotation.set(0,0,0);
   if(kind==='speak'){lx=-1.0;lz=.28;rx=-.85;}
-  if(kind==='think'){lx=-2;ly=-.55;lz=-.2;b[3].rotation.x=.12;b[3].rotation.z=.12;}
+  // 思考：左手托着下巴（手在脸的斜前方，大头不挡），头微歪
+  // 实验台斜 45° 看的是人物右侧，所以用右手托腮（游戏里的“托腮”待机是左手，角度对称）
+  if(kind==='think'){rx=-2.4;ry=0;rz=-.6;b[3].rotation.x=.08;b[3].rotation.z=-.12;}
   if(kind==='lean'){b[2].rotation.x=.35;b[3].rotation.x=-.25;rx=-1;lx=-1;}
-  if(kind==='tool'){rx=-1.15;rz=-.2;lx=-1.23;ly=.5;lz=.5;b[3].rotation.x=.3;
+  if(kind==='tool'){rx=-1.15;rz=-.2;lx=-1.23;ly=.5;lz=.5;b[3].rotation.x=.16;
     const pad=new THREE.Mesh(new THREE.BoxGeometry(.2,.012,.15),new THREE.MeshStandardMaterial({color:'#e9e1c8'}));const hand=new THREE.Group();hand.position.set(-.5*T,HAND_REACH+T,-1.5*T);hand.rotation.set(-1.25,.15,0);pad.position.set(0,0,.06);hand.add(pad);b[4].add(hand);}
   b[4].rotation.set(rx,ry,rz);b[5].rotation.set(lx,ly,lz);
   r.root.position.y=sit?SEAT_H-SIT_DROP:0;

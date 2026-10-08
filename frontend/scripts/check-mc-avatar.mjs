@@ -2,7 +2,7 @@
 // 1. 人物库 33 人每人都有一份固定造型（按 id），没有多余的；发型零件 ≥ 15 种、实际用到 ≥ 10 种；
 // 2. avatar 模块里没有随机数、没有按 id 哈希挑衣服；同一份造型拼两次，发型零件一模一样；
 // 3. 搭配约束：每条规则在真实造型和构造的冲突造型上都成立；
-// 4. 每人主色 3–5 种（相近色算一个，皮肤不算）；33 人的轮廓（发型 + 头饰 + 外层 + 下装 + 呆毛 / 胡子 / 围巾）两两不同；
+// 4. 每人主色 4–5 种（相近色算一个，皮肤不算）；33 人的轮廓（发型 + 头饰 + 外层 + 下装 + 呆毛 / 胡子 / 围巾）两两不同；
 // 5. 坐姿几何：鞋底正好落在地面、大腿下沿贴座面、头身比在 1:1.3–1:1.6；椅子族的座面前沿在小腿后面、靠背前面在外套背面后面、
 //    靠背顶低于大头后仰时的后脑下沿、扶手内侧在胳膊外面。
 import assert from 'node:assert/strict';
@@ -45,12 +45,12 @@ try {
   for (const l of Object.values(LOOKS)) {
     const r = resolveLook(l), cs = [r.look.hair.color, r.look.hair.tie, r.look.top.color, r.look.outer?.color, r.look.bottom.color, r.look.shoes.color, ...r.acc.filter(a => a.color && !['ahoge', 'beard'].includes(a.kind)).map(a => a.color)].filter(Boolean), pal = [];
     for (const c of cs) if (!pal.some(o => near(o, c))) pal.push(c);
-    assert.ok(pal.length >= 3 && pal.length <= 5, l.name + ' 的主色有 ' + pal.length + ' 种：' + pal.join(' '));
+    assert.ok(pal.length >= 4 && pal.length <= 5, l.name + ' 的主色有 ' + pal.length + ' 种：' + pal.join(' '));
     const key = [r.look.hair.style, r.hood ? 'hood' : r.hat ?? '', r.phones ?? '', r.look.outer?.kind ?? r.look.top.kind, r.look.bottom.kind, ...['ahoge', 'beard', 'scarf', 'bow'].filter(k => r.has(k))].join('|');
     sil.set(key, [...(sil.get(key) ?? []), l.name]);
   }
   const dup = [...sil.values()].filter(n => n.length > 1); assert.deepEqual(dup, [], '轮廓相同：' + dup.map(n => n.join('/')).join('；'));
-  console.log('Pass palettes 3–5 colours each; silhouettes all distinct:', sil.size);
+  console.log('Pass palettes 4–5 colours each; silhouettes all distinct:', sil.size);
   // 5. 坐姿几何
   const { T, RIG, HIP_Y, NECK_Y, SEAT_H, SIT_DROP, HEAD_SCALE } = rig;
   const hipSeated = SEAT_H + RIG.leg.d / 2 * T, sole = hipSeated - RIG.leg.shin * T;

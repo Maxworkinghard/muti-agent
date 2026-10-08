@@ -95,7 +95,8 @@ export function createPlayer(p:Participant,card:THREE.Object3D|null,contacts?:Pr
     if(action&&['mic','nextRound','tapBell','flipScript'].includes(action.kind)){rx=-1.15-Math.sin(t*Math.PI)*.45;rz=-.08;}
     else if(action?.kind==='cheer'){
       // 欢呼动作（第 12.6 节）：双臂高举，身子里外各跳一下。
-      const hop=Math.abs(Math.sin(t*Math.PI*2));rx=-Math.PI*.95;lx=-Math.PI*.95;rz=-.25;lz=.25;
+      // Q 版大头：双臂往两侧张开举起（rz/lz ±0.75），手在头两侧，不插进头里
+      const hop=Math.abs(Math.sin(t*Math.PI*2));rx=-Math.PI*.95;lx=-Math.PI*.95;rz=-.75;lz=.75;
       root.position.y+=hop*.14;headPitch-=.12;
     }
     else if(action?.kind==='clap'){
@@ -117,11 +118,12 @@ export function createPlayer(p:Participant,card:THREE.Object3D|null,contacts?:Pr
         case 'write':irx=-1.12;irz=-.18;ilx=-1.22+Math.sin(poseNow/140)*.04;ily=.48;ilz=.4;break;
         case 'page':irx=-1.1;iry=.18;ilx=-1.25;ily=.28*Math.sin(poseNow/230);ilz=.35;break;
         case 'tapPen':irx=-1;ilx=-.95+Math.sin(poseNow/150)*.1;ily=.3;break;
-        case 'chin':ilx=-2;ily=-.55;ilz=-.2;break;
+        // 托腮：大头、短胳膊够不到下巴正前方，手放在脸颊外侧（离头侧面约 1 T）
+        case 'chin':ilx=-2.4;ily=0;ilz=.6;break;
         case 'foldArms':irx=-1;iry=.75;irz=.35;ilx=-.95;ily=-.75;ilz=-.35;break;
-        case 'stretch':irx=-2.45;ilx=-2.45;irz=-.4;ilz=.4;break;
+        case 'stretch':irx=-2.45;ilx=-2.45;irz=-.8;ilz=.8;break;
         case 'shift':irz=-.16;ilz=.16;break;
-        case 'scratchHead':ilx=-2.6;ilz=.28;ily=.35+Math.sin(poseNow/180)*.07;break;
+        case 'scratchHead':ilx=-2.6;ilz=.8;ily=.2+Math.sin(poseNow/180)*.07;break;
         case 'pointNote':irx=-1.1;ilx=-1.3;ily=.45;ilz=.2;break;
       }
       const weight=Math.min(1,k*gestureSize);rx=THREE.MathUtils.lerp(rx,irx,weight);ry=THREE.MathUtils.lerp(ry,iry,weight);rz=THREE.MathUtils.lerp(rz,irz,weight);lx=THREE.MathUtils.lerp(lx,ilx,weight);ly=THREE.MathUtils.lerp(ly,ily,weight);lz=THREE.MathUtils.lerp(lz,ilz,weight);

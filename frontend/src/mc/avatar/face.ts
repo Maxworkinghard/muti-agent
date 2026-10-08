@@ -8,19 +8,22 @@
 import type {Pen} from './paint';
 import {mix,tone} from './paint';
 import type {EyeType,BrowType,MouthType,Expression,Look} from './types';
-export const FACE_W=36,FACE_H=36;
+/** 脸板 32×36（头宽 36，两侧竖棱各切 2 T）；下面的版式按 36 宽设计，画的时候整体左移 2 列（两边各裁 2 列，五官在头上的位置不变） */
+export const FACE_W=32,FACE_H=36;
+const SHIFT=(FACE_W-36)/2;
 /** 两只眼睛最左一列（每只 7 宽），眼睛顶行（上眼线） */
 export const EYE_COLS:[number,number]=[6,23],EYE_ROW=18;
 export interface FaceState {expression:Expression;speak:number;blink:boolean;sleepy?:boolean;grin?:boolean;blush?:boolean;sweat?:boolean;raise?:boolean}
 export interface FaceOpts {hat:boolean;glasses:boolean;hood:boolean;beard:boolean;hairline:(x:number)=>number;hairDeep:string}
-export function paintFace(p:Pen,look:Look,st:FaceState,o:FaceOpts){
+export function paintFace(pen:Pen,look:Look,st:FaceState,o:FaceOpts){
+  const p:Pen={w:pen.w,h:pen.h,rect(x,y,w,h,c,a){pen.rect(x+SHIFT,y,w,h,c,a);return p;},px(x,y,c,a){pen.px(x+SHIFT,y,c,a);return p;},fill(c){pen.fill(c);return p;},clear(x,y,w,h){pen.clear(x+SHIFT,y,w,h);return p;}};
   const skin=look.skin,hair=look.hair.color,iris=look.face.iris;
   const lash=mix('#22161d',hair,.18),shade=tone(skin,.9),lip=mix(tone(skin,.6),'#b04848',.4),mouthDark='#5a1f27',tongue='#d86a6a',white='#fffaf4';
   p.fill(skin);
   // 下颌两侧和下巴一圈暗部，脸不是一块平板
-  p.rect(0,20,1,16,shade).rect(35,20,1,16,shade).rect(1,33,34,2,tone(skin,.96)).rect(1,35,34,1,shade);
+  pen.rect(0,20,1,16,shade).rect(FACE_W-1,20,1,16,shade).rect(1,33,FACE_W-2,2,tone(skin,.96)).rect(1,35,FACE_W-2,1,shade);
   // 发际线：和体素刘海同一条轮廓，刘海背后画成最暗的头发（束与束之间的缝里看到的是头发的里层）
-  for(let c=0;c<FACE_W;c++){const x=c-18+.5,rows=Math.max(o.hood?3:2,Math.min(22,Math.round(36-o.hairline(x))));p.rect(c,0,1,rows,o.hairDeep);p.px(c,rows,tone(skin,.86));}
+  for(let c=0;c<FACE_W;c++){const x=c-FACE_W/2+.5,rows=Math.max(o.hood?3:2,Math.min(22,Math.round(36-o.hairline(x))));pen.rect(c,0,1,rows,o.hairDeep);pen.px(c,rows,tone(skin,.86));}
   const e=st.expression;
   // ——眉
   const hn=parseInt(hair.slice(1),16),light=(.2126*((hn>>16)&255)+.7152*((hn>>8)&255)+.0722*(hn&255))/255>.45;
