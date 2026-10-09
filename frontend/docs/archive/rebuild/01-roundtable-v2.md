@@ -1,6 +1,6 @@
 # 圆桌会议室 v2 ——「湖畔木构议事厅」静态视觉样板
 
-> 历史快照（2026-10-09 已标记）：正文只记录当时状态、计划与判断，不作为当前执行指令。当前入口/架构见根目录 [ARCHITECTURE.md](../../../ARCHITECTURE.md)，工程与视觉验收见 [VERIFY.md](../../../VERIFY.md)，资料状态见 [文档索引](../README.md)。历史“通过/可接受”、分支和待办不自动构成当前事实或用户确认。
+> 历史快照（2026-10-09 已标记）：正文只记录当时状态、计划与判断，不作为当前执行指令。当前入口/架构见根目录 [ARCHITECTURE.md](../../../../ARCHITECTURE.md)，工程与视觉验收见 [VERIFY.md](../../../../VERIFY.md)，资料状态见 [文档索引](../../README.md)。历史“通过/可接受”、分支和待办不自动构成当前事实或用户确认。
 
 本阶段只做圆桌会议室一个场景的静态视觉样板；另外五个场景、人物复杂行为都没动。
 功能契约见 `00-contract.md`，新实现全部在 `src/mc/v2/`，旧场景仍是默认。
@@ -110,6 +110,8 @@ west / seated / fire / tea / roof / board（细节）、judge（观摩位）、h
 截图：`roundtable-v2/r7-*.png`（高画质：overview、hud、fixed、west、seated、fire、tea、roof、board、lake、judge）、
 `r7-medium-*.png`（中画质：overview、fixed、hud 和全部细节机位）、r6 与 r7 对比拼图 `compare-r6-r7.jpg`。
 新增细节机位 `lake`（从北口里面望湖山，专门看远景层次和天空）。
+
+2026-10-09 整理：中画质只保留 overview、fixed、hud、fire、seated 五张作为成对证据；board、lake、roof、tea、west 的额外软件渲染采样已清理，对应高画质原图保留。后者不是字节重复，取舍与逐图差异记录见根目录[维护审计](../../../../docs/MAINTENANCE_AUDIT.md)。不据此认定硬件画质等价。
 
 | 差距 | 改了什么 | 截图里实际的变化 | 对照参考图仍有的差距 |
 |---|---|---|---|

@@ -6,7 +6,7 @@
 
 开始时的可测事实：工作区干净；分支 `maintenance/governance-20261009`，HEAD `eed2808`；本地恢复分支 `audit/pre-governance-20261009` 同样指向 `eed2808`。远端仓库为 Maxworkinghard/muti-agent，默认分支 main；本次按本地实际内容工作，不假设远端与本地始终一致。没有执行 reset、变基、合并或 push。
 
-第一轮没有删除整文件；后续复核确认三张历史截图是逐字节相同的冗余副本，已清理并保留对应原图。当前源码未找到能直接安全删除的整文件；有调用者的旧实现、功能未迁移的样板和独有的未确认图片继续保留。这是基于依赖与验证的判断，不代表用户已选择某套美术；删除数量不是完成指标。
+第一轮没有删除整文件；后续确认三张精确重复截图，并按素材用途精简五张额外软件细节采样；均有保留内容和 Git 恢复点。当前源码未找到能直接安全删除的整文件；有调用者的旧实现、功能未迁移的样板和独有的未确认图片继续保留。这是基于依赖与验证的判断，不代表用户已选择某套美术；删除数量不是完成指标。
 
 ## 实际架构概要
 
@@ -20,14 +20,14 @@
 
 检查实际 Git 清单、Vite 两个构建入口、HTML module script、静态与动态导入、人物 eager glob、`ssrLoadModule` 测试入口、素材生成脚本、静态 URL、manifest/atlas 索引、目录枚举及真实页面。源码导入图覆盖产品与三个实验入口，未据此宣称所有内部函数都在每次运行执行。资源目录可能有非默认或比较用途，搜索无引用不作为删除证据。
 
-逐文件清单见 [LEGACY_INVENTORY.json](LEGACY_INVENTORY.json)：记录基线下重点路径、字节数、源码引用和文档提及；组内共享用途、动态/构建/测试证据及决定。分类含 A 当前有效、B 有效但重叠、C 已证实废弃、D 历史或尚不能确认；空引用数组不等于 C。后续复核中三个已删除副本的文件级 C 分类覆盖组级 D，保留替代路径、完整 SHA256 和恢复基线。
+逐文件清单见 [LEGACY_INVENTORY.json](LEGACY_INVENTORY.json)：记录基线下重点路径、字节数、源码引用和文档提及；组内共享用途、动态/构建/测试证据及决定。分类含 A 当前有效、B 有效但重叠、C 已证实废弃、D 历史或尚不能确认；空引用数组不等于 C。后续复核中八个删除项的文件级 C 分类覆盖组级 D，保留替代路径、完整 SHA256 和恢复基线；path 是原始路径，currentPath 是现址或 null。
 
 | 对象 | 分类 | 当前依赖 / 处理 |
 |---|---|---|
-| `frontend/docs/handoff/01`–`08` | D | 早期模式和多轮房间快照；各文件加入历史提示，继续保留正文 |
-| `frontend/docs/rebuild/00-contract.md`、`01-roundtable-v2.md` | D | v2 起点消费者审计、圆桌方案与对照；标历史/实验，当前契约回到源码 |
-| `frontend/docs/art/00-roster.md`、`01-baseline-audit.md`、`03-sample-log.md`、`HANDOFF.md` | D | 名册、旧基线和差距有追溯价值；标历史并修正失效待办/自验措辞 |
-| `frontend/docs/art/02-character-looks.md` | A | 当前配置的生成技术说明；修复生成器后重建，明确不代表视觉验收 |
+| `frontend/docs/archive/handoff/01`–`08` | D | 早期模式和多轮房间快照；各文件加入历史提示，继续保留正文 |
+| `frontend/docs/archive/rebuild/00-contract.md`、`01-roundtable-v2.md` | D | v2 起点消费者审计、圆桌方案与对照；标历史/实验，当前契约回到源码 |
+| `frontend/docs/archive/art/00-roster.md`、`01-baseline-audit.md`、`03-sample-log.md`、`HANDOFF.md` | D | 名册、旧基线和差距有追溯价值；标历史并修正失效待办/自验措辞 |
+| `frontend/docs/character-looks.md` | A | 当前配置的生成技术说明；修复生成器后重建，明确不代表视觉验收 |
 | `frontend/src/mc/rooms/`、`design/` | A | `buildMcRoom → planFor → 六构造器`；正式工作台和测试均使用，保留 |
 | `frontend/src/mc/v2/` | B | 同一 Room 契约的圆桌实验实现；Lab 与测试仍使用，保留；推广条件未满足 |
 | `frontend/src/mc/avatar/`、`player.ts`、`skin.ts` | A | 正式 MC、v2 和实验台共享；33 人 look 和 fallback 保留 |
@@ -46,7 +46,7 @@
 
 ## 已整理的文件与依据
 
-**整文件删除数：3，均为历史截图的精确重复副本，合计 718,737 字节（约 0.69 MiB）。** 没有删除仍有依赖的旧实现、独有实验内容或产品资源。以下整理都有基线，可按路径恢复。
+**累计整文件删除数：8，三张精确重复副本及五张低增量价值的软件渲染细节采样，合计 3,366,913 字节（约 3.21 MiB）。** 没有删除仍有依赖的旧实现、独有实验内容或产品资源。以下整理都有基线，可按路径恢复。
 
 | 文件 | 具体整理 / 理由 |
 |---|---|
@@ -55,16 +55,16 @@
 | `frontend/src/engines/rational/README.md` | 补齐独立辩论模块维护入口，与真实无评比总结一致 |
 | `package.json`、`frontend/package.json`、`scripts/test-all.mjs`（在 frontend） | 清除 root 描述中的 Python 单端口误述；统一离线回归命令，补 2D/娱乐检查命令 |
 | `frontend/scripts/check-entertainment.mjs` | 补专属 kit 的完整收尾、暂停中私聊、点名、恢复、结束后继续和停止覆盖；避免只验证开场 |
-| `frontend/scripts/gen-looks-doc.mjs` + `docs/art/02-character-looks.md`（在 frontend） | 删除过时的固定比例解释；从当前 rig/body 推导 8 体型、4 头型、3 坐姿，补配饰标签、body 来源与 request 标记；消除旧数据和 `undefined` |
+| `frontend/scripts/gen-looks-doc.mjs` + `docs/character-looks.md`（在 frontend） | 删除过时的固定比例解释；从当前 rig/body 推导 8 体型、4 头型、3 坐姿，补配饰标签、body 来源与 request 标记；消除旧数据和 `undefined` |
 | `frontend/src/mc/avatar/rig.ts` | 只修正旧眼高、下沉、手心与历史比例相关注释；所有常量/公式保持原状 |
 | `frontend/src/mc/props/debateProps.ts` | C：删除重复 `DebateProps` 声明，仅保留采用 `AtlasLike` 的等价接口 |
 | `frontend/server/api.ts`、`config.ts` | 修正情感仍在 Node 运行/共用 Python 配置的旧注释；接口逻辑原样 |
 | `frontend/personas/README.md` | 明确校验命令的工作目录，修正相对路径歧义 |
 | `backend/README.md`、`使用指南.md`、`前端对接说明.md`、`提示词/使用说明.md` | 标明独立 Python 工具/API/提示词与网页的边界；修正娱乐人物“待添加”和仓库外草稿路径 |
-| `frontend/docs/handoff/*.md`、rebuild 两篇、art 四篇历史文档 | 原位标历史；HANDOFF 两个“未写”改为后来已生成；旧“可接受”标为当时 Agent 选择，非用户验收 |
+| `frontend/docs/archive/handoff/*.md`、rebuild 两篇、art 四篇历史文档 | 原位标历史；HANDOFF 两个“未写”改为后来已生成；旧“可接受”标为当时 Agent 选择，非用户验收 |
 | `docs/LEGACY_INVENTORY.json`、本报告 | 可追溯的审计快照与实际处理记录，不新增另一套长期规范 |
 
-第一轮删除的重复类型声明：
+以下前两轮的对象标签已同步为现址，原始路径仍在清单和对应恢复分支中。第一轮删除的重复类型声明：
 
 - 路径：`frontend/src/mc/props/debateProps.ts` 中第一份 `export interface DebateProps`。
 - 过去用途：道具运行对象的 TypeScript 接口；与后一份声明合并。
@@ -79,11 +79,11 @@
 
 清理前工作区干净，基线为治理提交 `2618d79`，恢复分支 `audit/pre-artifact-cleanup-20261009` 指向它。对文档、public 和产品截图中的 870 张追踪图片比对 SHA256，再比对 183 张前端文档 PNG 的解码像素，历史截图中只有以下三组精确重复。没有通过视觉相似或“旧轮次”认定冗余。
 
-| 删除文件（均在 frontend/docs/art/sample/） | 保留的逐字节相同原图 | 字节数 |
+| 删除文件（均在 frontend/docs/archive/art/sample/） | 保留的逐字节相同原图 | 字节数 |
 |---|---|---|
-| `r3-lab-chairs-34.png` | [r2-lab-chairs-34.png](../frontend/docs/art/sample/r2-lab-chairs-34.png) | 100,761 |
-| `r3-lab-expr-rt-b.png` | [r2-lab-expr-rt-b.png](../frontend/docs/art/sample/r2-lab-expr-rt-b.png) | 487,482 |
-| `r3-lab-poses.png` | [r2-lab-poses.png](../frontend/docs/art/sample/r2-lab-poses.png) | 130,494 |
+| `r3-lab-chairs-34.png` | [r2-lab-chairs-34.png](../frontend/docs/archive/art/sample/r2-lab-chairs-34.png) | 100,761 |
+| `r3-lab-expr-rt-b.png` | [r2-lab-expr-rt-b.png](../frontend/docs/archive/art/sample/r2-lab-expr-rt-b.png) | 487,482 |
+| `r3-lab-poses.png` | [r2-lab-poses.png](../frontend/docs/archive/art/sample/r2-lab-poses.png) | 130,494 |
 
 - 过去用途：r3 实验台的椅子、表情和姿态截图。当前 r2 保留文件包含同样的全部图像信息，r3 比较拼图也保留。
 - 引用：历史记录仅按 `r3-lab-*` 前缀描述这轮图片，无三个文件的独立运行调用；已在 r3 段落补明确映射和有效链接，避免看图者寻找已删除副本。
@@ -112,17 +112,17 @@
 
 ## 截图与资源
 
-以下数字来自最初基线 Git 追踪清单，不包括 `.verify/`、`.shots/`、工作目录外用户图片/录屏或本次临时截图。后续仅删除上述三个冗余文档截图；产品资产和许可证未变。
+以下数字来自最初基线 Git 追踪清单，不包括 `.verify/`、`.shots/`、工作目录外用户图片/录屏或本次临时截图。后续累计删除八张文档截图；产品资产和许可证未变。历史图已归档，以下路径为现址。
 
 | 组 | 数量 / 基线体积 | 决定 |
 |---|---|---|
 | `docs/screens/` 产品图 | 4 张，约 3.23 MiB | README 引用，A 保留 |
-| `frontend/docs/art/baseline/` | 24 张 | D 必要人物/家具对照，保留 |
-| `frontend/docs/rebuild/baseline/` | 12 张 | D 旧房间对照，保留 |
-| `frontend/docs/art/sample/` | 原 67 张，现 64 张 | 保留独有轮次/比较，三个完全重复副本 C 已删 |
-| `frontend/docs/rebuild/roundtable-v2/` | 86 张 | D 未确认样板/比较，保留 |
-| `frontend/docs/rebuild/baseline/*-metrics.json` | 6 份 JSON | D 机位/画面指标，不是 HTML，保留 |
-| 上述 art/rebuild 图片合计 | 原 189 张、105,811,830 字节；现 186 张、105,093,093 字节（约 100.22 MiB） | 仅去除字节级重复，保留所有独有图 |
+| `frontend/docs/archive/art/baseline/` | 24 张 | D 必要人物/家具对照，保留 |
+| `frontend/docs/archive/rebuild/baseline/` | 12 张 | D 旧房间对照，保留 |
+| `frontend/docs/archive/art/sample/` | 原 67 张，现 64 张 | 保留独有轮次/比较，三个完全重复副本 C 已删 |
+| `frontend/docs/archive/rebuild/roundtable-v2/` | 原 86 张，现 81 张 | 独有方案/关键对照保留；精简 5 张中画质额外细节采样 |
+| `frontend/docs/archive/rebuild/baseline/*-metrics.json` | 6 份 JSON | D 机位/画面指标，不是 HTML，保留 |
+| 上述 art/rebuild 图片合计 | 原 189 张、105,811,830 字节；现 181 张、102,444,917 字节（约 97.70 MiB） | 仅去除字节级重复，保留所有独有图 |
 | `frontend/public/mc/` | 785 个追踪文件，模型 JSON/图集/字体/音效/贴图/预览/许可 | 正式依赖与比较候选逐组登记，全部保留 |
 | `mc/textures/` 原版散图/元数据 | 539 个，307,068 字节 | 部分被动态 URL 直接加载，余者是否可精简未证明，D 保留 |
 | `mc/style/` 与 `mc/hd/` | 143 / 12 个，约 1.07 / 1.78 MiB | 比较包与单图候选保留；Faithful LICENSE/CREDITS 保留 |
@@ -133,7 +133,7 @@
 
 ## 待决项与残留
 
-- 剩余 186 张历史/实验图及六份指标 JSON：独有内容仍需确认未决方案、对照价值、文档引用和恢复点，当前继续保留。不能将三个重复副本的清理依据推广到不同图片。
+- 剩余 181 张历史/实验图及六份指标 JSON：独有内容仍需确认未决方案、对照价值、文档引用和恢复点，当前继续保留。精简依据限于明确用途与保留证据，不按年代或审美否定全部旧图。
 - 五个缺失 v2 房间、新椅子/地面对其他房间的迁移：需要新任务、功能替代证据与必要的用户视觉确认；不能因圆桌测试通过即推广。
 - 旧物件及 Node talk/debate 分支：主页面不走的部分仍有兼容/钩子/测试作用；废弃前明确所有调用方及迁移，当前保留。
 - 原版散图及候选材质单图：可以将生成输出与运行资产进一步区分，但需静态 URL、动态索引、实验与重生成验证；当前证据不足以删除。
@@ -172,6 +172,29 @@
 
 尚未得到证据的项不写通过。固定模型证明调用/事件链，不证明真实服务商质量；真实视觉参考验收、硬件 GPU 性能与音频听感不在本次声明范围。没有宣称全项目所有技术债已解决或六场景视觉验收通过。
 
+## 结构与素材用途整理（第三轮）
+
+基线 `edaa191`，恢复分支 `audit/pre-docs-layout-20261009`。用户要求判断失去参考用途的素材，并改善混乱的目录及 README。
+
+- README 将项目能力和启动放在前面，四张产品图折叠在末尾；长工作调度说明回到已有模块 README。命令统一从根目录执行，明确 Python、实验页、发布与工作产物的边界。
+- 当前生成说明移到 `frontend/docs/character-looks.md`，生成器和注释引用同步；旧交接、样板记录及图片共 201 个文件放进 `frontend/docs/archive/`。新增项目/归档索引，并修正移动文档的有效链接。
+- 产品素材和截图有运行或说明用途；旧版基线及独有轮次有对照用途；wip-r0 已无当前设计依据用途，但能追溯旧头发/脚踏等问题，所以归档保留。没有把“当前不用”推断为“历史上毫无价值”。
+- 本轮清理五张中画质额外细节采样，同机位高画质图仍保留；中/高成对的 overview、fixed、hud、fire、seated 也保留。判断基于相同样板/机位用途、实际图像检查及下面差异数据，是降低采样冗余的维护取舍，不是宣称图片逐字节相同或硬件画质相同。
+
+| 删除文件（原 frontend/docs/rebuild/roundtable-v2/） | 保留替代（现 archive/rebuild/roundtable-v2/） | 字节 | RGB 平均绝对差 /255 | 最大通道差 >16 的像素 |
+|---|---|---|---|---|
+| `r7-medium-board.png` | [r7-board.png](../frontend/docs/archive/rebuild/roundtable-v2/r7-board.png) | 427,614 | 1.147 | 1.574% |
+| `r7-medium-lake.png` | [r7-lake.png](../frontend/docs/archive/rebuild/roundtable-v2/r7-lake.png) | 345,516 | 0.728 | 0.247% |
+| `r7-medium-roof.png` | [r7-roof.png](../frontend/docs/archive/rebuild/roundtable-v2/r7-roof.png) | 687,677 | 0.410 | 0.240% |
+| `r7-medium-tea.png` | [r7-tea.png](../frontend/docs/archive/rebuild/roundtable-v2/r7-tea.png) | 372,946 | 0.951 | 0.852% |
+| `r7-medium-west.png` | [r7-west.png](../frontend/docs/archive/rebuild/roundtable-v2/r7-west.png) | 814,423 | 1.231 | 1.103% |
+
+过去用途为 swiftshader 下同机位中画质采样；没有独立运行/构建/测试调用，只有样板记录以文件前缀描述，已补当前保留集说明。五张额外采样未作为唯一方案、用户原图或唯一差异证据；更明显的 fire（5.751%）、seated（3.087%）变化仍保留。保留的成对采样及原统计用于说明软件验证边界，不能据此替代真实 GPU 测试。
+
+本轮减少工作树 2,648,176 字节（约 2.53 MiB）。逐文件原路径、现址、替代与 SHA256 见清单，删除图仍能从恢复分支按原路径读取。未打开或编辑原 `.shots/`、`.verify/` 和私人配置；运行代码仅更新五处文档注释，其他运行资源、2D、人物及默认版本不改。
+
+第三轮验证：根目录完整构建和 16/16 回归通过；55 篇 Markdown 的 175 个本地文件链接/章节锚点有效，修复了一处旧手册失效锚点；202 个迁移路径、1150 个保留清单对象存在，八个删除项都有恢复记录与替代。181 张保留图字节不变，六份指标 JSON 数据/规范化文本不变（Windows 工作树与 Git 的换行不同，Git blob 相同）。五个运行源文件去注释转译结果与基线逐字相等；生成说明在新位置重建后 SHA256 一致，生成器没有重建旧目录。Git 内容仅为明确的文档/目录迁移、五张历史图删除及相应注释/生成器调整，不含私人数据或构建输出。
+
 ## 目录与接手改善
 
 ```text
@@ -179,7 +202,7 @@ AGENTS.md / STANDARDS.md / VERIFY.md / ARCHITECTURE.md
 README.md
 docs/
   MAINTENANCE_AUDIT.md / LEGACY_INVENTORY.json
-  screens/                         产品文档配图
+  README.md / screens/             文档导航与产品配图
 frontend/
   README.md
   src/components/、data/、engines/  2D/UI/讨论边界
@@ -189,13 +212,15 @@ frontend/
   server/                          Node 模型代理、会话/工作
   personas/、public/、mc-packs/     有效资料与资源/许可
   scripts/                         回归、生成、抓图与模拟
-  docs/README.md                   历史状态入口
-    handoff/、rebuild/、art/        保留追溯/实验/比较基线
+  docs/README.md                   当前前端入口
+    character-looks.md            当前生成配置说明
+    archive/README.md             素材用途与历史入口
+      handoff/、rebuild/、art/     保留追溯/实验/比较基线
 backend/                           共享理性数据与独立 Python 工具
 persona-protocol/                  当前人物校验
 scripts/legacy.mjs                 未验证的历史比较入口
 ```
 
-目录未搬动运行资源。接手者现在能从一个短入口找到规范、真实调用图与模块说明；不会把 Python 当网页前置服务、把情感误认为 Node 调度、把样板当默认或把 Q 版人物当仅 Lab；历史文档失去当前指令效力，过期状态得到标注；一条 `npm test` 覆盖现有回归且补齐娱乐完整流程。生成造型说明从当前数据得出，避免继续手写旧比例。
+目录未搬动运行资源。接手者现在能从一个短入口找到规范、真实调用图与模块说明；不会把 Python 当网页前置服务、把情感误认为 Node 调度、把样板当默认或把 Q 版人物当仅 Lab；历史文档统一归档并失去当前指令效力，过期状态得到标注；一条 `npm test` 覆盖现有回归且补齐娱乐完整流程。生成造型说明从当前数据得出，避免继续手写旧比例。
 
 恢复时先审阅本次提交与 `audit/pre-governance-20261009` 的对应路径 diff，按对象恢复或反向应用。不要 reset 全仓库，不覆盖后续用户修改；本报告不是未来自动删除授权。

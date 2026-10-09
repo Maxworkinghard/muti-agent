@@ -91,3 +91,9 @@ DiscussionView / stage-lab / mc-lab
 | `public/expression-demo.html` | 由 `make-expression-demo.mjs` 生成的静态 2D 样本 | public 静态页，非实时人物编辑入口 |
 
 `frontend/vite.config.ts` 两个构建入口为 app 与 stagePreview；`tsconfig.json` 严格检查全部 `src`。`vite.server.config.ts` 单独打包 `server/api.ts` 为根目录 `server-dist/api.mjs`，不能只靠前端 build 发布。根目录 `npm run build` 覆盖两者；`npm test` 聚合全部离线检查，包含旧场景和 v2 契约，而非只验证其中之一。
+
+## 文档布局
+
+根目录 README 面向使用者，AGENTS / STANDARDS / VERIFY 管维护规则，本文件管实际调用关系。根目录 [docs/README.md](docs/README.md) 是项目文档导航；[frontend/docs/README.md](frontend/docs/README.md) 是当前前端说明入口，`character-looks.md` 从实际配置生成。
+
+旧交接、样板轮次和视觉基线统一放在 [frontend/docs/archive/](frontend/docs/archive/README.md)。归档不改变运行路径，也不代表美术获批或方案废弃；素材用途和精简依据在归档索引及审计记录中维护，当前文档不再与旧执行手册混放。

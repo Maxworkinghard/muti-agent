@@ -4,7 +4,7 @@
  *   config   = 人物设定里本来就有（visual 的肤色、发色、发型、衣服色、extras，或身份里明写的东西）
  *   inferred = 按设定推断的造型（设定没写，按气质和身份补的）
  *   request  = 按用户的统一要求调整（多种族肤色、没写进设定的发色）
- * 设定原文见 docs/art/00-roster.md，推导说明见 docs/art/02-character-looks.md（由 scripts/gen-looks-doc.mjs 从本文件生成）。
+ * 历史设定节选见 docs/archive/art/00-roster.md，当前配置说明见 docs/character-looks.md（由 scripts/gen-looks-doc.mjs 生成）。
  */
 import type {Look} from './types';
 const C='config' as const,I='inferred' as const,R='request' as const;

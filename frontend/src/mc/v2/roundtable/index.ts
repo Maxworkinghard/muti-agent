@@ -1,6 +1,6 @@
 /**
  * v2 圆桌会议室「湖畔木构议事厅」：把方块结构（hall.ts）、家具陈设（furnish.ts）、远景（../landscape.ts）、
- * 话题匾（board.ts）装成一个 Room。Room 的契约（八个座位锚点、话题板、镜头、碰撞、光照）见 docs/rebuild/00-contract.md。
+ * 话题匾（board.ts）装成一个 Room。起点契约记录见 docs/archive/rebuild/00-contract.md，当前接口以 Room 定义为准。
  */
 import * as THREE from 'three';
 import type {Kit} from '../../props/furniture';

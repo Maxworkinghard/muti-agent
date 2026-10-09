@@ -35,7 +35,7 @@ export interface Look {
   acc:Accessory[];
   /** 表情和姿态倾向：默认神态、手势幅度倍数、坐姿前倾（正）/后靠（负）、歪头 */
   tendency:{expression:Expression;gesture:number;lean:number;tilt:number};
-  /** 每个字段的来源，写进 docs/art/02-character-looks.md */
+  /** 每个字段的来源，写进 docs/character-looks.md */
   basis:Partial<Record<'skin'|'body'|'hairColor'|'hairStyle'|'eyes'|'top'|'outer'|'bottom'|'shoes'|'acc'|'palette'|'tendency',Basis>>;
   /** 设定 → 气质 → 特征 → 发型 → 服装 → 配色 → 表情姿态 的推导，一两句话 */
   why:string;

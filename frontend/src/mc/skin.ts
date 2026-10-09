@@ -5,7 +5,7 @@ import type {Expression} from './avatar/types';
 export type FaceExtra='raise'|'shock'|'cheer'|'frown'|'happy'|'think'|'shy'|'angry'|'neutral';
 export interface Skin {canvas:HTMLCanvasElement;texture:import('three').CanvasTexture;face(mind:MindView|undefined,t:number,speaking:boolean,reduced:boolean,extra?:FaceExtra[]):void}
 /**
- * Q 版人物的脸（docs/art/02-character-looks.md）：贴图和网格由 avatar/build.ts 按造型配置生成，这里只把旧的神态触发
+ * Q 版人物的脸（docs/character-looks.md）：贴图和网格由 avatar/build.ts 按造型配置生成，这里只把旧的神态触发
  * （被打断 shock、交锋挑眉 raise、队友发言 happy、欢呼 cheer、情绪 mood）翻译成表情，接口和旧皮肤一样。
  * 眨眼相位按 id 的字符算（固定，不是随机）。
  */

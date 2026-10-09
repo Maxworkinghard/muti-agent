@@ -1,4 +1,4 @@
-// 从 src/mc/avatar/looks.ts 生成 docs/art/02-character-looks.md：33 个人物的 Q 版造型推导、每个字段的来源（原设定 / 推断）、
+// 从 src/mc/avatar/looks.ts 生成 docs/character-looks.md：33 个人物的 Q 版造型推导、每个字段的来源（原设定 / 推断）、
 // 调色板、轮廓特征，以及零件库数量和搭配约束。造型改了以后重新运行：node scripts/gen-looks-doc.mjs
 import fs from 'node:fs';
 import { createServer } from 'vite';
@@ -38,10 +38,10 @@ try {
   const T = rig.T, R = rig.RIG;
   let md = `# 33 个人物的 Q 版造型：推导与依据
 
-> 当前造型配置说明，由 \`scripts/gen-looks-doc.mjs\` 从 \`looks.ts\`、\`rig.ts\`、\`body.ts\` 生成，不要手改。此文记录实现，不代表视觉验收通过；验收定义见根目录 [VERIFY.md](../../../VERIFY.md)。
+> 当前造型配置说明，由 \`scripts/gen-looks-doc.mjs\` 从 \`looks.ts\`、\`rig.ts\`、\`body.ts\` 生成，不要手改。此文记录实现，不代表视觉验收通过；验收定义见根目录 [VERIFY.md](../../VERIFY.md)。
 > 每个人的造型是按人物 id 写死的静态配置（没有随机数、没有按 id 哈希挑衣服），推导顺序：设定 → 气质 → 特征 → 发型 → 服装 → 配色 → 表情和姿态倾向。
 > 字段来源沿用配置中的标记：**原设定** = 人物文件已有；**推断** = Agent 补充；**用户要求** = 配置标为 request，须回查原始确认记录，不能凭此认定整套造型已获认可。
-> 设定原文见 \`00-roster.md\`。
+> 当时的设定节选见 [历史名册](archive/art/00-roster.md)；当前角色数据以人物 JSON 及人物库合并规则为准。
 
 ## 1. 基准骨架与实际体型
 
@@ -134,6 +134,6 @@ ${Object.keys(body.BODY).map(type => { const b = body.makeBody(type); return `| 
       if (res.notes.length) md += `\n搭配约束让步：${res.notes.join('；')}。\n`;
     }
   }
-  fs.writeFileSync('docs/art/02-character-looks.md', md);
-  console.log('docs/art/02-character-looks.md', listed.length, 'looks,', sil.size, 'silhouettes,', dup.length, 'duplicates');
+  fs.writeFileSync('docs/character-looks.md', md);
+  console.log('docs/character-looks.md', listed.length, 'looks,', sil.size, 'silhouettes,', dup.length, 'duplicates');
 } finally { await vite.close(); }

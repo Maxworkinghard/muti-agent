@@ -1,7 +1,7 @@
 {
   "baseline": "eed2808",
   "date": "2026-10-09",
-  "scope": "本次审计重点路径的基线追踪对象，按组共享用途/依据，逐文件列路径、体积与观察到的引用；引用空数组不是废弃证据。后续文件级 category/decision 覆盖组级默认，删除对象保留证据与替代路径。重复接口声明详见 MAINTENANCE_AUDIT.md。",
+  "scope": "最初基线的重点追踪对象；path 是基线路径，currentPath 是整理后现址，null 表示已删除。文件级分类覆盖组级默认；空引用不等于废弃。每轮删除/迁移保留恢复点和证据。",
   "artifactCleanup": {
     "baseline": "2618d79",
     "recoveryRef": "audit/pre-artifact-cleanup-20261009",
@@ -21,13 +21,15 @@
           "path": "frontend/docs/handoff/01-娱乐组-人物与引擎.md",
           "baselineBytes": 5426,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/handoff/01-娱乐组-人物与引擎.md"
         },
         {
           "path": "frontend/docs/handoff/02-辩论组-人物与引擎.md",
           "baselineBytes": 6241,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/handoff/02-辩论组-人物与引擎.md"
         },
         {
           "path": "frontend/docs/handoff/03-工作组-人物与引擎.md",
@@ -35,13 +37,15 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/personas/README.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/handoff/03-工作组-人物与引擎.md"
         },
         {
           "path": "frontend/docs/handoff/04-情感组-人物与引擎.md",
           "baselineBytes": 6856,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/handoff/04-情感组-人物与引擎.md"
         },
         {
           "path": "frontend/docs/handoff/05-我的世界辩论室-设计方案.md",
@@ -49,7 +53,8 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/handoff/06-我的世界辩论室-执行手册.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/handoff/05-我的世界辩论室-设计方案.md"
         },
         {
           "path": "frontend/docs/handoff/06-我的世界辩论室-执行手册.md",
@@ -57,7 +62,8 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/handoff/05-我的世界辩论室-设计方案.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/handoff/06-我的世界辩论室-执行手册.md"
         },
         {
           "path": "frontend/docs/handoff/07-我的世界房间-视觉重做交接.md",
@@ -66,13 +72,15 @@
           "documentMentions": [
             "frontend/docs/handoff/05-我的世界辩论室-设计方案.md",
             "frontend/docs/handoff/06-我的世界辩论室-执行手册.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/handoff/07-我的世界房间-视觉重做交接.md"
         },
         {
           "path": "frontend/docs/handoff/08-场景系统架构.md",
           "baselineBytes": 5876,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/handoff/08-场景系统架构.md"
         }
       ],
       "count": 8,
@@ -91,13 +99,15 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/rebuild/01-roundtable-v2.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/rebuild/00-contract.md"
         },
         {
           "path": "frontend/docs/rebuild/01-roundtable-v2.md",
           "baselineBytes": 16087,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/01-roundtable-v2.md"
         }
       ],
       "count": 2,
@@ -117,7 +127,8 @@
           "documentMentions": [
             "frontend/docs/art/03-sample-log.md",
             "frontend/docs/art/HANDOFF.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/character-looks.md"
         }
       ],
       "count": 1,
@@ -138,7 +149,8 @@
             "frontend/docs/art/01-baseline-audit.md",
             "frontend/docs/art/02-character-looks.md",
             "frontend/docs/art/HANDOFF.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/00-roster.md"
         },
         {
           "path": "frontend/docs/art/01-baseline-audit.md",
@@ -146,7 +158,8 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/art/HANDOFF.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/01-baseline-audit.md"
         },
         {
           "path": "frontend/docs/art/03-sample-log.md",
@@ -154,13 +167,15 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/art/HANDOFF.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/03-sample-log.md"
         },
         {
           "path": "frontend/docs/art/HANDOFF.md",
           "baselineBytes": 13477,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/HANDOFF.md"
         }
       ],
       "count": 4,
@@ -177,25 +192,29 @@
           "path": "frontend/docs/art/baseline/classroom-chair.png",
           "baselineBytes": 424932,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/classroom-chair.png"
         },
         {
           "path": "frontend/docs/art/baseline/classroom-overview.png",
           "baselineBytes": 556496,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/classroom-overview.png"
         },
         {
           "path": "frontend/docs/art/baseline/classroom-teacher-front.png",
           "baselineBytes": 380447,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/classroom-teacher-front.png"
         },
         {
           "path": "frontend/docs/art/baseline/classroom-teacher-side.png",
           "baselineBytes": 512846,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/classroom-teacher-side.png"
         },
         {
           "path": "frontend/docs/art/baseline/contact.jpg",
@@ -203,49 +222,57 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/art/01-baseline-audit.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/baseline/contact.jpg"
         },
         {
           "path": "frontend/docs/art/baseline/debate-chair.png",
           "baselineBytes": 497158,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/debate-chair.png"
         },
         {
           "path": "frontend/docs/art/baseline/debate-overview.png",
           "baselineBytes": 671212,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/debate-overview.png"
         },
         {
           "path": "frontend/docs/art/baseline/meadow-chair.png",
           "baselineBytes": 685199,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/meadow-chair.png"
         },
         {
           "path": "frontend/docs/art/baseline/meadow-overview.png",
           "baselineBytes": 1417544,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/meadow-overview.png"
         },
         {
           "path": "frontend/docs/art/baseline/office-chair.png",
           "baselineBytes": 486650,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/office-chair.png"
         },
         {
           "path": "frontend/docs/art/baseline/office-overview.png",
           "baselineBytes": 770932,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/office-overview.png"
         },
         {
           "path": "frontend/docs/art/baseline/podcast-chair.png",
           "baselineBytes": 402249,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/podcast-chair.png"
         },
         {
           "path": "frontend/docs/art/baseline/podcast-overview.png",
@@ -253,181 +280,211 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/handoff/08-场景系统架构.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/baseline/podcast-overview.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-chair.png",
           "baselineBytes": 555582,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-chair.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-face.png",
           "baselineBytes": 238046,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-face.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-fixed.png",
           "baselineBytes": 897043,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-fixed.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-floor.png",
           "baselineBytes": 503433,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-floor.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-hud.png",
           "baselineBytes": 824410,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-hud.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-judge.png",
           "baselineBytes": 816532,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-judge.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-overview.png",
           "baselineBytes": 830370,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-overview.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-seated.png",
           "baselineBytes": 525476,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-seated.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-turn-back.png",
           "baselineBytes": 582436,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-turn-back.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-turn-front.png",
           "baselineBytes": 447655,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-turn-front.png"
         },
         {
           "path": "frontend/docs/art/baseline/roundtable-v2-turn-side.png",
           "baselineBytes": 492632,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/baseline/roundtable-v2-turn-side.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/classroom-old-hud.png",
           "baselineBytes": 551769,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/classroom-old-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/classroom-old-metrics.json",
           "baselineBytes": 1858,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/classroom-old-metrics.json"
         },
         {
           "path": "frontend/docs/rebuild/baseline/classroom-old.png",
           "baselineBytes": 556634,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/classroom-old.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/debate-old-hud.png",
           "baselineBytes": 671579,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/debate-old-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/debate-old-metrics.json",
           "baselineBytes": 1728,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/debate-old-metrics.json"
         },
         {
           "path": "frontend/docs/rebuild/baseline/debate-old.png",
           "baselineBytes": 671223,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/debate-old.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/meadow-old-hud.png",
           "baselineBytes": 1374973,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/meadow-old-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/meadow-old-metrics.json",
           "baselineBytes": 1873,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/meadow-old-metrics.json"
         },
         {
           "path": "frontend/docs/rebuild/baseline/meadow-old.png",
           "baselineBytes": 1417283,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/meadow-old.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/office-old-hud.png",
           "baselineBytes": 759353,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/office-old-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/office-old-metrics.json",
           "baselineBytes": 2565,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/office-old-metrics.json"
         },
         {
           "path": "frontend/docs/rebuild/baseline/office-old.png",
           "baselineBytes": 770603,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/office-old.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/podcast-old-hud.png",
           "baselineBytes": 447598,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/podcast-old-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/podcast-old-metrics.json",
           "baselineBytes": 1008,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/podcast-old-metrics.json"
         },
         {
           "path": "frontend/docs/rebuild/baseline/podcast-old.png",
           "baselineBytes": 436614,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/podcast-old.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/roundtable-old-hud.png",
           "baselineBytes": 726428,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/roundtable-old-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/baseline/roundtable-old-metrics.json",
           "baselineBytes": 1874,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/roundtable-old-metrics.json"
         },
         {
           "path": "frontend/docs/rebuild/baseline/roundtable-old.png",
           "baselineBytes": 752238,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/baseline/roundtable-old.png"
         }
       ],
       "count": 42,
@@ -438,7 +495,7 @@
       "pastAndCurrentUse": "未确认的视觉轮次、对比与样板截图",
       "dependencyEvidence": "相关 Markdown 以路径/文件前缀引用",
       "dynamicBuildTestEvidence": "尚未完成用户视觉确认，不能凭无直接链接删除",
-      "decision": "保留独有内容；三个精确重复副本按文件级 C 删除，其他裁剪先确认最小代表集及所有引用",
+      "decision": "保留独有方案与关键对照；3 张精确重复和 5 张低增量价值软件细节采样按文件级 C 清理，其余归档。",
       "files": [
         {
           "path": "frontend/docs/art/sample/compare-baseline-r1.jpg",
@@ -446,7 +503,8 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/art/03-sample-log.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/sample/compare-baseline-r1.jpg"
         },
         {
           "path": "frontend/docs/art/sample/compare-baseline-r2.jpg",
@@ -454,7 +512,8 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/art/03-sample-log.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/sample/compare-baseline-r2.jpg"
         },
         {
           "path": "frontend/docs/art/sample/compare-baseline-r3.jpg",
@@ -462,403 +521,468 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/art/03-sample-log.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/art/sample/compare-baseline-r3.jpg"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-chairs-34.png",
           "baselineBytes": 102521,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-chairs-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-chairs-sit-34.png",
           "baselineBytes": 160614,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-chairs-sit-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-chairs-sit-side.png",
           "baselineBytes": 89566,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-chairs-sit-side.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-expr-rt-a.png",
           "baselineBytes": 327276,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-expr-rt-a.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-expr-rt-b.png",
           "baselineBytes": 447285,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-expr-rt-b.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-floors.png",
           "baselineBytes": 126664,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-floors.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-poses.png",
           "baselineBytes": 130343,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-poses.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-rt-34.png",
           "baselineBytes": 194631,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-rt-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-rt-back.png",
           "baselineBytes": 150951,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-rt-back.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-rt-front.png",
           "baselineBytes": 137914,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-rt-front.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-rt-side.png",
           "baselineBytes": 143705,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-rt-side.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-lab-rt-sit.png",
           "baselineBytes": 265938,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-lab-rt-sit.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-rt-fire.png",
           "baselineBytes": 569566,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-rt-fire.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-rt-floor.png",
           "baselineBytes": 800112,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-rt-floor.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-rt-hud.png",
           "baselineBytes": 729963,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-rt-hud.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-rt-judge.png",
           "baselineBytes": 688584,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-rt-judge.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-rt-overview.png",
           "baselineBytes": 739666,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-rt-overview.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-rt-planks.png",
           "baselineBytes": 524992,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-rt-planks.png"
         },
         {
           "path": "frontend/docs/art/sample/r1-rt-seated.png",
           "baselineBytes": 447439,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r1-rt-seated.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-chairs-34.png",
           "baselineBytes": 100761,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-chairs-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-chairs-sit-34.png",
           "baselineBytes": 166295,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-chairs-sit-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-chairs-sit-side.png",
           "baselineBytes": 90659,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-chairs-sit-side.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-expr-rt-a.png",
           "baselineBytes": 389526,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-expr-rt-a.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-expr-rt-b.png",
           "baselineBytes": 487482,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-expr-rt-b.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-floors.png",
           "baselineBytes": 126908,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-floors.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-poses.png",
           "baselineBytes": 130494,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-poses.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-rt-34.png",
           "baselineBytes": 205804,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-rt-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-rt-back.png",
           "baselineBytes": 150751,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-rt-back.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-rt-front.png",
           "baselineBytes": 148880,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-rt-front.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-rt-side.png",
           "baselineBytes": 149000,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-rt-side.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-lab-rt-sit.png",
           "baselineBytes": 277050,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-lab-rt-sit.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-rt-fire.png",
           "baselineBytes": 566849,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-rt-fire.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-rt-floor.png",
           "baselineBytes": 798125,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-rt-floor.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-rt-hud.png",
           "baselineBytes": 733872,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-rt-hud.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-rt-judge.png",
           "baselineBytes": 709275,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-rt-judge.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-rt-overview.png",
           "baselineBytes": 740077,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-rt-overview.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-rt-planks.png",
           "baselineBytes": 529710,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-rt-planks.png"
         },
         {
           "path": "frontend/docs/art/sample/r2-rt-seated.png",
           "baselineBytes": 458553,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r2-rt-seated.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-chairs-34.png",
           "baselineBytes": 100761,
           "category": "C",
           "decision": "deleted exact duplicate",
-          "replacement": "frontend/docs/art/sample/r2-lab-chairs-34.png",
+          "replacement": "frontend/docs/archive/art/sample/r2-lab-chairs-34.png",
           "sha256": "866104c644f04039d3dc2571dca69dd3a9cac20e3331e04e70e5e737dc492cec",
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": null
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-chairs-sit-34.png",
           "baselineBytes": 166274,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-chairs-sit-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-chairs-sit-side.png",
           "baselineBytes": 90560,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-chairs-sit-side.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-expr-rt-a.png",
           "baselineBytes": 393135,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-expr-rt-a.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-expr-rt-b.png",
           "baselineBytes": 487482,
           "category": "C",
           "decision": "deleted exact duplicate",
-          "replacement": "frontend/docs/art/sample/r2-lab-expr-rt-b.png",
+          "replacement": "frontend/docs/archive/art/sample/r2-lab-expr-rt-b.png",
           "sha256": "1872d1437561b7d3bbf14eadd42da932e306607f8c7410fa6af3d2a010232ca6",
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": null
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-floors.png",
           "baselineBytes": 126414,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-floors.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-poses.png",
           "baselineBytes": 130494,
           "category": "C",
           "decision": "deleted exact duplicate",
-          "replacement": "frontend/docs/art/sample/r2-lab-poses.png",
+          "replacement": "frontend/docs/archive/art/sample/r2-lab-poses.png",
           "sha256": "8a534c7b0106846b13db73bc17a2ab6d9736c4bcf3b213048f781fabbcd4ec55",
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": null
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-rt-34.png",
           "baselineBytes": 206508,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-rt-34.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-rt-back.png",
           "baselineBytes": 151033,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-rt-back.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-rt-front.png",
           "baselineBytes": 149186,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-rt-front.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-rt-side.png",
           "baselineBytes": 149168,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-rt-side.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-rt-sit.png",
           "baselineBytes": 277364,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-lab-rt-sit.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-rt-fire.png",
           "baselineBytes": 566364,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-rt-fire.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-rt-floor.png",
           "baselineBytes": 798227,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-rt-floor.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-rt-hud.png",
           "baselineBytes": 735024,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-rt-hud.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-rt-judge.png",
           "baselineBytes": 682477,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-rt-judge.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-rt-overview.png",
           "baselineBytes": 741967,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-rt-overview.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-rt-planks.png",
           "baselineBytes": 529281,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-rt-planks.png"
         },
         {
           "path": "frontend/docs/art/sample/r3-rt-seated.png",
           "baselineBytes": 458786,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/r3-rt-seated.png"
         },
         {
           "path": "frontend/docs/art/sample/wip-r0/lab-chairs-34.png",
           "baselineBytes": 154541,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/wip-r0/lab-chairs-34.png"
         },
         {
           "path": "frontend/docs/art/sample/wip-r0/lab-chairs-side.png",
           "baselineBytes": 95584,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/wip-r0/lab-chairs-side.png"
         },
         {
           "path": "frontend/docs/art/sample/wip-r0/lab-expr-rt-b.png",
           "baselineBytes": 374538,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/wip-r0/lab-expr-rt-b.png"
         },
         {
           "path": "frontend/docs/art/sample/wip-r0/lab-floors.png",
           "baselineBytes": 128075,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/wip-r0/lab-floors.png"
         },
         {
           "path": "frontend/docs/art/sample/wip-r0/lab-poses.png",
           "baselineBytes": 176541,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/wip-r0/lab-poses.png"
         },
         {
           "path": "frontend/docs/art/sample/wip-r0/lab-rt-front.png",
           "baselineBytes": 142176,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/wip-r0/lab-rt-front.png"
         },
         {
           "path": "frontend/docs/art/sample/wip-r0/lab-rt-sit.png",
           "baselineBytes": 227710,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/art/sample/wip-r0/lab-rt-sit.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/compare-old-new.jpg",
@@ -866,7 +990,8 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/rebuild/01-roundtable-v2.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/compare-old-new.jpg"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/compare-r6-r7.jpg",
@@ -874,403 +999,470 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/rebuild/01-roundtable-v2.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/compare-r6-r7.jpg"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-board.png",
           "baselineBytes": 417593,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-board.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-fire.png",
           "baselineBytes": 526829,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-fixed.png",
           "baselineBytes": 826071,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-hud.png",
           "baselineBytes": 749738,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-judge.png",
           "baselineBytes": 701548,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-judge.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-overview.png",
           "baselineBytes": 746121,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-roof.png",
           "baselineBytes": 611738,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-roof.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-seated.png",
           "baselineBytes": 562283,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-tea.png",
           "baselineBytes": 416636,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-tea.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r1-west.png",
           "baselineBytes": 792052,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r1-west.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-board.png",
           "baselineBytes": 418272,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-board.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-fire.png",
           "baselineBytes": 554105,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-fixed.png",
           "baselineBytes": 903490,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-hud.png",
           "baselineBytes": 750421,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-judge.png",
           "baselineBytes": 734115,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-judge.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-overview.png",
           "baselineBytes": 762263,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-roof.png",
           "baselineBytes": 647129,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-roof.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-seated.png",
           "baselineBytes": 576706,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-tea.png",
           "baselineBytes": 432541,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-tea.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r2-west.png",
           "baselineBytes": 922606,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r2-west.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-board.png",
           "baselineBytes": 418312,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-board.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-fire.png",
           "baselineBytes": 553654,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-fixed.png",
           "baselineBytes": 908089,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-hud.png",
           "baselineBytes": 737421,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-judge.png",
           "baselineBytes": 721230,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-judge.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-overview.png",
           "baselineBytes": 747974,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-roof.png",
           "baselineBytes": 660184,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-roof.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-seated.png",
           "baselineBytes": 573146,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-tea.png",
           "baselineBytes": 451145,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-tea.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r3-west.png",
           "baselineBytes": 921883,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r3-west.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-board.png",
           "baselineBytes": 473962,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-board.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-fire.png",
           "baselineBytes": 566177,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-fixed.png",
           "baselineBytes": 915308,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-hud.png",
           "baselineBytes": 723409,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-judge.png",
           "baselineBytes": 734342,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-judge.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-overview.png",
           "baselineBytes": 734989,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-roof.png",
           "baselineBytes": 650918,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-roof.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-seated.png",
           "baselineBytes": 567167,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-tea.png",
           "baselineBytes": 374389,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-tea.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r4-west.png",
           "baselineBytes": 939646,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r4-west.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-board.png",
           "baselineBytes": 471158,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-board.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-fire.png",
           "baselineBytes": 570324,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-fixed.png",
           "baselineBytes": 915239,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-hud.png",
           "baselineBytes": 737488,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-judge.png",
           "baselineBytes": 719151,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-judge.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-medium-fixed.png",
           "baselineBytes": 856905,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-medium-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-medium-hud.png",
           "baselineBytes": 646496,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-medium-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-medium-overview.png",
           "baselineBytes": 658537,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-medium-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-overview.png",
           "baselineBytes": 744586,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-roof.png",
           "baselineBytes": 650888,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-roof.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-seated.png",
           "baselineBytes": 571425,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-tea.png",
           "baselineBytes": 374331,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-tea.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r5-west.png",
           "baselineBytes": 938496,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r5-west.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-board.png",
           "baselineBytes": 485249,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-board.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-fire.png",
           "baselineBytes": 581529,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-fixed.png",
           "baselineBytes": 930744,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-hud.png",
           "baselineBytes": 748684,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-judge.png",
           "baselineBytes": 728462,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-judge.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-overview.png",
           "baselineBytes": 757462,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-roof.png",
           "baselineBytes": 675941,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-roof.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-seated.png",
           "baselineBytes": 569879,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-tea.png",
           "baselineBytes": 380143,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-tea.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r6-west.png",
           "baselineBytes": 941301,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r6-west.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-board.png",
           "baselineBytes": 487483,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-board.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-fire.png",
           "baselineBytes": 606214,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-fixed.png",
           "baselineBytes": 896574,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-hud.png",
@@ -1278,109 +1470,162 @@
           "incomingCode": [],
           "documentMentions": [
             "frontend/docs/rebuild/01-roundtable-v2.md"
-          ]
+          ],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-judge.png",
           "baselineBytes": 815871,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-judge.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-lake.png",
           "baselineBytes": 398431,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-lake.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-board.png",
           "baselineBytes": 427614,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "decision": "deleted redundant software-rendered detail sample",
+          "currentPath": null,
+          "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-board.png",
+          "sha256": "2387dec15b1024b13218d5b557717e09bc368979b0f1dd3878ff03a20d0bf6fe",
+          "meanAbsDifference": 1.147,
+          "pixelsOver16Percent": 1.574,
+          "recoveryRef": "audit/pre-docs-layout-20261009"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-fire.png",
           "baselineBytes": 566610,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-medium-fire.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-fixed.png",
           "baselineBytes": 838319,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-medium-fixed.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-hud.png",
           "baselineBytes": 701550,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-medium-hud.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-lake.png",
           "baselineBytes": 345516,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "decision": "deleted redundant software-rendered detail sample",
+          "currentPath": null,
+          "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-lake.png",
+          "sha256": "ae2c183863cb284cc525df330355cbd395bbe2df2b9daf5ec5680755436425c5",
+          "meanAbsDifference": 0.728,
+          "pixelsOver16Percent": 0.247,
+          "recoveryRef": "audit/pre-docs-layout-20261009"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-overview.png",
           "baselineBytes": 707835,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-medium-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-roof.png",
           "baselineBytes": 687677,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "decision": "deleted redundant software-rendered detail sample",
+          "currentPath": null,
+          "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-roof.png",
+          "sha256": "34f3f96e84eb5fccdd8723017ce861f7c7f5417e4994589360e412968352c682",
+          "meanAbsDifference": 0.41,
+          "pixelsOver16Percent": 0.24,
+          "recoveryRef": "audit/pre-docs-layout-20261009"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-seated.png",
           "baselineBytes": 360077,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-medium-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-tea.png",
           "baselineBytes": 372946,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "decision": "deleted redundant software-rendered detail sample",
+          "currentPath": null,
+          "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-tea.png",
+          "sha256": "baf6268d1f09c1a5bea598d0052f0608163eb3b79c18afc27e4c24f3aa1a5bc9",
+          "meanAbsDifference": 0.951,
+          "pixelsOver16Percent": 0.852,
+          "recoveryRef": "audit/pre-docs-layout-20261009"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-west.png",
           "baselineBytes": 814423,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "decision": "deleted redundant software-rendered detail sample",
+          "currentPath": null,
+          "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-west.png",
+          "sha256": "42a624f3a0e216ae8f0131493e25c2b30347b98beb54f7396f37dd48b415432c",
+          "meanAbsDifference": 1.231,
+          "pixelsOver16Percent": 1.103,
+          "recoveryRef": "audit/pre-docs-layout-20261009"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-overview.png",
           "baselineBytes": 829917,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-overview.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-roof.png",
           "baselineBytes": 749248,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-roof.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-seated.png",
           "baselineBytes": 526080,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-seated.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-tea.png",
           "baselineBytes": 447171,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-tea.png"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-west.png",
           "baselineBytes": 888925,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "currentPath": "frontend/docs/archive/rebuild/roundtable-v2/r7-west.png"
         }
       ],
       "count": 153,
@@ -7929,5 +8174,14 @@
       "count": 1,
       "baselineBytes": 4041
     }
+  },
+  "layoutCleanup": {
+    "baseline": "edaa191",
+    "recoveryRef": "audit/pre-docs-layout-20261009",
+    "archivedFiles": 201,
+    "currentDocRelocated": 1,
+    "deletedFiles": 5,
+    "workingTreeBytesRemoved": 2648176,
+    "judgment": "精简软件渲染细节重复采样，保留同机位高画质图、整体/外景/HUD及炉火/坐姿的中高成对证据；不宣称图像完全相同或硬件画质等价。"
   }
 }

@@ -38,7 +38,7 @@ export interface HairPlan {
 export interface HairOpts {hat:'beanie'|'cap'|'beret'|null;hood:boolean;glasses:boolean;ahoge:boolean;tuck?:boolean}
 
 const {hx,hz,h}=HEAD;
-/** 发型说明（docs/art/02-character-looks.md 用） */
+/** 发型说明（docs/character-looks.md 用） */
 export const HAIR_LABEL:Record<HairStyle,string>={
   braid:'侧编麻花辫',sidetail:'侧马尾',tidy:'清爽侧分短发',spiky:'刺猬头',curly:'蓬松卷发',bob:'齐刘海波波头',sweep:'侧分长刘海',curtain:'中分',lowtail:'后梳低马尾',
   wavy:'大波浪长发',ponytail:'高马尾',twintails:'双马尾',topknot:'头顶发髻',odango:'双丸子头',crew:'寸头',quiff:'飞机头',

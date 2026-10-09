@@ -1,114 +1,106 @@
 # muti-agent
 
-多人格讨论工作台：选模式和主题，选几个人物入座，看他们围绕你的问题讨论或分工协作。讨论中可以暂停、插话、继续，讨论结束后还能接着追问。
+多人格讨论工作台：选择模式、主题、场景和人物，观看他们讨论或分工协作。支持暂停、插话、点名、私聊，以及结束后的追问。
 
-维护入口：[AGENTS.md](AGENTS.md) → [STANDARDS.md](STANDARDS.md) → [ARCHITECTURE.md](ARCHITECTURE.md)，交付前读 [VERIFY.md](VERIFY.md)。本次治理结果、遗留分类和待决项见 [维护审计](docs/MAINTENANCE_AUDIT.md)；前端运行/实验入口见 [frontend/README.md](frontend/README.md)。
+## 当前能力
 
-项目按当前方向持续开发：围绕娱乐、辩论、情感分析和工作四种模式，完善人物库、讨论交互与场景表现。原有像素场景继续保留，3D 场景作为独立选项新增；人物模型与动作动画逐步适配，已接入能力和当前限制以本文及对应资源说明为准。
+| 模式 | 主要流程 | 内置人物 |
+|---|---|---|
+| 娱乐 | 导演与演员接话、脑洞闲聊、总结收尾 | 8 人 |
+| 辩论 | 正反方立论、交锋、总结共识与分歧，不评分或判胜负 | 5 人 |
+| 情感分析 | 回应情绪 → 分清事实与感受 → 下一步行动 | 7 人 |
+| 工作 | 负责人派活 → 并行产出 → 同事评审 → 定稿交付 | 13 人 |
 
-## 界面
+工作模式的产物是讨论中的文本方案，不会实际创建网站、App 或项目文件。办公室支持 13 个工位、走访、站会和会议；动作与气泡按顺序排队。详细流程见[工作引擎说明](frontend/src/engines/product/README.md)。
 
-**1. 模式 · 主题 · 场景**：娱乐 / 辩论 / 情感分析 / 工作 四选一，填上想讨论的问题，再挑一张场景图。
+## 快速开始
+
+需要 Node.js `^20.19.0 || >=22.12.0`。以下命令都在仓库根目录执行：
+
+```powershell
+npm run install:all
+```
+
+首次配置且 `frontend/.env` 不存在时，复制[配置模板](frontend/.env.example)为 `frontend/.env`，填写 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。已有配置直接沿用。
+
+```powershell
+npm --prefix frontend run dev
+```
+
+打开终端显示的 localhost 地址，默认端口 5173，端口占用时会顺延。一个 Vite 进程提供页面、Node 会话和模型代理；网页运行不需要启动 Python。娱乐、辩论和情感分析在浏览器调度，工作通过 Node/SSE 运行。凭据仅由服务器读取，不进入前端或 Git；开发配置可由 `.env.local` 覆盖，兼容旧 `ROUNDTABLE_*` 变量。
+
+## 场景与实验
+
+六个原有 2D 场景继续可用：圆桌、辩论室、办公室、教室、草地野餐和播客访谈间，也支持上传自定义场景。主动选择同名「· 我的世界」选项才加载 MC 3D，讨论中可以切回原图。
+
+| 页面（服务地址后追加） | 用途 | 生产构建 |
+|---|---|---|
+| `/` | 正式工作台，默认沿用旧六个 MC 房间 | 包含 |
+| `/stage-lab.html?scene=roundtable-mc` | 六场景预览；加 `&v=2` 看圆桌实验样板 | 包含 |
+| `/mc-lab.html?scene=roundtable&v=2` | 内置人物、动作和材质对比 | 仅开发 |
+| `/avatar-lab.html` | 人物、表情、姿态、椅子和地面实验 | 仅开发 |
+
+v2 只实现了圆桌，其他五个场景回退旧版；预览可运行不代表用户视觉验收通过。素材来源见[MC 署名](frontend/public/mc/THIRD-PARTY.md)、[叠加包说明](frontend/mc-packs/README.md)及[高清对比包许可](frontend/public/mc/hd/CREDITS.md)。
+
+## 构建、检查与发布
+
+```powershell
+npm test
+npm run build
+```
+
+测试使用本地数据或假模型。完整构建同时更新 `frontend/dist` 和 `server-dist/api.mjs`；单独运行 `npm --prefix frontend run build` 只构建页面。检查范围和限制见 [VERIFY.md](VERIFY.md)，已复现的自由镜头边界问题见[审计残留](docs/MAINTENANCE_AUDIT.md#待决项与残留)。
+
+发布时在根目录设置至少 16 个字符的访问密码并启动服务。PowerShell 示例：
+
+```powershell
+$env:APP_ACCESS_PASSWORD='replace-with-a-long-random-password'
+$env:PORT='8080'
+npm start
+```
+
+浏览器登录用户名为 `roundtable`，密码为 `APP_ACCESS_PASSWORD`。页面和 API 共用鉴权；对外发布使用 HTTPS。`serve.mjs` 默认端口 5173，读取 `.env`、`.env.production` 和进程环境，不启动 Python。Bash 可用 `APP_ACCESS_PASSWORD='replace-with-a-long-random-password' PORT=8080 npm start`。
+
+## 项目导航
+
+```text
+frontend/src/          工作台、四模式引擎、2D 与 MC 运行实现
+frontend/server/       Node 模型代理、会话和工作流程
+frontend/personas/     娱乐、情感、工作人物
+frontend/public/      产品场景、MC 运行资产及许可证
+frontend/docs/        当前前端文档；历史资料统一在 archive/
+backend/              共享辩论人物/性格，以及独立 Python 工具
+persona-protocol/     人物格式与校验
+docs/                 人物上传指南、维护审计与产品截图
+```
+
+当前目录和调用关系见 [ARCHITECTURE.md](ARCHITECTURE.md)。`node_modules`、`dist`、`server-dist` 是本地依赖或构建输出；`.shots`、`.verify` 是忽略的临时数据，不是源码或参考素材目录。
+
+| 要做的事 | 从这里开始 |
+|---|---|
+| 修改项目 | [AGENTS.md](AGENTS.md) → [STANDARDS.md](STANDARDS.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
+| 前端、服务、实验台维护 | [frontend/README.md](frontend/README.md)和[前端文档](frontend/docs/README.md) |
+| 创建或上传人物 | [人物指南](docs/人物角色创建与上传说明.md) |
+| 查遗留分类、素材取舍和恢复点 | [维护审计](docs/MAINTENANCE_AUDIT.md)及[历史资料索引](frontend/docs/archive/README.md) |
+| 查 Python 工具 | [backend/README.md](backend/README.md) |
+
+<details>
+<summary>2D 工作台截图</summary>
+
+模式、主题与场景：
 
 ![模式 · 主题 · 场景](docs/screens/01-mode-topic-scene.png)
 
-**2. 选择人物**：从该模式的人物库里挑人入座，辩论要正反方各至少一人，中立主持负责串场，结束后整理共识与分歧，不评分或判胜负。
+选择人物：
 
 ![选择人物](docs/screens/02-cast.jpg)
 
-**3. 讨论**：左边是场景，右边是工作区，可以暂停、对全体插话，也可以点成员私下说（只有他看得到，其他角色不知道），讨论结束还能接着追问。
+讨论与私聊：
 
 ![讨论](docs/screens/03-discussion.png)
 
-**4. 工作 · 办公室**：13 个工位都能坐人。负责人在中央交换台开站会派活，大家分头干活，需要时走到同事工位当面讨论，写完互相评审，有冲突就进会议室对齐。画面按现实规矩排队：同屏最多两个气泡，气泡上标着谁对谁说。
+工作办公室：
 
 ![工作 · 办公室](docs/screens/04-office.png)
 
-场景图在 `frontend/public/scenes/`，六张分别是圆桌会议室、辩论室、办公室、教室、草地野餐、播客访谈间（正面视角，两人全身坐在扶手椅上访谈），也可以上传自己的图。例如教室：
-
-![教室](frontend/public/scenes/scene-classroom.png)
-
-加了 3D 场景之后，像素场景和各模式的默认场景都不变。在场景列表下方的「新增 3D 场景」中，还可单独选择六个「· 我的世界」房间：圆桌会议室、辩论室、办公室、教室、草地野餐和播客访谈间，各自对应同名的二维场景。仅主动选择这些新增场景时才加载 3D 房间，讨论中也能切回场景原图。`stage-lab.html` 可单独预览这六个房间，开发服务和生产构建均包含此页。房间用原版方块贴图，树叶叠加了 MIT 授权的 Better Leaves 材质包（放在 [`frontend/mc-packs/`](frontend/mc-packs/README.md)，声明见 [`frontend/public/mc/THIRD-PARTY.md`](frontend/public/mc/THIRD-PARTY.md)）；高清贴图只在预览页对比用，来源与许可见 [`frontend/public/mc/hd/CREDITS.md`](frontend/public/mc/hd/CREDITS.md)。
-
-## 四个模式
-
-| 模式 | 引擎 | 人物 |
-| --- | --- | --- |
-| 娱乐 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/entertainment/` + 底盘 `live/`）：导演看全场、提名每一步可能接话的人，谁真的开口按各人此刻的冲动抽，每个角色按自己的人设说、自己定看法（导演的话头不合人设可以不接）；能插嘴、冷场散场；可以暂停、@点名、私聊撺掇 | `frontend/personas/entertainment/` 7 位室友，加播客主持人阿麦，共 8 人 |
-| 辩论 | 浏览器里的独立导演 + 辩手 + 赛后整理引擎（`frontend/src/engines/rational/`）：按正反方轮次交锋，结束后中立整理讨论，不打分、不判胜负；人物说法随现场变化 | `backend/人物/理性/` 5 人，构建时直接加载 |
-| 情感分析 | 浏览器里的导演 + 演员引擎（`frontend/src/engines/emotion/` + 底盘 `live/`）：七种回应风格一起接住你的事，导演按「回应情绪 → 分清事实与感受 → 下一步行动」往前排、提名谁接话，谁开口按冲动抽、怎么说各人自己定，情绪（心疼、火气、担心、欣慰）一步步递进；有人问你时会停下来等你开口；可以暂停、@点名、私聊 | `frontend/personas/emotion/` 7 人 |
-| 工作 | Node 会话后端（`frontend/server/work.ts`）：立项派活 → 分头干活 → 互相评审 → 定稿交付 | `frontend/personas/product/` 13 人 |
-
-工作模式的办公室开放 13 个工位。负责人先在中央交换台开站会派活，成员并行写第一版，需要时到同事工位当面讨论；第一版作为文件交给同事评审，当面回应后改出第二版。负责人发现各部分有冲突时，会叫相关成员进会议室对齐、拍板，最后在交换台前宣布交付。记录显示交流双方，点开成员也能看到别人对他说的话。
-
-画面上照现实的规矩排队，宁可整场拉长也不挤（规则在 `frontend/src/data/stageRules.ts` 和 `frontend/server/work.ts` 的 `Stage`）：模型照样几个人同时想、同时写，但一个人话没说完不起身、路没走完不开口；当面谈的两个人轮流说，上一句在气泡里停够看完的时间才出下一句；站会和会议要等人到齐、一次一个人说，散会等最后一句看完；全屏同时最多两个气泡，多出来的对话先等着；第一版是交出来的文件，照样出气泡（标题写「· 第一版」），记录里按文件样式显示，几份第一版错开交。走路时间按距离算，前端动画和后端排时间用同一份。截图所用的 13 人演示约 5 分钟，实际耗时随模型响应和交流次数变化。娱乐、情感分析和辩论本来就是一次一个人开口（小反应错开、插嘴立即截断），不受影响。
-
-二维办公室和「办公室 · 我的世界」都支持走动、站会和会议室坐姿。暂停会等待恢复后再推进工作，期间可以继续私聊；停止会中断模型请求和流程等待。人物通过文字产出方案，不会实际创建网站、App 或文件。流程、发言顺序、每个人能看到什么、异常处理等完整说明见 [`frontend/src/engines/product/README.md`](frontend/src/engines/product/README.md)。
-
-在 `frontend/` 中运行 `npm run test:work` 可用假模型验证 13 人全流程、台上排队的规矩（按事件时间逐条核对）、当面谈排队、并发上限、暂停恢复和停止。发布前运行根目录的 `npm run build`，同时更新页面和服务端产物。
-
-## 目录
-
-- `frontend/`：网页和 Node 后端（`server/`），人物在 `personas/`；`docs/handoff/` 为历史快照，当前维护从根目录规范及模块 README 开始。
-- `backend/`：辩论人物与性格资料的原始文件；旧版 Python 服务保留作独立工具，网页运行不依赖它。
-- `persona-protocol/`：人物文件格式的校验器，前端加载人物和图鉴导入都用它；命令行用法 `node persona-protocol/src/cli.mjs 文件.json`。
-- `docs/screens/`：README 里用到的四张界面截图。
-
-## 运行
-
-本地只需启动前端开发服务器；四个模式共用它提供的模型代理。
-
-| 进程 | 职责 | 默认地址 |
-| --- | --- | --- |
-| 前端开发服务器（Vite） | 页面与热更新、Node 会话后端、四个模式的模型转发 | http://localhost:5173 |
-
-**环境要求**：Node.js `^20.19.0 || >=22.12.0`（Vite 8 的要求）；首次运行先在 `frontend/` 执行一次 `npm install`。
-
-### 1. 配置模型凭据
-
-把 `frontend/.env.example` 复制为 `frontend/.env`，填写三个变量：
-
-| 变量 | 含义 | 示例 |
-| --- | --- | --- |
-| `LLM_API_KEY` | 服务商 API Key | `sk-...` |
-| `LLM_BASE_URL` | 兼容 OpenAI `/chat/completions` 的接口地址 | `https://api.deepseek.com/v1` |
-| `LLM_MODEL` | 模型名 | `deepseek-chat` |
-
-- Node 侧依次加载 `.env`、`.env.local`，同名变量以 `.env.local` 为准；旧变量名 `ROUNDTABLE_*` 仍然兼容；
-- `.env` 只在服务器端读取，不会打包进前端，也不纳入版本控制；
-- 未配置的后果：四种模式发言时都会提示缺少 `LLM_API_KEY`。
-
-### 2. 启动网页
-
-```bash
-cd frontend
-npm run dev
-```
-
-一个 Vite 进程提供页面与热更新、Node 会话后端（`/api/health`、`/api/sessions`）及 `/api/llm/chat` 模型代理，Key 只留在服务器端。娱乐、情感分析和辩论分别在浏览器运行自己的引擎。
-
-- 端口默认为 5173，被占用时 Vite 会自动顺延，**以终端输出的地址为准**；
-- 请用终端输出的 `localhost` 地址打开（只监听 IPv6 回环时，`127.0.0.1` 连不上）；
-
-### 3. 单端口发布（可选）
-
-`node serve.mjs` 把静态页和 Node 模型代理合并到一根端口；不再启动 Python 子进程。
-
-发布前设置至少 16 个字符的 `APP_ACCESS_PASSWORD`（可放在 `frontend/.env.production` 或进程环境变量）。服务启动后，浏览器访问页面会要求登录：用户名固定为 `roundtable`，密码是该变量的值。页面和全部 API 共用此校验；对外访问请使用 HTTPS，避免 Basic 凭据在传输中泄露。未配置密码时单端口服务会拒绝启动。
-
-`serve.mjs` 在仓库根目录，下面两条也在根目录执行：
-
-```bash
-npm run build              # 构建页面和 Node 后端（即 frontend/ 里的 build 和 build:server）
-APP_ACCESS_PASSWORD='replace-with-a-long-random-password' PORT=8080 npm start  # 默认端口 5173
-```
-
-上面的环境变量写法适用于 Bash。PowerShell 用 `$env:APP_ACCESS_PASSWORD='replace-with-a-long-random-password'`、`$env:PORT='8080'` 分别设置，再运行 `npm start`。
-
-若存在 `frontend/.env.production`，它会覆盖 `.env` 中的模型配置（本地 `npm run dev` 不读它）。
-
-## 检查与实验
-
-根目录 `npm test` 或 `frontend/` 中 `npm test` 运行全部离线检查（假模型与本地数据）；前端 `npm run test:pixel-avatar` 单独检查原有 2D 像素人物。适用页面回归与验收定义见 [VERIFY.md](VERIFY.md)。
-
-`stage-lab.html` 可预览六个 MC 场景，`?scene=roundtable-mc&v=2` 选择圆桌实验样板；正式工作台仍使用旧六场景。`mc-lab.html`（动作/材质）和 `avatar-lab.html`（人物/椅子/地面）只在开发服务器可用。实验已接入或预览构建成功不代表用户认可视觉方向。
+</details>
