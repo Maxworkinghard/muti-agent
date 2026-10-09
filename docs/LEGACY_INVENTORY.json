@@ -1,7 +1,14 @@
 {
   "baseline": "eed2808",
   "date": "2026-10-09",
-  "scope": "本次审计重点路径的已追踪对象，按组共享用途/依据，逐文件列路径、体积与观察到的引用；引用空数组不是废弃证据。删除的重复接口声明详见 MAINTENANCE_AUDIT.md。",
+  "scope": "本次审计重点路径的基线追踪对象，按组共享用途/依据，逐文件列路径、体积与观察到的引用；引用空数组不是废弃证据。后续文件级 category/decision 覆盖组级默认，删除对象保留证据与替代路径。重复接口声明详见 MAINTENANCE_AUDIT.md。",
+  "artifactCleanup": {
+    "baseline": "2618d79",
+    "recoveryRef": "audit/pre-artifact-cleanup-20261009",
+    "deletedFiles": 3,
+    "workingTreeBytesRemoved": 718737,
+    "evidence": "SHA256、逐字节及解码像素完全相同；运行/构建/测试无调用，历史前缀引用已补映射；保留全部独有截图，未改写 Git 历史。"
+  },
   "groups": {
     "handoff": {
       "category": "D",
@@ -431,7 +438,7 @@
       "pastAndCurrentUse": "未确认的视觉轮次、对比与样板截图",
       "dependencyEvidence": "相关 Markdown 以路径/文件前缀引用",
       "dynamicBuildTestEvidence": "尚未完成用户视觉确认，不能凭无直接链接删除",
-      "decision": "保留；未来批量裁剪前确认最小代表集及所有引用",
+      "decision": "保留独有内容；三个精确重复副本按文件级 C 删除，其他裁剪先确认最小代表集及所有引用",
       "files": [
         {
           "path": "frontend/docs/art/sample/compare-baseline-r1.jpg",
@@ -688,6 +695,10 @@
         {
           "path": "frontend/docs/art/sample/r3-lab-chairs-34.png",
           "baselineBytes": 100761,
+          "category": "C",
+          "decision": "deleted exact duplicate",
+          "replacement": "frontend/docs/art/sample/r2-lab-chairs-34.png",
+          "sha256": "866104c644f04039d3dc2571dca69dd3a9cac20e3331e04e70e5e737dc492cec",
           "incomingCode": [],
           "documentMentions": []
         },
@@ -712,6 +723,10 @@
         {
           "path": "frontend/docs/art/sample/r3-lab-expr-rt-b.png",
           "baselineBytes": 487482,
+          "category": "C",
+          "decision": "deleted exact duplicate",
+          "replacement": "frontend/docs/art/sample/r2-lab-expr-rt-b.png",
+          "sha256": "1872d1437561b7d3bbf14eadd42da932e306607f8c7410fa6af3d2a010232ca6",
           "incomingCode": [],
           "documentMentions": []
         },
@@ -724,6 +739,10 @@
         {
           "path": "frontend/docs/art/sample/r3-lab-poses.png",
           "baselineBytes": 130494,
+          "category": "C",
+          "decision": "deleted exact duplicate",
+          "replacement": "frontend/docs/art/sample/r2-lab-poses.png",
+          "sha256": "8a534c7b0106846b13db73bc17a2ab6d9736c4bcf3b213048f781fabbcd4ec55",
           "incomingCode": [],
           "documentMentions": []
         },

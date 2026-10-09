@@ -107,6 +107,14 @@
 
 截图：`r3-lab-*`、`r3-rt-*`，对比图 `compare-baseline-r3.jpg`。
 
+2026-10-09 去重说明：下列 r3 截图与对应 r2 文件逐字节相同，已保留 r2 原图并删除重复副本；其他 r3 截图与本轮对比拼图保留。查看 r3 的这三个镜头时使用下表，不代表删除或批准 r3 设计。
+
+| 原 r3 文件名 | 保留的相同图 |
+|---|---|
+| `r3-lab-chairs-34.png` | [椅子斜视图](sample/r2-lab-chairs-34.png) |
+| `r3-lab-expr-rt-b.png` | [人物表情图](sample/r2-lab-expr-rt-b.png) |
+| `r3-lab-poses.png` | [姿态图](sample/r2-lab-poses.png) |
+
 ### 看到的差距（交给用户审查前的状态）
 
 1. 棒球帽从背后看已经是圆顶（`r3-rt-overview` 中间那位），帽子、马尾、头发分得开；毛线帽同样处理（圆桌 8 人里没有，实验台 `product` 组里看）。
