@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type {Room} from './rooms/debate';
+import type {Room} from './rooms/types';
 import type {RoomPhysics} from './rooms/physics';
 
 const KEYS=new Set(['KeyW','KeyA','KeyS','KeyD','Space','ControlLeft','ControlRight','ShiftLeft','ShiftRight','KeyQ','KeyE']);

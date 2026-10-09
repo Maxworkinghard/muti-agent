@@ -1,6 +1,6 @@
 import type {Participant,TaskEvent} from '../types';
 import {readMs} from '../data/stageRules';
-import type {Room,ActorAnchor} from './rooms/debate';
+import type {Room,ActorAnchor} from './rooms/types';
 import type {Point} from './rooms/builders';
 import {createDirector,type DirectorState,type Input,type Outputs,type Actor,type Action} from './director';
 
@@ -21,13 +21,6 @@ export function stepScene(previous:DirectorState,now:number,inputs:Input[],room:
   const chat=(id:string,text:string,privateLine=false)=>{const existing=s.chat.find(c=>c.id===id);if(existing)existing.text=text;else s.chat.push({id,text,color:privateLine?'#AAAAAA':'#e6d8b8',private:privateLine,born:s.now});s.chat=s.chat.slice(-6);};
   const finish=(id:string,closed=false)=>{const m=s.pending[id];if(!m)return;m.complete=true;const who=s.actors[m.speakerId]?.name??(m.speakerId==='user'?'你':'系统');chat(id,m.private?`${who}（私聊）：${m.text}`:`<${who}> ${m.text}${m.cut?'——':''}`,!!m.private);const b=s.bubbles.find(b=>b.id===id);if(b)b.expires=s.now+readMs(m.text);if(m.private?closed||m.kind==='user':['user','system','notice'].includes(m.kind)||!!b)delete s.pending[id];};
   const index=(a:Actor)=>room.anchors.indexOf(a.anchor);
-  const go=(a:Actor,point:Point,sit:boolean)=>{
-    const ground:Point=[point[0],1,point[2]],path=navigate?navigate(a.position,ground):[ground];
-    if(!path.length){chat('path-'+a.id+'-'+s.now,a.name+' 的通道被挡住了，暂时留在原位');return false;}
-    a.queue=[];a.active=null;a.ready=false;
-    if(a.sit>.1)queue(a,{kind:'standUp'});
-    for(const p of path)queue(a,{kind:'walkTo',point:p});if(sit)queue(a,{kind:'sitDown'});queue(a,{kind:'signal',gate:'speech',key:a.id});return true;
-  };
   for(const input of inputs){
     if(input.type==='session'){s.session=input.state;continue;}
     if(input.type==='round'){s.round=s.boardRound=input.round;s.label=s.boardLabel=input.label;s.roundReady=true;s.boardTheme=s.theme;s.title={text:'第 '+input.round+' 轮',sub:input.label,color:'#FFFFFF',born:s.now};out.signals.push({gate:'round',key:String(input.round)});}
@@ -39,7 +32,6 @@ export function stepScene(previous:DirectorState,now:number,inputs:Input[],room:
       if(input.state==='speaking'){
         a.speechSerial++;if(!/私下/.test(input.action)){s.lookSpeaker=a.id;s.lookSpeakerAt=s.now;}s.mics[a.anchor.mic]=!/私下/.test(input.action);
         if(!room.seatedSpeech&&!room.standingSeats?.includes(index(a))&&a.sit>.1&&!/私下/.test(input.action))queue(a,{kind:'standUp'});
-        if(room.kind==='classroom'&&room.standingSeats?.includes(index(a))&&!/私下/.test(input.action))queue(a,{kind:'flipScript'});
         if(a.active||a.queue.length){a.ready=false;queue(a,{kind:'signal',gate:'speech',key:a.id,serial:a.speechSerial});}else{a.ready=true;a.preparedSerial=a.speechSerial;a.status='speaking';out.signals.push({gate:'speech',key:a.id});}
       }else if(input.state==='idle'&&was==='speaking'){
         for(const m of Object.values(s.pending))if(m.speakerId===a.id)finish(m.id,true);s.mics[a.anchor.mic]=false;
@@ -54,14 +46,7 @@ export function stepScene(previous:DirectorState,now:number,inputs:Input[],room:
       const m=s.pending[input.id];if(m){m.text=input.text;m.cut=input.cut;if(m.private)finish(input.id);}const b=s.bubbles.find(b=>b.id===input.id);if(b){b.text=input.text;b.cut=input.cut;if(input.cut)b.expires=s.now+300;}
     }else if(input.type==='complete')finish(input.id,true);
     else if(input.type==='task'){s.tasks.push(input.task);s.tasks=s.tasks.slice(-12);chat(input.task.id+'-'+input.task.status,'任务：'+input.task.title);}
-    else if(input.type==='move'&&room.work){
-      const a=s.actors[input.agentId];if(!a)continue;let goal:Point|undefined,sit=false,meeting:ActorAnchor|undefined;
-      if(input.to==='desk'){goal=[...a.anchor.seat];sit=true;}
-      else if(input.to==='huddle'){const ids=Object.keys(s.actors).sort((a,b)=>Number(b===s.leadId)-Number(a===s.leadId)),q=-Math.PI/2+Math.PI*2*ids.indexOf(a.id)/Math.max(1,ids.length),h=room.work.huddle;goal=[h.center[0]+h.rx*Math.cos(q),1,h.center[2]+h.rz*Math.sin(q)];}
-      else if(input.to==='meeting'){meeting=room.work.meeting.find(p=>!Object.entries(s.away).some(([id,v])=>id!==a.id&&v.sit&&distance(v.point,p.seat)<.1));if(meeting){goal=[...meeting.seat];sit=true;}else{const extra=Object.values(s.away).filter(a=>!a.sit).length,o=room.work.overflow??[5,1,11];goal=[o[0]+extra*.9,1,o[2]];}}
-      else{const other=s.actors[input.to];if(other)goal=room.work.visits[index(other)];}
-      if(goal&&go(a,goal,sit)){const center=input.to==='huddle'?room.work.huddle.center:meeting?room.layout.tables.find(t=>t.id==='meeting-table')!.center:s.actors[input.to]?.position,yaw=center?Math.atan2(center[0]-goal[0],center[2]-goal[2]):a.anchor.homeYaw;if(input.to==='desk')delete s.away[a.id];else s.away[a.id]={point:[...goal],sit,yaw};}
-    }else if(input.type==='error'){
+    else if(input.type==='error'){
       if(input.agentId){const a=s.actors[input.agentId];if(a){a.error=input.message;a.errorAt=s.now;}}else s.globalError=input.message;
     }else if(input.type==='clear_error'){
       if(input.agentId){const a=s.actors[input.agentId];if(a?.error){a.error=null;if(a.active)a.active.start+=s.now-a.errorAt;}}else s.globalError=null;

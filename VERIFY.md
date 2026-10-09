@@ -1,6 +1,6 @@
 # 交付前验证
 
-先重新阅读 [AGENTS.md 的交付状态](AGENTS.md#冲突与交付状态)。按实际修改选择检查，记录命令、环境、结果、未测项与限制；未测不写通过。只有所有适用完成条件有证据，才声称对应范围完成。
+交付状态定义见 [AGENTS.md](AGENTS.md#冲突与交付状态)，本文件补充适用的验证方法。按实际修改选择检查，记录命令、环境、结果、未测项与限制；未测不写通过。只有所有适用完成条件有证据，才声称对应范围完成。
 
 ## 工程完成
 
@@ -27,9 +27,9 @@
 | 辩论 | `test:rational`、`test:debate-mind`：赛制、立场、总结不评比、私聊、暂停、停止与上下文 |
 | 情感分析 | `test:emotion`：三阶段、提问等待、插话、私聊、状态与结束 |
 | 工作 | `test:work`：13 人完整流程、并发、走访/会议/站会、气泡排队、暂停、停止；页面核对 Node/SSE 接入 |
-| 六个 MC 场景 | `test:mc-scenes`、`test:mc-design`、`test:mc-look`；真实渲染 roundtable/debate/office/classroom/meadow/podcast |
-| 动作、镜头、物理 | `test:mc-room`、`test:mc-stage`、`test:mc-physics`、`test:mc-spectator`；页面触发发言、人物视角、自由视角及返回 |
-| 版本选择 | `test:mc-v2` + 两个预览页 `?v=2`；圆桌 v2 和其余场景回退；主应用仍走默认旧版 |
+| 唯一圆桌 MC 样板 | `test:mc-scenes`、`test:mc-design`、`test:mc-look`；核对仅 roundtable-mc 可选、旧版与其他 MC 无回退，六个 2D 场景仍在；真实渲染圆桌重建样板 |
+| 动作、镜头、物理 | `test:mc-room`、`test:mc-stage`、`test:mc-physics`、`test:mc-spectator`；自由视角测试接入真实 RoomPhysics 与方块模型，验证飞行边界、实体碰撞及行走契约；页面触发发言、人物视角、自由视角及返回 |
+| 实现入口 | `test:mc-v2` + 两个圆桌预览页；所有 3D 入口只使用同一圆桌重建样板，无旧版回退；样板保持未完成/未验收状态 |
 | 人物与 2D | `test:mc-avatar` 覆盖 33 人配置/映射/搭配/坐姿；`test:pixel-avatar`；人物加载无新增错误，2D 页面及资源对照 |
 | 实验入口 | `stage-lab.html` 开发/构建可用；`mc-lab.html`、`avatar-lab.html` 仅开发可用；`expression-demo.html` 是静态生成样本 |
 
@@ -43,4 +43,4 @@
 
 只在用户明确确认具体对象与范围后成立，并记录确认依据。Agent 可以报告“视觉实现完成，等待用户确认”，不能把 build、无报错、自己觉得好看或历史文档里的“通过”当作用户验收。
 
-纯治理/清理任务不进行新的视觉设计验收。页面回归与截图用于确认可运行及保护原有表现，不用于认定某套 MC 方案达到正式版。
+仅治理/清理且未授权美术的任务不进行新的视觉设计验收；任务临时限制留在对应审计记录，不阻止后来明确授权的美术任务。页面回归与截图用于确认可运行及保护原有表现，不用于认定某套 MC 方案达到正式版。

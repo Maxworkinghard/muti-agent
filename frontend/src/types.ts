@@ -2,10 +2,10 @@ export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
 /** 内置场景 ID */
 export type BuiltinSceneId =
   | 'roundtable' | 'debate' | 'office' | 'classroom' | 'meadow' | 'podcast'
-  | 'roundtable-mc' | 'debate-mc' | 'office-mc' | 'classroom-mc' | 'meadow-mc' | 'podcast-mc';
+  | 'roundtable-mc';
 /** 场景 ID：内置场景用固定值，用户场景以 custom- 开头 */
 export type SceneId = BuiltinSceneId | `custom-${string}` | (string & {});
-export type McSceneKind = 'debate' | 'roundtable' | 'office' | 'classroom' | 'meadow' | 'podcast';
+export type McSceneKind = 'roundtable';
 export type Side = 'pro' | 'con' | 'host';
 /** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
 export type Facing = 'S' | 'SE' | 'E' | 'NE' | 'N' | 'NW' | 'W' | 'SW';

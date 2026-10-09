@@ -103,7 +103,7 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
                 <span>{s.maxSeats} 席</span>
                 <i className="scene-3d-badge">3D</i>
               </div>
-              <small>{!mcReady ? '需要先导入游戏资源（npm run mc:import）' : s.description}{s.mcStage === 'debate' && mcReady && '。选择后启用辩论模式，入座后可指定阵营。'}</small>
+              <small>{!mcReady ? '需要先导入游戏资源（npm run mc:import）' : s.description}</small>
             </button>
           ))}
         </div>

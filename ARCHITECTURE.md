@@ -40,24 +40,24 @@ Node API：`GET /api/health`、`POST /api/llm/chat`、`POST /api/sessions`、`GE
 - `data/rationalPersonas.ts` 直接加载 `backend/人物/理性/*.json` 与 `backend/性格库/性格.json`，适配 5 位辩论人物并与前端人物库按 id 合并。前端同 id 文件优先，重复记录在问题列表。
 - 内置共 33 个 id：娱乐 8、情感 7、工作 13、辩论 5。用户导入格式、人物设定、性格选择与 `x-*` 扩展受保护；3D look 不改写 persona。
 - 2D 使用 `data/scenes.ts` 的六张背景、座位与工位布局、`PixelAvatar.tsx` / `pixelAvatarDraw.ts`、`OfficeBubbles.tsx`、`discussionHooks.ts` 和 `styles.css`。自定义场景保存 localStorage，导入人物只在当前页面内保存。
-- MC 入口以独立 `*-mc` id 补充同名场景，并带 `sourceSceneId`；2D 默认场景仍由 `data/modes.ts` 指定。业务事件及走路/排队时序由 `data/stageRules.ts` 等共用，视觉实现相互独立。
+- MC 仅保留 `roundtable-mc`，以 `sourceSceneId=roundtable` 回到原图；六个 2D 场景及各模式默认场景保留。业务事件及走路/排队时序由 `data/stageRules.ts` 等共用，视觉实现相互独立。
 
 ## MC 3D 调用路径
 
 ```text
 DiscussionView / stage-lab / mc-lab
   → McStage3D
-    → 版本选择 → Room
+    → rooms/scenes::buildMcRoom → v2/roundtable → Room
     → loadAssets → manifest / blocks / atlas / items / font / sounds
     → validateRoom + RoomPhysics
     → blockMesh / blockEntities / props / player / sky / light
-    → director（debate）或 sceneDirector（其他五场景）
-    → StageCamera / SpectatorCamera / FreeView（辩论专属）
+    → sceneDirector（只消费讨论事件）
+    → StageCamera / SpectatorCamera
     → post → rendering/postCommon → WebGLRenderer
     → Hud + onFocus / onStageDone（动作完成桥）
 ```
 
-旧场景：`rooms/scenes.ts::buildMcRoom(kind)` → `design/plans.ts::planFor(kind).build()` → 六个房间构造器。`design/` 管当前方案、尺度和分区；`rooms/` 输出 `Room`，`rooms/debate.ts` 还定义共用 Room 类型。辩论使用 `props/debateProps.ts`，其他五场景使用 `props/styledProps.ts`；旧道具分支和各房间 `makeChair/makeTable/decorate` 钩子继续可用。
+按用户随后确认的范围，3D 仅保留正在重建的圆桌 v2。`rooms/scenes.ts::buildMcRoom()` 直接构造 `v2/roundtable`；其他种类抛出已移除错误，不再回退旧版。`rooms/types.ts` 保存共用 Room/锚点/家具碰撞契约；`props/types.ts`、`props/book.ts` 保存圆桌所需的道具接口与书本，`styledProps.ts` 负责圆桌地面、椅子和话题板。旧六房间、旧设计登记、辩论专用物件/舞台调度及评委行走均已退役。
 
 `mc/assets.ts::loadAssets` 根据显式 material、房间 material 与 paint 决定图集，再在加载时应用房间 paint。不要把旧交接文档的“所有房间默认 style/hd”当作当前事实。当前材质选择以房间定义和加载器为准；Lab 的 `material=original|hd|style` 用于对比。有 paint 且请求 hd 时退到 original，style/original 仍可叠加 paint。
 
@@ -69,28 +69,25 @@ DiscussionView / stage-lab / mc-lab
 
 | 路径 | 当前关系 | 保留与迁移条件 |
 |---|---|---|
-| `rooms/` 旧六场景 | 正式工作台未传 version，实际使用该实现 | 保留功能与比较基线；替代须满足契约、必要视觉确认、完成迁移和回归 |
-| `v2/registry.ts` | `V2_KINDS=['roundtable']`，其他种类返回 null | 圆桌是实验样板，不自行推广到产品 |
-| `McStage3D version=2` | `buildMcRoomV2(kind) ?? buildMcRoom(kind)` | 只选择场景实现，不是人物版本开关 |
-| `stage-lab` / `mc-lab` `?v=2` | 预览圆桌 v2，其余五场景回退旧版 | 构建可访问的预览仍不等于视觉认可 |
-| `player.ts → avatar/ → skin.ts` | 当前共同的人物构造/表情路径，产品与 v2/实验台都使用 | 已接入不代表美术获批；保留 33 人 look 与 fallback |
-| `player.ts::cuboid()` | 小动物及 `freeView.ts` 的 Steve 使用旧式皮肤盒子 | 与 Q 版参与者职责不同，保留 |
-| `props/chairs.ts` / `props/floors.ts` | 共用新椅子族/地面接在圆桌 v2 和 avatar-lab | 旧五场景继续自己的钩子/家具；尚未完成推广，不借治理迁移 |
+| `v2/roundtable/` | 唯一 3D 房间实现，三个场景入口使用同一份 | 仍是未完成样板，保留并不代表用户视觉验收 |
+| `rooms/` | Builder、Room 类型、验证、物理和唯一登记入口 | 没有旧房间构造器或版本回退 |
+| `player.ts → avatar/ → skin.ts` | 共同人物构造/表情路径，圆桌与人物实验台使用 | 已接入不代表美术获批；保留 33 人 look 与 fallback |
+| `props/chairs.ts` / `props/floors.ts` | 圆桌和 avatar-lab 共用的椅子/地面 | 当前几何、造型与颜色保持原样 |
 
-五个 v2 房间没有实现；新家具/地面没有完成向其他房间的迁移。历史美术记录显示推广曾等待样板确认；本次未获得新的视觉授权，也未证明这些候选全部满足替代条件。不能将缺少实现推断为已有的产品弃用决策。
+“只保留圆桌重建版”是用户明确的场景收敛决定，不是 Agent 自行判断旧版审美较差。四种讨论业务和全部 2D 场景继续存在；圆桌 v2 尚未完成，也未通过视觉验收。历史归档和 Git 恢复基线用于追溯，不再作为当前场景任务。
 
-已知镜头契约缺口：`SpectatorCamera` 使用 `flight ?? bounds`，`RoomPhysics.cameraBlocked` 只使用 bounds；辩论室的屋外默认机位因此不能在接入真实碰撞后自由移动。该既存问题及桩测试未覆盖的原因见 [审计残留](docs/MAINTENANCE_AUDIT.md#待决项与残留)，当前未更改场景/机位定义。
+边界契约：`bounds` 保留室内净空间与角色行走/寻路范围；`flight ?? bounds` 是自由相机范围，移动时保留相机半径余量。`RoomPhysics` 从真实方块模型及家具生成碰撞体，在飞行范围内仍逐步检查实体碰撞；椅垫和椅背不再按名称跳过。圆桌现有边界和默认机位保持原样；真实物理及浏览器验证见 [收敛记录](docs/MAINTENANCE_AUDIT.md#圆桌-3d-收敛用户调整范围)。
 
 ## 实验、构建与维护
 
 | 入口 | 作用 | 可用范围 |
 |---|---|---|
-| `stage-lab.html` | 六房间、发言、视角、v2 预览；占位人物 | 开发与生产构建 |
-| `mc-lab.html` | 真实内置人物、动作事件、材质/版本/近景对比、截图钩子 | 开发；`scene` 使用不带 `-mc` 的种类 |
+| `stage-lab.html` | 圆桌重建样板、发言和视角；占位人物 | 开发与生产构建 |
+| `mc-lab.html` | 圆桌真实内置人物、动作事件、材质/近景对比、截图钩子 | 开发；唯一种类 roundtable |
 | `avatar-lab.html` | 人物体型/表情/姿态、椅子与地面实验 | 开发 |
 | `public/expression-demo.html` | 由 `make-expression-demo.mjs` 生成的静态 2D 样本 | public 静态页，非实时人物编辑入口 |
 
-`frontend/vite.config.ts` 两个构建入口为 app 与 stagePreview；`tsconfig.json` 严格检查全部 `src`。`vite.server.config.ts` 单独打包 `server/api.ts` 为根目录 `server-dist/api.mjs`，不能只靠前端 build 发布。根目录 `npm run build` 覆盖两者；`npm test` 聚合全部离线检查，包含旧场景和 v2 契约，而非只验证其中之一。
+`frontend/vite.config.ts` 两个构建入口为 app 与 stagePreview；`tsconfig.json` 严格检查全部 `src`。`vite.server.config.ts` 单独打包 `server/api.ts` 为根目录 `server-dist/api.mjs`，不能只靠前端 build 发布。根目录 `npm run build` 覆盖两者；`npm test` 聚合全部离线检查，覆盖唯一圆桌样板、退役入口、六个 2D 场景及四种业务契约。
 
 ## 文档布局
 

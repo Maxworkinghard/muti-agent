@@ -10,6 +10,6 @@
 | 历史设计、交接与素材取舍 | [archive/README.md](archive/README.md) |
 | 清理记录、未决项与恢复点 | [维护审计](../../docs/MAINTENANCE_AUDIT.md) |
 
-正式工作台使用旧六个 MC 房间；圆桌 v2 是实验样板。共享 Q 版人物已接入产品，但场景或人物已接入不代表视觉验收通过。
+3D 仅保留正在重建的圆桌 v2，工作台和两个场景实验页使用同一份实现；旧房间及旧版回退已移除。圆桌仍是未完成、未验收的样板，六个 2D 场景和四种讨论业务保留。共享 Q 版人物已接入，但接入不代表视觉验收通过。
 
 维护顺序采用根目录 [AGENTS](../../AGENTS.md) → [STANDARDS](../../STANDARDS.md) → [ARCHITECTURE](../../ARCHITECTURE.md) → 对应模块 README，交付前核对 [VERIFY](../../VERIFY.md)。历史资料不再与当前说明并列充当入口。

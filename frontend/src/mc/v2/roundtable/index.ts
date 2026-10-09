@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import type {Kit} from '../../props/furniture';
-import type {ActorAnchor,Room} from '../../rooms/debate';
+import type {ActorAnchor,Room} from '../../rooms/types';
 import type {Point} from '../../rooms/builders';
 import {MC_SCENE_NAMES} from '../../rooms/names';
 import {V2_BLOCK_PAINT} from '../blockTextures';

@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import {createServer} from 'vite';
 const server=await createServer({configFile:false,logLevel:'error',server:{middlewareMode:true,hmr:false},appType:'custom'});
 try{
-  const [{buildDebateRoom},{validateRoom},blocks]=await Promise.all([server.ssrLoadModule('/src/mc/rooms/debate.ts'),server.ssrLoadModule('/src/mc/rooms/validate.ts'),fs.readFile('public/mc/blocks.json','utf8').then(JSON.parse)]);
-  const room=buildDebateRoom();
+  const [{buildMcRoom},{validateRoom},blocks]=await Promise.all([server.ssrLoadModule('/src/mc/rooms/scenes.ts'),server.ssrLoadModule('/src/mc/rooms/validate.ts'),fs.readFile('public/mc/blocks.json','utf8').then(JSON.parse)]);
+  const room=buildMcRoom();
   // 带色板的房间（新画风）固定用原版 16×16 图集重画，只按原版图集检查。
   for(const pack of room.paint||room.material?[room.material??'original']:['original','hd','style']){
     const folder=pack==='original'?'public/mc':`public/mc/${pack}`;

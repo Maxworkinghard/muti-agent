@@ -229,7 +229,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             onLoaded={(error) => {
               mcLoadedRef.current = !error;
               if (error) { setThreeError(error); setView3D(false); setThreeReady(false); }
-              else { setThreeError(''); setThreeReady(true); if (scene.mcStage !== 'debate') skipIntro(); }
+              else { setThreeError(''); setThreeReady(true); skipIntro(); }
             }}
           /></Suspense>}
           {scene.mcStage && <button

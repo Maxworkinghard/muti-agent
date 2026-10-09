@@ -3,7 +3,7 @@ import {OBB} from 'three/examples/jsm/math/OBB.js';
 import type {Assets} from '../assets';
 import {blockModels,resolveModel,resolveTexture,transformPoint,fullBlock,key,type Block} from '../blockModel';
 import {propagate} from '../light';
-import {propBoxes,type Room} from './debate';
+import {propBoxes,type Room} from './types';
 import {SCALE} from '../design/scale';
 export interface Validation {checks:Record<string,number>;errors:string[]}
 /** 房间检查（第 4.7 节，第二轮加上写实物品）：方块合法、有依托、连接正确，人和视线不被挡，两队对称，光照够亮。 */
@@ -34,9 +34,7 @@ export function validateRoom(room:Room,assets:Pick<Assets,'states'|'models'|'atl
   const body=(point:number[],yaw:number,sitting=false)=>{const lo=sitting?.12:.08,hi=sitting?1.25:1.87;return new OBB(new THREE.Vector3(point[0],point[1]+(lo+hi)/2,point[2]),new THREE.Vector3(SCALE.bodyHalfX,(hi-lo)/2,SCALE.bodyHalfZ),new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationY(yaw)));};
   const checkPoint=(point:number[],yaw:number,name:string,sitting=false)=>{checks.positions++;const box=body(point,yaw,sitting);const hits=boxes.filter(b=>!b.soft&&(b.obb?b.obb.intersectsOBB(box):box.intersectsBox3(b.box)));if(hits.length)errors.push(name+' 碰撞 '+hits.map(b=>b.name).join(';'));};
   room.anchors.forEach((a,i)=>{const host=room.kind?!!room.standingSeats?.includes(i):a.seat===a.stand;checkPoint(a.seat,a.homeYaw,'座位'+i,!host);checkPoint(a.stand,a.homeYaw,'站位'+i);if(!host)for(let t=0;t<=1;t+=.1)checkPoint(a.seat.map((n,k)=>n+(a.stand[k]-n)*t),a.homeYaw,'起身'+i);});
-  const mirrorX=room.bounds.min[0]+room.bounds.max[0]-1;
-  for(const b of (room.kind&&room.kind!=='debate'?[]:room.blocks).filter(b=>b.x>=1&&b.x<mirrorX/2&&b.z>=2&&b.z<=9)){checks.mirror++;const other=cells.get(key(mirrorX-b.x,b.y,b.z));const props={...b.props};if(b.props.east!==undefined){props.east=b.props.west;props.west=b.props.east;}for(const p of ['facing']){if(props[p]==='east')props[p]='west';else if(props[p]==='west')props[p]='east';}const str=(o:Record<string,string>)=>JSON.stringify(Object.entries(o).sort());if(other?.id!==b.id.replace('blue','red')||str(other.props)!==str(props))errors.push('两队不对称 '+key(b.x,b.y,b.z));}
-  // 默认机位要能看到七个人的头，以及辩题板的四个角。
+  // 默认机位要能看到所有人物的头，以及辩题板的四个角。
   const eye=new THREE.Vector3(...room.camera),sc=room.layout.board;
   // 剖面俯视的房间：默认机位在屋外高处，天花板和朝镜头的墙在这个视角里藏起来，不算遮挡。
   const opened=!!room.cutaway;

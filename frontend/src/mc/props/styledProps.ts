@@ -1,15 +1,16 @@
 import * as THREE from 'three';
 import type {Assets} from '../assets';
-import type {Room} from '../rooms/debate';
+import type {Room} from '../rooms/types';
 import {createFlatBatch,mergeStatic,mesh} from './geometry';
 import {createKit,at} from './furniture';
 import {drawBoard} from './boards';
-import {createHandBook,type DebateProps,type PropCast,type PropContacts} from './debateProps';
+import {createHandBook} from './book';
+import type {StageProps,PropCast,PropContacts} from './types';
 /**
  * 新画风房间的物件：房间自己摆静态家具（decorate）和椅子（makeChair），这里负责地面图、
  * 会滑动的椅子、话题板和逐帧更新。接口和旧的场景物件一致，人物、镜头、导演都不用改。
  */
-export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):DebateProps {
+export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):StageProps {
   const root=new THREE.Group();root.name='styled-props';
   const k=createKit(assets),flat=createFlatBatch(),dynamic=new Set<THREE.Object3D>(),owned:Array<THREE.Material|THREE.Texture>=[flat];
   const keep=<T extends THREE.Material|THREE.Texture>(x:T)=>{owned.push(x);return x;};
@@ -44,8 +45,8 @@ export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):Debat
   room.decorateBoard?.(k,sign);
   let boardKey='';
   const names=cast.map(p=>p.name).join(' · ');
-  const drawInfo=(s:Parameters<DebateProps['update']>[0])=>{const tasks=s.tasks??[],last=tasks.at(-1),key=JSON.stringify([s.theme,s.round,s.label,s.finished,last?.id,last?.status]);if(key===boardKey)return;boardKey=key;
-    const detail=room.kind==='office'&&last?`${cast.find(p=>p.id===last.from)?.name??'成员'} → ${cast.find(p=>p.id===last.to)?.name??'成员'}：${last.title}`:room.kind==='podcast'?`主持 ${cast[0]?.name??'—'} · 嘉宾 ${cast[1]?.name??'—'}`:names;
+  const drawInfo=(s:Parameters<StageProps['update']>[0])=>{const tasks=s.tasks??[],last=tasks.at(-1),key=JSON.stringify([s.theme,s.round,s.label,s.finished,last?.id,last?.status]);if(key===boardKey)return;boardKey=key;
+    const detail=names;
     const info={title:room.title??'讨论空间',theme:s.theme,phase:s.round?`第 ${s.round} 轮 · ${s.label}`:'等待开场',detail,finished:s.finished};if(room.drawBoard)room.drawBoard(ctx,W,H,info);else drawBoard(style,ctx,W,H,info);boardTexture.needsUpdate=true;};
   mergeStatic(root,dynamic,flat);for(const c of chairs)mergeStatic(c.g,new Set(),flat);
   const empty=new THREE.Object3D();root.add(empty);

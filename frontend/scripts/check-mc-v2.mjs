@@ -1,24 +1,19 @@
-// v2 重建场景的检查：功能契约（起点记录 docs/archive/rebuild/00-contract.md）+ 素材来源。
-// 1. 和旧场景同一套 validateRoom（方块、依托、连接、人的身体、镜头视线、光照）全部通过；
-// 2. 座位数、坐着发言、话题板、桌椅数量和旧场景的契约一致；
-// 3. 房间里每个方块用到的贴图都由 v2 自己重画（paint），不露出原版图集的像素；
-// 4. 导演层能在新房间里跑一轮发言；行走寻路能在新房间里找到路；
-// 5. 没有 v2 实现的场景返回 null，旧场景默认不变。
+// 唯一圆桌重建样板的真实功能、模型、贴图与寻路检查；不代表视觉验收。
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {createServer} from 'vite';
 const vite=await createServer({configFile:false,logLevel:'error',server:{middlewareMode:true,hmr:false},appType:'custom'});
 try{
-  const [{buildMcRoomV2,V2_KINDS},{buildMcRoom,MC_SCENE_KINDS},{validateRoom},{blockModels,resolveModel,resolveTexture},{createSceneDirector,stepScene},{RoomPhysics},{RATIONAL_PERSONAS},{SCENES}]=await Promise.all([
-    vite.ssrLoadModule('/src/mc/v2/registry.ts'),vite.ssrLoadModule('/src/mc/rooms/scenes.ts'),vite.ssrLoadModule('/src/mc/rooms/validate.ts'),vite.ssrLoadModule('/src/mc/blockModel.ts'),
+  const [{buildMcRoom,MC_SCENE_KINDS},{validateRoom},{blockModels,resolveModel,resolveTexture},{createSceneDirector,stepScene},{RoomPhysics},{RATIONAL_PERSONAS},{SCENES}]=await Promise.all([
+    vite.ssrLoadModule('/src/mc/rooms/scenes.ts'),vite.ssrLoadModule('/src/mc/rooms/validate.ts'),vite.ssrLoadModule('/src/mc/blockModel.ts'),
     vite.ssrLoadModule('/src/mc/sceneDirector.ts'),vite.ssrLoadModule('/src/mc/rooms/physics.ts'),vite.ssrLoadModule('/src/data/rationalPersonas.ts'),vite.ssrLoadModule('/src/data/scenes.ts')]);
   const blocks=JSON.parse(await fs.readFile('public/mc/blocks.json','utf8')),atlas=JSON.parse(await fs.readFile('public/mc/atlas.json','utf8'));
-  for(const kind of MC_SCENE_KINDS){if(!V2_KINDS.includes(kind)){assert.equal(buildMcRoomV2(kind),null,kind+' 没有 v2 实现时要退回旧场景');continue;}
-    const room=buildMcRoomV2(kind),old=buildMcRoom(kind),source=SCENES[kind];
-    // 契约：和旧场景一样多的座位、同样的坐/站发言方式。
-    assert.equal(room.kind,kind);assert.equal(room.anchors.length,old.anchors.length,'座位数');assert.equal(room.anchors.length,source.maxSeats);
-    assert.equal(!!room.seatedSpeech,!!old.seatedSpeech,'坐着发言');assert.deepEqual(room.standingSeats??[],old.standingSeats??[],'站着的座位');
-    assert.equal(room.layout.chairs.filter(c=>c.actor!==undefined).length,old.layout.chairs.filter(c=>c.actor!==undefined).length,'带人的椅子');
+  assert.deepEqual(MC_SCENE_KINDS,['roundtable']);
+  for(const kind of MC_SCENE_KINDS){
+    const room=buildMcRoom(kind),source=SCENES[kind];
+    assert.equal(room.kind,kind);assert.equal(room.anchors.length,8);assert.equal(room.anchors.length,source.maxSeats);
+    assert.equal(room.seatedSpeech,true);assert.deepEqual(room.standingSeats??[],[]);
+    assert.equal(room.layout.chairs.filter(c=>c.actor!==undefined).length,8);
     room.anchors.forEach((a,i)=>{assert.equal(a.seat[1],1.5);assert.equal(a.stand[1],1);assert.ok(Number.isFinite(a.homeYaw));assert.equal(a.mic,'seat-'+i);});
     const b=room.layout.board;assert.ok(b.width>=2&&b.height>=.8,'话题板够大');assert.equal(typeof room.drawBoard,'function');
     // 房间检查。
@@ -41,7 +36,6 @@ try{
     for(const [from,to] of [[[x0+2,1,z0+5],[x1-2.5,1,z1-2.5]],[[x0+2,1,z1-1.5],[x1-2.5,1,z0+5]]]){const path=physics.path(from,to);assert.ok(path.length>0,'厅里找得到路 '+from+' → '+to);}
     console.log('Pass v2 physics:',kind,'diagonal paths around the table');
   }
-  // 旧场景默认不变：不带 v2 专用的钩子。
-  for(const kind of MC_SCENE_KINDS)assert.equal(buildMcRoom(kind).drawBoard,undefined,kind+' 旧场景不应带 drawBoard');
-  console.log('Pass legacy default: old rooms unchanged');
+  assert.equal(typeof buildMcRoom().drawBoard,'function','默认入口必须是圆桌重建样板');
+  for(const removed of ['debate','office','classroom','meadow','podcast'])assert.throws(()=>buildMcRoom(removed),/已移除/,'不能回退到已移除 3D 场景');
 }finally{await vite.close();}

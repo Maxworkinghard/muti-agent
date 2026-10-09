@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type {Assets} from '../assets';
 import {blockModels,resolveModel,transformPoint} from '../blockModel';
-import {propBoxes,type Room} from './debate';
+import {propBoxes,type Room} from './types';
 
 export interface Collider {id:string;center:THREE.Vector3;half:THREE.Vector3;yaw:number}
 export interface BodyObstacle {x:number;y:number;z:number;radius:number;height:number}
@@ -37,8 +37,7 @@ export class RoomPhysics {
   /** 工位走访在真实墙、桌椅之间找路径，不能从桌子和隔断里穿过去。 */
   path(from:[number,number,number],to:[number,number,number]):[number,number,number][] {
     const step=.5,{min,max}=this.room.bounds,cols=Math.ceil((max[0]-min[0])/step),rows=Math.ceil((max[2]-min[2])/step);
-    // 办公室场景需要更大的忽略半径，因为座位可能沿着走访路径排列
-    const ignoreRadius=this.room.kind==='office'?5:0.7;
+    const ignoreRadius=0.7;
     const ignored=new Set(this.room.layout.chairs.filter(c=>[from,to].some(p=>Math.hypot(p[0]-c.position[0],p[2]-c.position[2])<ignoreRadius)).map(c=>c.id));
     // 地毯、睡莲叶这种贴地的薄片（顶面不到 0.1 米）踩得过去，不算障碍。
     const valid=(x:number,z:number)=>x>min[0]+.35&&x<max[0]-.35&&z>min[2]+.35&&z<max[2]-.35&&!this.colliders.some(c=>!ignored.has(c.id)&&c.center.y+c.half.y>1.1&&c.center.y-c.half.y<2.85&&this.horizontal(c,x,z,.31));
@@ -92,14 +91,10 @@ export class RoomPhysics {
     return this.colliders.some(c=>p.y>c.center.y-c.half.y-r&&p.y<c.center.y+c.half.y+r&&this.horizontal(c,p.x,p.z,r));
   }
   cameraBlocked(p:THREE.Vector3,r=.34){
-    const {min,max}=this.room.bounds;
+    // flight 只扩展相机活动区域；角色行走/寻路仍使用 bounds，实体碰撞体不变。
+    const {min,max}=this.room.flight??this.room.bounds;
     if(p.x<min[0]+r||p.x>max[0]-r||p.y<min[1]+r||p.y>max[1]-r||p.z<min[2]+r||p.z>max[2]-r)return true;
-    for(const c of this.colliders){
-      // 墙体和屋顶按整块判断；坐垫、靠背这类薄片放宽到只在同一高度才挡镜头。
-      if(c.id.includes('chair'))continue;
-      if(p.y>c.center.y-c.half.y-r&&p.y<c.center.y+c.half.y+r&&this.horizontal(c,p.x,p.z,r))return true;
-    }
-    return false;
+    return this.pointBlocked(p,r);
   }
   /** 分小步扫过路径，碰到墙或桌椅沿空闲方向滑动；加速也不能穿过薄墙。 */
   moveCamera(p:THREE.Vector3,delta:THREE.Vector3){

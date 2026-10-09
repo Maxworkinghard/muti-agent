@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type {Room} from './rooms/debate';
+import type {Room} from './rooms/types';
 import type {Player} from './player';
 export type View='overview'|'judge'|string;
 const OVERVIEW_FOV=48,UP=new THREE.Vector3(0,1,0);
@@ -42,7 +42,7 @@ export class StageCamera {
   }
   reset(){this.yaw=this.pitch=this.distance=0;this.lastDrag=0;}
   update(players:Map<string,Player>,dt:number){
-    // 自由视角的镜头由 FreeView 自己摆，这里不插手。
+    // 自由视角由 SpectatorCamera 摆放，这里不插手。
     if(this.view==='free'||this.view==='walk')return;
     const player=players.get(this.view),pos=new THREE.Vector3(),target=new THREE.Vector3();
     if(this.override){pos.set(...this.override.pos);target.set(...this.override.target);const fov=this.override.fov??this.camera.fov;if(fov!==this.camera.fov){this.camera.fov=fov;this.camera.updateProjectionMatrix();}this.camera.position.copy(pos);this.camera.lookAt(target);return;}

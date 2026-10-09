@@ -31,16 +31,16 @@ npm --prefix frontend run dev
 
 ## 场景与实验
 
-六个原有 2D 场景继续可用：圆桌、辩论室、办公室、教室、草地野餐和播客访谈间，也支持上传自定义场景。主动选择同名「· 我的世界」选项才加载 MC 3D，讨论中可以切回原图。
+六个原有 2D 场景继续可用：圆桌、辩论室、办公室、教室、草地野餐和播客访谈间，也支持上传自定义场景。3D 仅保留正在重建的圆桌 v2；选择「圆桌会议室 · 3D 重建样板（未完成）」可预览，讨论中可以切回原图。旧版圆桌和其他 MC 3D 场景已移除，四种讨论业务继续保留。
 
 | 页面（服务地址后追加） | 用途 | 生产构建 |
 |---|---|---|
-| `/` | 正式工作台，默认沿用旧六个 MC 房间 | 包含 |
-| `/stage-lab.html?scene=roundtable-mc` | 六场景预览；加 `&v=2` 看圆桌实验样板 | 包含 |
-| `/mc-lab.html?scene=roundtable&v=2` | 内置人物、动作和材质对比 | 仅开发 |
+| `/` | 四模式工作台、六个 2D 场景与唯一圆桌 3D 样板入口 | 包含 |
+| `/stage-lab.html?scene=roundtable-mc` | 圆桌重建样板预览 | 包含 |
+| `/mc-lab.html?scene=roundtable` | 圆桌内置人物、动作和材质对比 | 仅开发 |
 | `/avatar-lab.html` | 人物、表情、姿态、椅子和地面实验 | 仅开发 |
 
-v2 只实现了圆桌，其他五个场景回退旧版；预览可运行不代表用户视觉验收通过。素材来源见[MC 署名](frontend/public/mc/THIRD-PARTY.md)、[叠加包说明](frontend/mc-packs/README.md)及[高清对比包许可](frontend/public/mc/hd/CREDITS.md)。
+各入口都使用同一份圆桌重建实现，不再使用版本开关或回退旧版。圆桌仍未完成，也未通过用户视觉验收；保留它作为唯一 3D 实现不代表正式版完成。素材来源见[MC 署名](frontend/public/mc/THIRD-PARTY.md)、[叠加包说明](frontend/mc-packs/README.md)及[高清对比包许可](frontend/public/mc/hd/CREDITS.md)。
 
 ## 构建、检查与发布
 
@@ -49,7 +49,7 @@ npm test
 npm run build
 ```
 
-测试使用本地数据或假模型。完整构建同时更新 `frontend/dist` 和 `server-dist/api.mjs`；单独运行 `npm --prefix frontend run build` 只构建页面。检查范围和限制见 [VERIFY.md](VERIFY.md)，已复现的自由镜头边界问题见[审计残留](docs/MAINTENANCE_AUDIT.md#待决项与残留)。
+测试使用本地数据或假模型。完整构建同时更新 `frontend/dist` 和 `server-dist/api.mjs`；单独运行 `npm --prefix frontend run build` 只构建页面。检查范围和限制见 [VERIFY.md](VERIFY.md)，场景收敛与自由镜头验证见[维护记录](docs/MAINTENANCE_AUDIT.md#圆桌-3d-收敛用户调整范围)。
 
 发布时在根目录设置至少 16 个字符的访问密码并启动服务。PowerShell 示例：
 

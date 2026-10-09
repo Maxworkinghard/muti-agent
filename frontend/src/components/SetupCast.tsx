@@ -20,9 +20,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   onStart: (cfg: SessionConfig) => void;
 }) {
   const scene = sceneById(draft.sceneId);
-  const isMcDebate = scene.mcStage === 'debate';
-  // MC 辩论室始终用辩论引擎；也兼容更新前仍停留在娱乐模式的选择页。
-  const mode = isMcDebate ? 'rational' : draft.mode;
+  const mode = draft.mode;
   const isRational = mode === 'rational';
   // 其他场景仍由用户选的模式决定是否分正反方。
   const isDebate = isRational;
@@ -34,25 +32,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
   // 人物没写 modes 时所有模式可用；写了就只在对应模式里出现
   const [picked, setPicked] = useState<Record<string, Pick>>({});
   const [order, setOrder] = useState<string[]>([]);
-  const available = personas.filter((p) => !p.modes || p.modes.includes(mode)
-    || (isMcDebate && (picked[p.id] || (mode !== draft.mode && p.modes.includes(draft.mode)))));
-  // 旧页面的已选人物没有阵营：保留选择并补齐，不能只显示下拉框而提交空阵营。
-  useEffect(() => {
-    if (!isMcDebate) return;
-    setPicked((current) => {
-      const missing = order.filter((id) => current[id] && !current[id].side);
-      if (!missing.length) return current;
-      const counts = { pro: 0, con: 0, host: 0 };
-      for (const id of order) { const side = current[id]?.side; if (side) counts[side]++; }
-      const next = { ...current };
-      for (const id of missing) {
-        const side: Side = counts.pro <= counts.con && counts.pro < 3 ? 'pro' : counts.con < 3 ? 'con' : counts.pro < 3 ? 'pro' : 'host';
-        next[id] = { ...current[id], side };
-        counts[side]++;
-      }
-      return next;
-    });
-  }, [isMcDebate, order]);
+  const available = personas.filter((p) => !p.modes || p.modes.includes(mode));
   const [lead, setLead] = useState<string | null>(null);
   const [personality, setPersonality] = useState<Record<string, string>>({});
   // 辩论流程固定，只选快辩还是标准

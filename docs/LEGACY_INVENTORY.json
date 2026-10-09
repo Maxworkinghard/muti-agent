@@ -1,7 +1,7 @@
 {
   "baseline": "eed2808",
   "date": "2026-10-09",
-  "scope": "最初基线的重点追踪对象；path 是基线路径，currentPath 是整理后现址，null 表示已删除。文件级分类覆盖组级默认；空引用不等于废弃。每轮删除/迁移保留恢复点和证据。",
+  "scope": "最初基线的重点追踪对象；path、incomingCode、documentMentions、数量/体积为基线快照，currentPath 是最新现址，null 表示已删除。文件级分类覆盖组级默认；空引用不等于废弃。每轮删除/迁移保留恢复点和证据；本轮 3D 收敛增量见 roundtableCleanup。",
   "artifactCleanup": {
     "baseline": "2618d79",
     "recoveryRef": "audit/pre-artifact-cleanup-20261009",
@@ -495,7 +495,7 @@
       "pastAndCurrentUse": "未确认的视觉轮次、对比与样板截图",
       "dependencyEvidence": "相关 Markdown 以路径/文件前缀引用",
       "dynamicBuildTestEvidence": "尚未完成用户视觉确认，不能凭无直接链接删除",
-      "decision": "保留独有方案与关键对照；3 张精确重复和 5 张低增量价值软件细节采样按文件级 C 清理，其余归档。",
+      "decision": "3 张精确重复副本按文件级 C 去重；5 张非等价但信息高度重叠的采样更正为文件级 B，保留历史删除事实、替代与恢复点；本轮用户不要求恢复且未发现不可替代职责，不构成未来删除授权。其余归档保留。",
       "files": [
         {
           "path": "frontend/docs/art/sample/compare-baseline-r1.jpg",
@@ -799,7 +799,9 @@
           "sha256": "866104c644f04039d3dc2571dca69dd3a9cac20e3331e04e70e5e737dc492cec",
           "incomingCode": [],
           "documentMentions": [],
-          "currentPath": null
+          "currentPath": null,
+          "recoveryRef": "audit/pre-artifact-cleanup-20261009",
+          "visualEvidence": "A. 已证明完全重复"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-chairs-sit-34.png",
@@ -831,7 +833,9 @@
           "sha256": "1872d1437561b7d3bbf14eadd42da932e306607f8c7410fa6af3d2a010232ca6",
           "incomingCode": [],
           "documentMentions": [],
-          "currentPath": null
+          "currentPath": null,
+          "recoveryRef": "audit/pre-artifact-cleanup-20261009",
+          "visualEvidence": "A. 已证明完全重复"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-floors.png",
@@ -849,7 +853,9 @@
           "sha256": "8a534c7b0106846b13db73bc17a2ab6d9736c4bcf3b213048f781fabbcd4ec55",
           "incomingCode": [],
           "documentMentions": [],
-          "currentPath": null
+          "currentPath": null,
+          "recoveryRef": "audit/pre-artifact-cleanup-20261009",
+          "visualEvidence": "A. 已证明完全重复"
         },
         {
           "path": "frontend/docs/art/sample/r3-lab-rt-34.png",
@@ -1492,14 +1498,15 @@
           "baselineBytes": 427614,
           "incomingCode": [],
           "documentMentions": [],
-          "category": "C",
-          "decision": "deleted redundant software-rendered detail sample",
+          "category": "B",
+          "decision": "historically deleted overlapping, non-equivalent software detail sample; similarity does not prove no information value; current user requests no restoration unless irreplaceable use is found",
           "currentPath": null,
           "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-board.png",
           "sha256": "2387dec15b1024b13218d5b557717e09bc368979b0f1dd3878ff03a20d0bf6fe",
           "meanAbsDifference": 1.147,
           "pixelsOver16Percent": 1.574,
-          "recoveryRef": "audit/pre-docs-layout-20261009"
+          "recoveryRef": "audit/pre-docs-layout-20261009",
+          "visualEvidence": "B. 信息高度重叠（非等价）"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-fire.png",
@@ -1527,14 +1534,15 @@
           "baselineBytes": 345516,
           "incomingCode": [],
           "documentMentions": [],
-          "category": "C",
-          "decision": "deleted redundant software-rendered detail sample",
+          "category": "B",
+          "decision": "historically deleted overlapping, non-equivalent software detail sample; similarity does not prove no information value; current user requests no restoration unless irreplaceable use is found",
           "currentPath": null,
           "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-lake.png",
           "sha256": "ae2c183863cb284cc525df330355cbd395bbe2df2b9daf5ec5680755436425c5",
           "meanAbsDifference": 0.728,
           "pixelsOver16Percent": 0.247,
-          "recoveryRef": "audit/pre-docs-layout-20261009"
+          "recoveryRef": "audit/pre-docs-layout-20261009",
+          "visualEvidence": "B. 信息高度重叠（非等价）"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-overview.png",
@@ -1548,14 +1556,15 @@
           "baselineBytes": 687677,
           "incomingCode": [],
           "documentMentions": [],
-          "category": "C",
-          "decision": "deleted redundant software-rendered detail sample",
+          "category": "B",
+          "decision": "historically deleted overlapping, non-equivalent software detail sample; similarity does not prove no information value; current user requests no restoration unless irreplaceable use is found",
           "currentPath": null,
           "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-roof.png",
           "sha256": "34f3f96e84eb5fccdd8723017ce861f7c7f5417e4994589360e412968352c682",
           "meanAbsDifference": 0.41,
           "pixelsOver16Percent": 0.24,
-          "recoveryRef": "audit/pre-docs-layout-20261009"
+          "recoveryRef": "audit/pre-docs-layout-20261009",
+          "visualEvidence": "B. 信息高度重叠（非等价）"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-seated.png",
@@ -1569,28 +1578,30 @@
           "baselineBytes": 372946,
           "incomingCode": [],
           "documentMentions": [],
-          "category": "C",
-          "decision": "deleted redundant software-rendered detail sample",
+          "category": "B",
+          "decision": "historically deleted overlapping, non-equivalent software detail sample; similarity does not prove no information value; current user requests no restoration unless irreplaceable use is found",
           "currentPath": null,
           "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-tea.png",
           "sha256": "baf6268d1f09c1a5bea598d0052f0608163eb3b79c18afc27e4c24f3aa1a5bc9",
           "meanAbsDifference": 0.951,
           "pixelsOver16Percent": 0.852,
-          "recoveryRef": "audit/pre-docs-layout-20261009"
+          "recoveryRef": "audit/pre-docs-layout-20261009",
+          "visualEvidence": "B. 信息高度重叠（非等价）"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-medium-west.png",
           "baselineBytes": 814423,
           "incomingCode": [],
           "documentMentions": [],
-          "category": "C",
-          "decision": "deleted redundant software-rendered detail sample",
+          "category": "B",
+          "decision": "historically deleted overlapping, non-equivalent software detail sample; similarity does not prove no information value; current user requests no restoration unless irreplaceable use is found",
           "currentPath": null,
           "replacement": "frontend/docs/archive/rebuild/roundtable-v2/r7-west.png",
           "sha256": "42a624f3a0e216ae8f0131493e25c2b30347b98beb54f7396f37dd48b415432c",
           "meanAbsDifference": 1.231,
           "pixelsOver16Percent": 1.103,
-          "recoveryRef": "audit/pre-docs-layout-20261009"
+          "recoveryRef": "audit/pre-docs-layout-20261009",
+          "visualEvidence": "B. 信息高度重叠（非等价）"
         },
         {
           "path": "frontend/docs/rebuild/roundtable-v2/r7-overview.png",
@@ -1632,11 +1643,11 @@
       "baselineBytes": 81896794
     },
     "mc-v2": {
-      "category": "B",
-      "pastAndCurrentUse": "与旧 Room 契约并存的圆桌实验实现",
-      "dependencyEvidence": "McStage3D → v2/registry；avatar-lab 使用 kit",
-      "dynamicBuildTestEvidence": "stage-lab/mc-lab v=2；check-mc-v2",
-      "decision": "保留实验路径；满足契约、用户视觉确认、迁移回归后才能替代",
+      "category": "A",
+      "pastAndCurrentUse": "唯一圆桌 3D 重建样板及人物实验台共用 kit",
+      "dependencyEvidence": "rooms/scenes → v2/roundtable；avatar-lab 使用 kit；旧 registry 按文件级记录退役",
+      "dynamicBuildTestEvidence": "三个 3D 入口使用同一圆桌；check-mc-v2；无版本开关或旧版回退",
+      "decision": "用户明确指定保留圆桌重建版；仍未完成、未通过视觉验收",
       "files": [
         {
           "path": "frontend/src/mc/v2/blockTextures.ts",
@@ -1699,7 +1710,14 @@
             "frontend/docs/rebuild/00-contract.md",
             "frontend/docs/rebuild/01-roundtable-v2.md",
             "frontend/src/engines/README.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/v2/registry.ts",
+          "sha256": "908e8ed5a819227f9aecc87e136c65571a9e878d34b64c66bb21f49109d1ba40"
         },
         {
           "path": "frontend/src/mc/v2/roundtable/board.ts",
@@ -1741,11 +1759,11 @@
       "baselineBytes": 78028
     },
     "mc-shared-furniture": {
-      "category": "B",
-      "pastAndCurrentUse": "新椅子族与地面样板",
+      "category": "A",
+      "pastAndCurrentUse": "圆桌与人物实验台共用椅子/地面",
       "dependencyEvidence": "v2/roundtable/index 与 avatar-lab 引用",
-      "dynamicBuildTestEvidence": "尚未推广到旧五场景",
-      "decision": "保留；视觉方向/迁移未决，不强行收敛",
+      "dynamicBuildTestEvidence": "圆桌重建版及 avatar-lab 实际引用",
+      "decision": "保留现有几何、造型和颜色，不继续推广到已退役场景",
       "files": [
         {
           "path": "frontend/src/mc/props/chairs.ts",
@@ -1771,10 +1789,10 @@
     },
     "mc-active": {
       "category": "A",
-      "pastAndCurrentUse": "产品六场景、舞台导演、渲染、资源、物理及外观",
-      "dependencyEvidence": "静态导入图和实际 McStage3D 运行链；逐文件 incomingCode 见下",
-      "dynamicBuildTestEvidence": "含条件分支/类型契约/兼容物件；mc-* 检查与六场景渲染",
-      "decision": "保留；不能把非默认兼容路径当废弃",
+      "pastAndCurrentUse": "当前圆桌、共享人物/渲染/物理与基线时存在的旧房间",
+      "dependencyEvidence": "现有实际导入与构建；旧引用列表保留为基线证据，不代表最新调用图",
+      "dynamicBuildTestEvidence": "当前圆桌真实物理、舞台与浏览器检查；2D/四模式另行回归",
+      "decision": "保留当前调用路径；用户指定的旧 3D 实现按文件级 C 记录退役，完整增量见 roundtableCleanup",
       "files": [
         {
           "path": "frontend/src/components/McStage3D.tsx",
@@ -2002,7 +2020,14 @@
           "documentMentions": [
             "frontend/docs/art/01-baseline-audit.md",
             "frontend/docs/handoff/06-我的世界辩论室-执行手册.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/critters.ts",
+          "sha256": "cfabfebb0dae6601a5665e334df1f0d8892a30e65e2523229760e565ec903f59"
         },
         {
           "path": "frontend/src/mc/design/plan.ts",
@@ -2015,7 +2040,14 @@
             "frontend/src/mc/rooms/podcast.ts",
             "frontend/src/mc/rooms/roundtable.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/design/plan.ts",
+          "sha256": "2a05bec22b27f4b17ecc95ec6f2527c3a90449f2e71c4dff2e5ddadc6332d888"
         },
         {
           "path": "frontend/src/mc/design/plans.ts",
@@ -2023,7 +2055,14 @@
           "incomingCode": [
             "frontend/src/mc/rooms/scenes.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/design/plans.ts",
+          "sha256": "52b43587b13fe0023aa224dc6d63bb88f6cb03d4a3165fa66884d8f815c7ff2b"
         },
         {
           "path": "frontend/src/mc/design/scale.ts",
@@ -2046,7 +2085,14 @@
             "frontend/src/mc/rooms/office.ts",
             "frontend/src/mc/rooms/roundtable.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/design/scheme.ts",
+          "sha256": "9099960e23b981ce12f7925e116935ccec8f73bbad88d7e530ed2d546cb9f359"
         },
         {
           "path": "frontend/src/mc/design/space.ts",
@@ -2060,7 +2106,14 @@
             "frontend/src/mc/rooms/podcast.ts",
             "frontend/src/mc/rooms/roundtable.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/design/space.ts",
+          "sha256": "733a765b9e3581aa2bee2fc0fd9a023471cef5051600ec2d45d44e8594cc9395"
         },
         {
           "path": "frontend/src/mc/director.ts",
@@ -2090,7 +2143,14 @@
           ],
           "documentMentions": [
             "frontend/docs/art/01-baseline-audit.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/freeView.ts",
+          "sha256": "efbff9bc633712301107d4535020a60d550fcaeea9ef4be189c4f76f63d53293"
         },
         {
           "path": "frontend/src/mc/hud/Hud.tsx",
@@ -2169,7 +2229,14 @@
           "incomingCode": [
             "frontend/src/mc/props/debateProps.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/bell.ts",
+          "sha256": "c4c1a7c61cac9ac6554c14d297dc49b49267c69d0dd8b2cfa44247db59c17afe"
         },
         {
           "path": "frontend/src/mc/props/blockKit.ts",
@@ -2187,7 +2254,14 @@
           "incomingCode": [
             "frontend/src/mc/props/debateProps.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/board.ts",
+          "sha256": "cfe1cff8e08757c7017ab469ddc8acc699f4f1b163386424bdf61dc0331143bf"
         },
         {
           "path": "frontend/src/mc/props/boards.ts",
@@ -2205,7 +2279,14 @@
           "incomingCode": [
             "frontend/src/mc/props/debateProps.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/chair.ts",
+          "sha256": "898a239518057c40334905ef4ea823c0cdf84a802379a30a896f696593e19b07"
         },
         {
           "path": "frontend/src/mc/props/debateProps.ts",
@@ -2220,7 +2301,14 @@
             "frontend/docs/handoff/07-我的世界房间-视觉重做交接.md",
             "frontend/docs/rebuild/00-contract.md",
             "frontend/docs/rebuild/01-roundtable-v2.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/debateProps.ts",
+          "sha256": "8756a7c77e60e65d2878daf746efbe8f9847fc63cdb3a444a1078b52811a5044"
         },
         {
           "path": "frontend/src/mc/props/decor.ts",
@@ -2228,7 +2316,14 @@
           "incomingCode": [
             "frontend/src/mc/props/debateProps.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/decor.ts",
+          "sha256": "94ef76d04063420a66cd4bf8099d24f7f9688a610f407337b3825a75471ab414"
         },
         {
           "path": "frontend/src/mc/props/furniture.ts",
@@ -2310,7 +2405,14 @@
           "documentMentions": [
             "frontend/docs/handoff/06-我的世界辩论室-执行手册.md",
             "frontend/docs/handoff/07-我的世界房间-视觉重做交接.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/materials.ts",
+          "sha256": "b449ef0ba440624378d2a88629d9f2f3ff37f23abfe483e48dfae89d34ef80eb"
         },
         {
           "path": "frontend/src/mc/props/mic.ts",
@@ -2318,7 +2420,14 @@
           "incomingCode": [
             "frontend/src/mc/props/debateProps.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/mic.ts",
+          "sha256": "9d707a21eb8181130243fa9d85b30bbdab625dff9449f9d06d404b1a2b9eb48a"
         },
         {
           "path": "frontend/src/mc/props/podium.ts",
@@ -2326,7 +2435,14 @@
           "incomingCode": [
             "frontend/src/mc/props/debateProps.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/podium.ts",
+          "sha256": "87a49087fb63c76f9a7af2141ad33de3941acf79f73cf3af6612f95d826ab25a"
         },
         {
           "path": "frontend/src/mc/props/styledProps.ts",
@@ -2348,7 +2464,14 @@
             "frontend/src/mc/props/debateProps.ts",
             "frontend/src/mc/props/materials.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/surfaceTextures.ts",
+          "sha256": "3ce83d7936d2c39b88599005cb5a9288eb6ebb707084926703ca0e3e18cd8eaf"
         },
         {
           "path": "frontend/src/mc/props/table.ts",
@@ -2356,7 +2479,14 @@
           "incomingCode": [
             "frontend/src/mc/props/debateProps.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/props/table.ts",
+          "sha256": "2e4cb6fee38bf3716b52283eb7fdc0b27eabfc7cc8c344993d7b0a109d80e1a5"
         },
         {
           "path": "frontend/src/mc/quality.ts",
@@ -2395,7 +2525,14 @@
           ],
           "documentMentions": [
             "frontend/docs/art/01-baseline-audit.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/classroom.ts",
+          "sha256": "ec1f72eb1f707dbc2e793c712aa3c23dbb24220de8dac24984dba1191607149d"
         },
         {
           "path": "frontend/src/mc/rooms/debate.ts",
@@ -2428,7 +2565,14 @@
             "frontend/src/mc/v2/registry.ts",
             "frontend/src/mc/v2/roundtable/index.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/debate.ts",
+          "sha256": "44001e16f2e0da452e20134b98b85bedf150da311147b147274146a322c97c0c"
         },
         {
           "path": "frontend/src/mc/rooms/meadow.ts",
@@ -2436,7 +2580,14 @@
           "incomingCode": [
             "frontend/src/mc/design/plans.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/meadow.ts",
+          "sha256": "b449792756546aaa5df214d06c5be5af6cf23e8b2651a2554e14da3ef19b978c"
         },
         {
           "path": "frontend/src/mc/rooms/names.ts",
@@ -2458,7 +2609,14 @@
           "incomingCode": [
             "frontend/src/mc/design/plans.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/office.ts",
+          "sha256": "d92687d287b7b99191d94cc013c0cc460037d48e3e6c647c66513ac58e62137f"
         },
         {
           "path": "frontend/src/mc/rooms/physics.ts",
@@ -2482,7 +2640,14 @@
           ],
           "documentMentions": [
             "frontend/docs/art/01-baseline-audit.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/podcast.ts",
+          "sha256": "f122d41687f769513b2cbbe2a7808ad409d522554cbafa7a756f3cab5a585bcd"
         },
         {
           "path": "frontend/src/mc/rooms/roundtable.ts",
@@ -2490,7 +2655,14 @@
           "incomingCode": [
             "frontend/src/mc/design/plans.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/roundtable.ts",
+          "sha256": "811fbcf4ea25bbf18bbbd16da5bbd169ae8b369087b62fd6836d3f6a61454d23"
         },
         {
           "path": "frontend/src/mc/rooms/scenes.ts",
@@ -2511,7 +2683,14 @@
             "frontend/src/mc/rooms/podcast.ts",
             "frontend/src/mc/rooms/roundtable.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/shared.ts",
+          "sha256": "1abfc7b9bc0972370f20646c55c160872ad1e345527be480e749e6939551fa72"
         },
         {
           "path": "frontend/src/mc/rooms/studio.ts",
@@ -2523,7 +2702,14 @@
             "frontend/src/mc/rooms/podcast.ts",
             "frontend/src/mc/rooms/roundtable.ts"
           ],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/src/mc/rooms/studio.ts",
+          "sha256": "9357da8260b5089a75c72dddc1bcdfc59b398be5d2760959060338de0b8a41af"
         },
         {
           "path": "frontend/src/mc/rooms/validate.ts",
@@ -2979,10 +3165,10 @@
     },
     "product-resources": {
       "category": "A",
-      "pastAndCurrentUse": "六个 2D 背景、音频、MC 预览和静态样本",
-      "dependencyEvidence": "scenes.ts、sound/stageFx、public 静态 URL、README",
+      "pastAndCurrentUse": "六个 2D 背景、音频等有效资源及基线的旧 MC 预览",
+      "dependencyEvidence": "scenes.ts、sound/stageFx、public URL；六张旧 MC 预览的引用已移除",
       "dynamicBuildTestEvidence": "Vite public 静态复制与运行时 URL",
-      "decision": "保留，资源字节与基线一致",
+      "decision": "保留全部 2D 与音频；用户明确指定退役的六张旧 3D 预览按文件级 C 记录删除",
       "files": [
         {
           "path": "frontend/public/audio/CREDITS.md",
@@ -3187,7 +3373,14 @@
           "path": "frontend/public/mc/preview-classroom.jpg",
           "baselineBytes": 137801,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/public/mc/preview-classroom.jpg",
+          "sha256": "c670a0ac66675e9793389ac3992e46d35608ce0aa3b4d4c2d657bfda9b72a5f1"
         },
         {
           "path": "frontend/public/mc/preview-debate.jpg",
@@ -3196,31 +3389,66 @@
           "documentMentions": [
             "frontend/docs/handoff/05-我的世界辩论室-设计方案.md",
             "frontend/docs/handoff/06-我的世界辩论室-执行手册.md"
-          ]
+          ],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/public/mc/preview-debate.jpg",
+          "sha256": "6ef2da0b49fe5b254c9b3f9d425f76ddb36a53ff3c4d10165bb4c9113c20bfd3"
         },
         {
           "path": "frontend/public/mc/preview-meadow.jpg",
           "baselineBytes": 177137,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/public/mc/preview-meadow.jpg",
+          "sha256": "d19dc5432eb263aeb8080e65a704745d2603163c415c4c31e8039decf567ac9d"
         },
         {
           "path": "frontend/public/mc/preview-office.jpg",
           "baselineBytes": 161034,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/public/mc/preview-office.jpg",
+          "sha256": "9da835c14f0233ce145e0c8192de5be97b37f301b2ee9fe86092f20058c6a105"
         },
         {
           "path": "frontend/public/mc/preview-podcast.jpg",
           "baselineBytes": 76577,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/public/mc/preview-podcast.jpg",
+          "sha256": "34b58271eb4437e505631df0b40e429b538c1c43be576e26b820bc8dd2634b4c"
         },
         {
           "path": "frontend/public/mc/preview-roundtable.jpg",
           "baselineBytes": 132840,
           "incomingCode": [],
-          "documentMentions": []
+          "documentMentions": [],
+          "category": "C",
+          "currentPath": null,
+          "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+          "deletedIn": "roundtableCleanup",
+          "recoveryRef": "audit/pre-roundtable-only-20261009",
+          "recoveryPath": "frontend/public/mc/preview-roundtable.jpg",
+          "sha256": "34e817d0eb0a82fe74a04f57100e81c0f13fe8f4365dfbc48406bbe3ca80cf8f"
         },
         {
           "path": "frontend/public/mc/sounds/block.bell.use/0.ogg",
@@ -8182,6 +8410,582 @@
     "currentDocRelocated": 1,
     "deletedFiles": 5,
     "workingTreeBytesRemoved": 2648176,
-    "judgment": "精简软件渲染细节重复采样，保留同机位高画质图、整体/外景/HUD及炉火/坐姿的中高成对证据；不宣称图像完全相同或硬件画质等价。"
+    "judgment": "五张软件细节采样的信息高度重叠但并不等价；历史删除是基于参考用途、实验状态和替代的维护取舍，不证明没有信息价值。保留同机位高画质图、整体/外景/HUD及炉火/坐姿的中高成对证据和恢复点；本轮用户不要求恢复，未发现不可替代职责，不构成未来自动删除授权。"
+  },
+  "roundtableCleanup": {
+    "baseline": "434a5da305a5161fb81ac1a9020449171986f537",
+    "date": "2026-10-09",
+    "branch": "maintenance/roundtable-only-20261009",
+    "recoveryRef": "audit/pre-roundtable-only-20261009",
+    "authorization": "用户明确要求只保留正在重建的圆桌；补充确认仅清理其他 3D，保留全部 2D 和四种讨论业务。只作本地提交，不推送。",
+    "replacement": "v2/roundtable 是唯一 3D 房间；共用 Room、道具类型与书本分别保留于 rooms/types.ts、props/types.ts、props/book.ts；样板仍未完成/未验收。",
+    "referenceBoundary": "不继续删除历史参考图；八张此前删除的截图仍按 3 张完全重复和 5 张高度重叠但非等价记录。场景退役授权不是未来视觉资料删除授权。",
+    "dependencyEvidence": "运行类型/登记、三处 3D 入口、预览卡片与抓图目录只剩 roundtable；其他房间明确拒绝，旧导演/道具引用已处理；类型检查和完整测试验证当前调用。",
+    "protected": "六个 2D 场景、四种引擎业务、人物设定/模型、圆桌现有建筑/家具/光影/材质及 MC 运行资源/许可证保留。",
+    "deletedFiles": 31,
+    "deletedCodeFiles": 25,
+    "deletedPreviewImages": 6,
+    "workingTreeBytesRemoved": 944982,
+    "files": [
+      {
+        "path": "frontend/public/mc/preview-classroom.jpg",
+        "bytes": 137801,
+        "sha256": "c670a0ac66675e9793389ac3992e46d35608ce0aa3b4d4c2d657bfda9b72a5f1",
+        "pastUse": "旧 3D 场景卡片预览",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/public/mc/preview-debate.jpg",
+        "bytes": 135681,
+        "sha256": "6ef2da0b49fe5b254c9b3f9d425f76ddb36a53ff3c4d10165bb4c9113c20bfd3",
+        "pastUse": "旧 3D 场景卡片预览",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/public/mc/preview-meadow.jpg",
+        "bytes": 177137,
+        "sha256": "d19dc5432eb263aeb8080e65a704745d2603163c415c4c31e8039decf567ac9d",
+        "pastUse": "旧 3D 场景卡片预览",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/public/mc/preview-office.jpg",
+        "bytes": 161034,
+        "sha256": "9da835c14f0233ce145e0c8192de5be97b37f301b2ee9fe86092f20058c6a105",
+        "pastUse": "旧 3D 场景卡片预览",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/public/mc/preview-podcast.jpg",
+        "bytes": 76577,
+        "sha256": "34b58271eb4437e505631df0b40e429b538c1c43be576e26b820bc8dd2634b4c",
+        "pastUse": "旧 3D 场景卡片预览",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/public/mc/preview-roundtable.jpg",
+        "bytes": 132840,
+        "sha256": "34e817d0eb0a82fe74a04f57100e81c0f13fe8f4365dfbc48406bbe3ca80cf8f",
+        "pastUse": "旧 3D 场景卡片预览",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/critters.ts",
+        "bytes": 6393,
+        "sha256": "cfabfebb0dae6601a5665e334df1f0d8892a30e65e2523229760e565ec903f59",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/design/plan.ts",
+        "bytes": 420,
+        "sha256": "2a05bec22b27f4b17ecc95ec6f2527c3a90449f2e71c4dff2e5ddadc6332d888",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/design/plans.ts",
+        "bytes": 990,
+        "sha256": "52b43587b13fe0023aa224dc6d63bb88f6cb03d4a3165fa66884d8f815c7ff2b",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/design/scheme.ts",
+        "bytes": 3372,
+        "sha256": "9099960e23b981ce12f7925e116935ccec8f73bbad88d7e530ed2d546cb9f359",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/design/space.ts",
+        "bytes": 1119,
+        "sha256": "733a765b9e3581aa2bee2fc0fd9a023471cef5051600ec2d45d44e8594cc9395",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/freeView.ts",
+        "bytes": 11416,
+        "sha256": "efbff9bc633712301107d4535020a60d550fcaeea9ef4be189c4f76f63d53293",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/bell.ts",
+        "bytes": 755,
+        "sha256": "c4c1a7c61cac9ac6554c14d297dc49b49267c69d0dd8b2cfa44247db59c17afe",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/board.ts",
+        "bytes": 3711,
+        "sha256": "cfe1cff8e08757c7017ab469ddc8acc699f4f1b163386424bdf61dc0331143bf",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/chair.ts",
+        "bytes": 962,
+        "sha256": "898a239518057c40334905ef4ea823c0cdf84a802379a30a896f696593e19b07",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/debateProps.ts",
+        "bytes": 14576,
+        "sha256": "8756a7c77e60e65d2878daf746efbe8f9847fc63cdb3a444a1078b52811a5044",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/decor.ts",
+        "bytes": 1637,
+        "sha256": "94ef76d04063420a66cd4bf8099d24f7f9688a610f407337b3825a75471ab414",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/materials.ts",
+        "bytes": 6641,
+        "sha256": "b449ef0ba440624378d2a88629d9f2f3ff37f23abfe483e48dfae89d34ef80eb",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/mic.ts",
+        "bytes": 1123,
+        "sha256": "9d707a21eb8181130243fa9d85b30bbdab625dff9449f9d06d404b1a2b9eb48a",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/podium.ts",
+        "bytes": 2925,
+        "sha256": "87a49087fb63c76f9a7af2141ad33de3941acf79f73cf3af6612f95d826ab25a",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/surfaceTextures.ts",
+        "bytes": 2281,
+        "sha256": "3ce83d7936d2c39b88599005cb5a9288eb6ebb707084926703ca0e3e18cd8eaf",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/props/table.ts",
+        "bytes": 2471,
+        "sha256": "2e4cb6fee38bf3716b52283eb7fdc0b27eabfc7cc8c344993d7b0a109d80e1a5",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/classroom.ts",
+        "bytes": 4911,
+        "sha256": "ec1f72eb1f707dbc2e793c712aa3c23dbb24220de8dac24984dba1191607149d",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/debate.ts",
+        "bytes": 17890,
+        "sha256": "44001e16f2e0da452e20134b98b85bedf150da311147b147274146a322c97c0c",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/meadow.ts",
+        "bytes": 9824,
+        "sha256": "b449792756546aaa5df214d06c5be5af6cf23e8b2651a2554e14da3ef19b978c",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/office.ts",
+        "bytes": 9043,
+        "sha256": "d92687d287b7b99191d94cc013c0cc460037d48e3e6c647c66513ac58e62137f",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/podcast.ts",
+        "bytes": 5304,
+        "sha256": "f122d41687f769513b2cbbe2a7808ad409d522554cbafa7a756f3cab5a585bcd",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/roundtable.ts",
+        "bytes": 5378,
+        "sha256": "811fbcf4ea25bbf18bbbd16da5bbd169ae8b369087b62fd6836d3f6a61454d23",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/shared.ts",
+        "bytes": 2000,
+        "sha256": "1abfc7b9bc0972370f20646c55c160872ad1e345527be480e749e6939551fa72",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/rooms/studio.ts",
+        "bytes": 8264,
+        "sha256": "9357da8260b5089a75c72dddc1bcdfc59b398be5d2760959060338de0b8a41af",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      },
+      {
+        "path": "frontend/src/mc/v2/registry.ts",
+        "bytes": 506,
+        "sha256": "908e8ed5a819227f9aecc87e136c65571a9e878d34b64c66bb21f49109d1ba40",
+        "pastUse": "旧 3D 房间及专用设计、道具、控制或登记实现",
+        "decision": "用户明确要求只保留圆桌重建版；退役其他 3D 实现及旧版圆桌，不依据审美判断删除",
+        "currentPath": null
+      }
+    ],
+    "addedFiles": [
+      "frontend/src/mc/rooms/types.ts",
+      "frontend/src/mc/props/types.ts",
+      "frontend/src/mc/props/book.ts"
+    ],
+    "changedFiles": [
+      {
+        "path": "AGENTS.md",
+        "action": "modified"
+      },
+      {
+        "path": "ARCHITECTURE.md",
+        "action": "modified"
+      },
+      {
+        "path": "README.md",
+        "action": "modified"
+      },
+      {
+        "path": "STANDARDS.md",
+        "action": "modified"
+      },
+      {
+        "path": "VERIFY.md",
+        "action": "modified"
+      },
+      {
+        "path": "docs/LEGACY_INVENTORY.json",
+        "action": "modified"
+      },
+      {
+        "path": "docs/MAINTENANCE_AUDIT.md",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/README.md",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/docs/README.md",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/docs/archive/README.md",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/public/mc/preview-classroom.jpg",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/public/mc/preview-debate.jpg",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/public/mc/preview-meadow.jpg",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/public/mc/preview-office.jpg",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/public/mc/preview-podcast.jpg",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/public/mc/preview-roundtable.jpg",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/scripts/check-mc-design.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/check-mc-look.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/check-mc-physics.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/check-mc-room.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/check-mc-scenes.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/check-mc-spectator.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/check-mc-stage.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/check-mc-v2.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/mc-shots.cams.json",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/scripts/mc-shots.mjs",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/components/DiscussionView.tsx",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/components/McStage3D.tsx",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/components/SetupCast.tsx",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/components/SetupScene.tsx",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/data/scenes.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc-lab/main.tsx",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/blockEntities.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/camera.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/critters.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/design/plan.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/design/plans.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/design/scheme.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/design/space.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/director.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/freeView.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/hud/Hud.tsx",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/player.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/props/bell.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/board.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/book.ts",
+        "action": "added"
+      },
+      {
+        "path": "frontend/src/mc/props/chair.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/debateProps.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/decor.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/inspection.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/props/materials.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/mic.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/podium.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/styledProps.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/props/surfaceTextures.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/table.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/props/types.ts",
+        "action": "added"
+      },
+      {
+        "path": "frontend/src/mc/rooms/classroom.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/debate.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/meadow.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/names.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/rooms/office.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/physics.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/rooms/podcast.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/roundtable.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/scenes.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/rooms/shared.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/studio.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/rooms/types.ts",
+        "action": "added"
+      },
+      {
+        "path": "frontend/src/mc/rooms/validate.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/sceneDirector.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/spectator.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/mc/v2/registry.ts",
+        "action": "deleted"
+      },
+      {
+        "path": "frontend/src/mc/v2/roundtable/index.ts",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/stage-lab/main.tsx",
+        "action": "modified"
+      },
+      {
+        "path": "frontend/src/types.ts",
+        "action": "modified"
+      }
+    ]
   }
 }

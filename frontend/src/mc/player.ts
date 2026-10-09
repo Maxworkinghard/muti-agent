@@ -5,9 +5,9 @@ import type {Participant,PersonaVisual} from '../types';
 import type {Avatar} from './avatar/build';
 import type {Look} from './avatar/types';
 import {lookAt,type Actor,type DirectorState} from './director';
-import type {Room} from './rooms/debate';
+import type {Room} from './rooms/types';
 import type {LightGrid} from './light';
-import type {PropContacts} from './props/debateProps';
+import type {PropContacts} from './props/types';
 import {idleMotion} from './idleMotion';
 /** labelAbove：名字牌在眼睛上方多高（米），按这个人的头大小和帽子算 */
 export interface Player {readonly contactGap?:number;labelAbove:number;root:THREE.Group;mesh:THREE.SkinnedMesh;head:THREE.Bone;skin:Skin;eye:THREE.Vector3;forward:THREE.Vector3;material:THREE.MeshStandardMaterial;update(a:Actor,s:DirectorState,room:Room,light:LightGrid):void;dispose():void}

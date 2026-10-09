@@ -6,7 +6,7 @@
 //   node scripts/mc-shots.mjs shoot <标签> [房间 ...] [--material=original,hd,style] [--shots=overview,fixed,...]
 //   node scripts/mc-shots.mjs compare <改前标签> <改后标签>
 //   node scripts/mc-shots.mjs lab <标签> [镜头 ...]   拍 avatar-lab.html（Q 版人物 / 椅子 / 地面实验台），镜头名见 LAB_SHOTS
-//   --v=2 拍 src/mc/v2 的重建场景（页面带 &v=2，机位用 cams.json 里的 <房间>@v2，文件名带 -v2）
+//   当前只拍圆桌重建样板；旧版本和其他 3D 场景已移除。
 //   node scripts/mc-shots.mjs collage <输出.jpg> <标题> <图片=说明> ...   把几张截图拼成一页（--cols=列数，--w=每格宽），无头 Chrome 存成 JPG
 //   --quality=high|medium 画质档（默认 high）
 // 照片在 frontend/.shots/<标签>/，对比页是 frontend/.shots/compare-<改前>-<改后>.html。
@@ -26,12 +26,12 @@ import { PNG } from 'pngjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotsDir = path.join(root, '.shots');
-const ROOMS = ['debate', 'roundtable', 'office', 'classroom', 'meadow', 'podcast'];
+const ROOMS = ['roundtable'];
 const SHOTS = ['overview', 'fixed', 'judge', 'personA', 'personB', 'table', 'chair', 'board', 'detail', 'hud'];
 const NAMES = { overview: '默认全景', fixed: '固定机位', judge: '观摩位', personA: '人物视角 A', personB: '人物视角 B', table: '桌子近景', chair: '椅子近景', board: '话题板近景', hud: '产品画面' };
 const args = process.argv.slice(2), flags = Object.fromEntries(args.filter(a => a.startsWith('--')).map(a => a.slice(2).split('='))), rest = args.filter(a => !a.startsWith('--'));
 const port = Number(flags.port ?? process.env.PORT ?? 5180), SETTLE = Number(flags.settle ?? 5000);
-const V2 = flags.v === '2', VQ = V2 ? '&v=2' : '', QUALITY = ['high', 'medium', 'low'].includes(flags.quality) ? flags.quality : 'high';
+const QUALITY = ['high', 'medium', 'low'].includes(flags.quality) ? flags.quality : 'high';
 const cams = JSON.parse(fs.readFileSync(path.join(root, 'scripts/mc-shots.cams.json'), 'utf8'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -54,6 +54,8 @@ function imageStats(file) {
 }
 
 async function shoot(label, rooms) {
+  if (flags.v) throw new Error('--v 已移除，所有 3D 入口只使用圆桌重建样板');
+  for (const room of rooms) if (!ROOMS.includes(room)) throw new Error('该 3D 场景已移除，只保留圆桌重建样板：' + room);
   const materials = (flags.material ?? 'room').split(','), only = flags.shots ? new Set(flags.shots.split(',')) : null, want = s => !only || only.has(s) || (s.startsWith('detail-') && only.has('detail'));
   const out = path.join(shotsDir, label); fs.mkdirSync(out, { recursive: true });
   const cdp = 9400 + Math.floor(Math.random() * 400), profile = path.join(tmpdir(), 'mc-shots-' + process.pid);
@@ -88,8 +90,8 @@ async function shoot(label, rooms) {
     const setInspect = v => evaluate(`(() => { const sel = [...document.querySelectorAll('.mc-lab-controls select')].find(s => [...s.options].some(o => o.value === 'board')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, ${JSON.stringify(v)}); sel.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
     const summary = [];
     for (const room of rooms) for (const material of materials) {
-      logs.length = 0; const t0 = Date.now(), tag = (material === 'room' ? room : `${room}@${material}`) + (V2 ? '-v2' : '') + (QUALITY === 'high' ? '' : '-' + QUALITY), cam = cams[V2 ? room + '@v2' : room], metrics = { room, material, shots: {} };
-      await send('Page.navigate', { url: `http://localhost:${port}/mc-lab.html?scene=${room}&cover${material === 'room' ? '' : '&material=' + material}${VQ}` });
+      logs.length = 0; const t0 = Date.now(), tag = (material === 'room' ? room : `${room}@${material}`) + (QUALITY === 'high' ? '' : '-' + QUALITY), cam = cams[room], metrics = { room, material, shots: {} };
+      await send('Page.navigate', { url: `http://localhost:${port}/mc-lab.html?scene=${room}&cover${material === 'room' ? '' : '&material=' + material}` });
       // 舞台放大到 1440×960 再拍。
       for (let i = 0; i < 40; i++) { const ok = await evaluate(`(() => { if (!document.head) return false; const st = document.createElement('style'); st.textContent = '.mc-lab-cover .mc-lab-stage{width:1440px!important;max-width:none!important}'; document.head.appendChild(st); return true; })()`).catch(() => false); if (ok) break; await sleep(100); }
       const state = await waitLoaded('.mc-lab-error');
@@ -106,7 +108,7 @@ async function shoot(label, rooms) {
       for (const v of ['table', 'chair', 'board']) await shot(v, () => setInspect(v));
       await setInspect('');
       if (material === 'room' && want('hud')) {
-        await send('Page.navigate', { url: `http://localhost:${port}/stage-lab.html?scene=${room}-mc${VQ}` });
+        await send('Page.navigate', { url: `http://localhost:${port}/stage-lab.html?scene=${room}-mc` });
         const s2 = await waitLoaded('.stage-lab-world [role=alert]');
         if (s2?.loaded) { await sleep(SETTLE); await capture(path.join(out, `${tag}-hud.png`), '.stage-lab-world'); metrics.shots.hud = {}; }
       }

@@ -93,20 +93,15 @@ const ORIGINAL_SCENES: Record<string, SceneDef> = {
   },
 };
 
-// Minecraft 场景：所有 6 个 2D 场景都有对应的 MC 版本
+// 只保留正在重建的圆桌 3D 样板；六个 2D 场景和其业务元数据不变。
 export const SCENES: Record<string, SceneDef> = {
   ...ORIGINAL_SCENES,
-  'debate-mc': {
-    ...ORIGINAL_SCENES.debate,
-    id: 'debate-mc', name: '辩论室 · 我的世界', sourceSceneId: 'debate', mcStage: 'debate',
-    previewImage: '/mc/preview-debate.jpg',
-    description: '《我的世界》里的辩论室：正反两方隔着场地对坐，发言人按话筒开麦，主持按铃换轮，辩题板展示讨论进度，情绪会冒粒子',
+  'roundtable-mc': {
+    ...ORIGINAL_SCENES.roundtable,
+    id: 'roundtable-mc', name: '圆桌会议室 · 3D 重建样板（未完成）',
+    sourceSceneId: 'roundtable', mcStage: 'roundtable',
+    description: '湖畔木构议事厅的圆桌重建样板，仅保留这一版；尚未完成，也未通过用户视觉验收',
   },
-  ...Object.fromEntries((['roundtable','office','classroom','meadow','podcast'] as const).map(sourceId=>{
-    const source=ORIGINAL_SCENES[sourceId];
-    const descriptions={roundtable:'暖木圆桌与八把座椅，围坐交流，发言与情绪跟随原讨论引擎',office:'十三个独立工位、中央交换台和六席会议区，成员可以走访、站会和回到工位',classroom:'讲台、话题板与成排课桌，第一席在讲台，其余成员坐在前排',meadow:'林荫草地、野餐布、木桩座位和池塘，八人围坐交流',podcast:'双人扶手椅、话筒与暖色录音间，第一席主持、第二席嘉宾，坐着对谈'};
-    return [sourceId+'-mc',{...source,id:sourceId+'-mc',name:source.name+' · 我的世界',sourceSceneId:sourceId,mcStage:sourceId,previewImage:'/mc/preview-'+sourceId+'.jpg',description:descriptions[sourceId]} satisfies SceneDef];
-  })),
 };
 
 export const SCENE_LIST = Object.values(SCENES);

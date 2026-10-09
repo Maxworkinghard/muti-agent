@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type {Assets} from './assets';
-import type {Room} from './rooms/debate';
+import type {Room} from './rooms/types';
 import type {DirectorState} from './director';
 /** 游戏里由代码画的方块：现在只剩队旗（钟、讲台的书、告示牌在第二轮换成了写实物品）。 */
 function texturedBox(size:number[],center:number[],material:THREE.Material,uvOrigin:number[],sheet:number[]){
