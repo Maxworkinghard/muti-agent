@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import {Atlas,mix,tone,type Pen,type Rect} from './paint';
 import {Mesher,type Faces} from './mesh';
 import {planHair,hairTexel,hairColors,type HairBox,type FaceKey} from './hair';
-import {paintFace,FACE_H,type FaceState} from './face';
+import {paintFace,paintAnimeFace,ANIME_SCALE,FACE_H,type FaceState} from './face';
 import {resolveLook,type Resolved} from './resolve';
 import {T,HEAD} from './rig';
 import {makeBody,sitPose,type Body,type SitPose} from './body';
@@ -71,7 +71,8 @@ function build(input:Look,side:string,size:number):Avatar{
     const k2=outer.kind;
     const front=panel(OW,OH,p=>{p.fill(oc);
       // 开口：开衫 / 拉链衫整条开，西装 / 马甲 V 领，夹克 / 棒球服拉到胸口
-      const open=(y:number)=>k2==='cardigan'||k2==='zip'?3:k2==='blazer'||k2==='vest'?Math.max(0,Math.round(5-y*.55)):k2==='coat'?Math.max(0,Math.round(3-y*.45)):k2==='jacket'||k2==='varsity'?(y<6?Math.max(1,3-Math.floor(y/2)):1):0;
+      // 精修的长风衣领口开得更深（V 字到胸口下面，露出里面的高领）
+      const open=(y:number)=>k2==='cardigan'||k2==='zip'?3:k2==='blazer'||k2==='vest'?Math.max(0,Math.round(5-y*.55)):k2==='coat'?(body.family==='refined'?(y<13?Math.max(1,Math.round(4.6-y*.3)):0):Math.max(0,Math.round(3-y*.45))):k2==='jacket'||k2==='varsity'?(y<6?Math.max(1,3-Math.floor(y/2)):1):0;
       for(let y=0;y<OH;y++){const o=open(y);if(o>0){p.clear(ocx-o,y,o*2,1);p.px(ocx-o-1,y,tone(oc,k2==='blazer'||k2==='coat'?.72:.85)).px(ocx+o,y,tone(oc,k2==='blazer'||k2==='coat'?.72:.85));}}
       if(k2==='cardigan'){for(let y=3;y<OH-2;y+=4)p.px(ocx+3,y,trim);for(let x=0;x<OW;x+=2)p.rect(x,OH-2,1,2,tone(oc,.82));p.rect(2,OH-8,4,4,tone(oc,.9)).rect(OW-6,OH-8,4,4,tone(oc,.9)).rect(2,OH-8,4,1,tone(oc,.8)).rect(OW-6,OH-8,4,1,tone(oc,.8));}
       if(k2==='blazer'){p.rect(2,OH-6,5,1,tone(oc,.75)).rect(OW-7,OH-6,5,1,tone(oc,.75));p.rect(OW-7,4,4,1,tone(oc,.75));if(outer.trim)p.rect(OW-6,3,2,1,outer.trim);p.px(ocx-1,OH-7,'#d8c070').px(ocx-1,OH-4,'#d8c070');for(let y=0;y<8;y++){p.px(ocx-6+Math.floor(y/2),y,tone(oc,.8));p.px(ocx+5-Math.floor(y/2),y,tone(oc,.8));}}
@@ -87,11 +88,16 @@ function build(input:Look,side:string,size:number):Avatar{
     m.box(-OW/2,HY-1,-OD/2,OW/2,NY,OD/2,2,{pz:front,nz:back,px:sideP,nx:sideP,py:null,ny:bot});
     // 翻领 / 衣领体素；宽肩型的外套肩头多一道垫肩
     if(k2==='blazer'||k2==='coat'){V(-6,NY-5,OD/2,-2.5,NY,OD/2+1,2,tone(oc,.85));V(2.5,NY-5,OD/2,6,NY,OD/2+1,2,tone(oc,.85));}
+    // 精修体型的长风衣：一对长翻领（镶边色，一级级往里收成 V 字，到胸口下面），领口露出里面的高领
+    if(k2==='coat'&&body.family==='refined')for(const s of [-1,1])for(const [a,b,y0,y1] of [[2.4,6.4,NY-4,NY+.3],[1.9,5.4,NY-8,NY-4],[1.3,4.2,NY-11.5,NY-8]] as const){
+      const [x0,x1]=s>0?[a,b]:[-b,-a];V(x0,y0,OD/2,x1,y1,OD/2+.9,2,otrim);V(s>0?x1-.6:x0,y0,OD/2+.9,s>0?x1:x0+.6,y1,OD/2+1.1,2,tone(otrim,1.15));}
     if(k2==='varsity'||k2==='jacket'||k2==='zip')V(-7,NY-2,-7,7,NY+.4,7,2,k2==='varsity'?otrim:tone(oc,.9));
     if(body.type==='broad')for(const s of [-1,1])V(s>0?OW/2-4:-OW/2,NY-1,-OD/2,s>0?OW/2:-OW/2+4,NY+.6,OD/2,2,tone(oc,1.04));
     // 外套下摆：后半片挂在髋上，前两片挂在大腿上（坐下时搭在腿上）；长外套型的前片一直盖到膝盖
-    if(res.coatHem){const c=tone(oc,.97),len=body.type==='longcoat'?body.leg.thigh+3:7,hx2=OW/2+.5;V(-hx2,HY-Math.min(len,9),-OD/2-.5,hx2,HY,0,1,c);V(-hx2,HY-len,0,-.6,HY,OD/2+.5,6,c);V(.6,HY-len,0,hx2,HY,OD/2+.5,7,c);
-      if(body.type==='longcoat')for(const [s,bone] of [[-1,6],[1,7]] as const)V(s>0?.6:-hx2,HY-len-.01,OD/2-.5,s>0?hx2:-.6,HY-len+1.2,OD/2+.6,bone,otrim);}
+    // 长外套型和精修修长型的前片一直盖过膝盖
+    const longHem=body.type==='longcoat'||body.type==='elegant';
+    if(res.coatHem){const c=tone(oc,.97),len=longHem?body.leg.thigh+3:7,hx2=OW/2+.5;V(-hx2,HY-Math.min(len,9),-OD/2-.5,hx2,HY,0,1,c);V(-hx2,HY-len,0,-.6,HY,OD/2+.5,6,c);V(.6,HY-len,0,hx2,HY,OD/2+.5,7,c);
+      if(longHem)for(const [s,bone] of [[-1,6],[1,7]] as const)V(s>0?.6:-hx2,HY-len-.01,OD/2-.5,s>0?hx2:-.6,HY-len+1.2,OD/2+.6,bone,otrim);}
   }
   // 背带裤 / 围裙：胸前一块立体的兜
   if(outer?.kind==='overalls'){V(-3,HY+8,td/2,3,HY+12,td/2+1,2,tone(outer.color,.92));}
@@ -141,7 +147,9 @@ function build(input:Look,side:string,size:number):Avatar{
   // ——头（正面是脸，会按表情重画）。头型：脸板两侧切 cut、下巴两侧收 jaw
   const plan=planHair(L.hair.style,{hat:res.hat,hood:res.hood,glasses:!!res.glasses,ahoge:res.ahoge,tuck:L.hair.tuck});
   const hc=hairColors(hairC,L.hair.tie??'#d94f5c',tone,mix,L.hair.streak);
-  const FW=2*fx,faceRect=atlas.alloc(FW,FACE_H);
+  // 精修脸：脸部那一块贴图按两倍像素密度画（其他面仍是 1 像素 = 1 T）
+  const anime=L.face.style==='anime',fs=anime?ANIME_SCALE:1;
+  const FW=2*fx,faceRect=atlas.alloc(FW*fs,FACE_H*fs);
   // 头的侧面：靠脸的一半亮、靠后脑的一半暗一档，下面一条从下巴斜着升到耳下的下颌线，侧面不是一块平板
   const sidePanel=(frontAtLeft:boolean)=>panel(HEAD.d-cut,hh,p=>{const D=HEAD.d-cut;p.fill(skin);p.rect(0,0,D,12,hc[3]);
     for(let u=0;u<D;u++){const back=frontAtLeft?u/(D-1):1-u/(D-1);if(back>.55)p.rect(u,12,1,hh-12,tone(skin,.95));const jw=Math.round(hh-3-back*7);p.rect(u,jw,1,hh-jw,tone(skin,.9));p.px(u,jw,tone(skin,.86));}});
@@ -150,7 +158,7 @@ function build(input:Look,side:string,size:number):Avatar{
   // 头 = 后面一大块（两侧面到 hz-cut 为止）+ 前面一块脸板（宽 ±fx）；圆脸 / 长脸的下巴两侧再收 jaw（脸板下面 5 T 窄一点）
   m.box(-hx,NY,-hz,hx,NY+hh,hz-cut,3,{pz:solid(tone(skin,.92)),nz:headBack,px:headSideP,nx:headSideN,py:solid(hc[3]),ny:solid(tone(skin,.84))});
   const skinSide=solid(tone(skin,.95)),chin=solid(tone(skin,.84));
-  if(jaw>0){const jh=5,lower={x:faceRect.x+jaw,y:faceRect.y+FACE_H-jh,w:FW-2*jaw,h:jh},upper={x:faceRect.x,y:faceRect.y,w:FW,h:FACE_H-jh};
+  if(jaw>0){const jh=5,lower={x:faceRect.x+jaw*fs,y:faceRect.y+(FACE_H-jh)*fs,w:(FW-2*jaw)*fs,h:jh*fs},upper={x:faceRect.x,y:faceRect.y,w:FW*fs,h:(FACE_H-jh)*fs};
     m.box(-fx,NY+jh,hz-cut,fx,NY+hh,hz,3,{pz:upper,nz:null,px:skinSide,nx:skinSide,py:solid(hc[3]),ny:chin});
     m.box(-fx+jaw,NY,hz-cut,fx-jaw,NY+jh,hz,3,{pz:lower,nz:null,px:skinSide,nx:skinSide,py:null,ny:chin});}
   else m.box(-fx,NY,hz-cut,fx,NY+hh,hz,3,{pz:faceRect,nz:null,px:skinSide,nx:skinSide,py:solid(hc[3]),ny:chin});
@@ -229,6 +237,8 @@ function build(input:Look,side:string,size:number):Avatar{
   const tieZ=outerBack?OD/2-.5:td/2;
   if(res.has('tie')){const c=accColor('tie','#7a2e3a');V(-1.2,NY-3,tieZ,1.2,NY-.5,tieZ+1.4,2,tone(c,.85));V(-1.5,NY-th+5,tieZ,1.5,NY-3,tieZ+.9,2,c);V(-1,NY-th+4,tieZ,1,NY-th+5,tieZ+.9,2,c);}
   if(res.has('bowtie')){const c=accColor('bowtie','#2e2a3a');V(-3.6,NY-3,tieZ,-.6,NY-.4,tieZ+1.3,2,c);V(.6,NY-3,tieZ,3.6,NY-.4,tieZ+1.3,2,c);V(-.7,NY-2.7,tieZ,.7,NY-.7,tieZ+1.7,2,tone(c,.8));}
+  // 腰带：外套（没有外套就是上衣）腰上一圈，正中一块铜扣，右边垂下一截带头
+  if(res.has('belt')){const c=accColor('belt','#4a3426'),X=(outerBack?OW:tw)/2+.35,Z=(outerBack?OD:td)/2+.35,y0=HY+5;V(-X,y0,-Z,X,y0+1.8,Z,2,c);V(-1.6,y0-.2,Z-.1,1.6,y0+2,Z+.5,2,'#c9a35a');V(-1,y0+.3,Z+.4,1,y0+1.5,Z+.7,2,c);V(2,y0-6,Z-.2,3.4,y0,Z+.4,2,c);}
   if(res.has('ribbon')){const c=accColor('ribbon','#c94a5a');V(-5,NY-3.5,tieZ,-1,NY-.5,tieZ+1.6,2,c);V(1,NY-3.5,tieZ,5,NY-.5,tieZ+1.6,2,c);V(-1,NY-3.2,tieZ,1,NY-.8,tieZ+2,2,tone(c,.8));V(-2.6,NY-8,tieZ,-.6,NY-3.5,tieZ+1,2,c);V(.6,NY-8,tieZ,2.6,NY-3.5,tieZ+1,2,c);}
   // ——小标志：胸针（扁的一块，正面是 5×5 的图案）、挂件（小立体）、项链坠
   const frontZ=outerBack?OD/2:outer&&['apron','overalls'].includes(outer.kind)?td/2+.7:td/2;
@@ -264,9 +274,9 @@ function build(input:Look,side:string,size:number):Avatar{
     for(let i=0;i<steps;i++){const t=i/(steps-1),x=tw/2-2.5-t*(tw-3),y=NY-1-t*(th-4);V(x-1,y-1.6,z,x+1,y+.2,z+.6,2,strap);V(x-1,y-1.6,-td/2-(outerBack?1.6:.6),x+1,y+.2,-td/2-(outerBack?1:0),2,strap);}
     const bx=-tw/2-3.2;V(bx,HY-3,-3,bx+3.4,HY+4,3.4,1,c);V(bx-.3,HY+2.6,-3.3,bx+3.7,HY+4.4,3.7,1,tone(c,.86));V(bx-.4,HY+.2,-.6,bx,HY+1.6,.6,1,'#d8c070');}
   if(res.has('waistBag')){const c=accColor('waistBag','#5a6a4a'),z=frontZ;V(-tw/2-.4,HY-.4,-td/2-.4,tw/2+.4,HY+1.2,td/2+.4,1,tone(c,.75));V(1,HY-2,z,8,HY+3,z+3,1,c);V(1.2,HY+1.8,z+3,7.8,HY+2.6,z+3.4,1,tone(c,.8));V(4,HY-.5,z+3,5,HY+1.4,z+3.3,1,'#d8c070');}
-  // 队别胸牌（旧皮肤上的挂绳胸牌，保留语义：正方蓝、反方红、其他金）
-  const badge=TEAM[side]??'#c9973a';
-  V(-6.5,NY-9,frontZ,-3,NY-5.5,frontZ+.8,2,'#f4efe4');V(-6.5,NY-6,frontZ,-3,NY-5.5,frontZ+.9,2,badge);
+  // 旧 Q 版保留队别胸牌（正方蓝、反方红、其他金）。精修样板不挂这块米白板，它会盖住衣服，也不是这两个样板的造型。
+  if(body.family!=='refined'){const badge=TEAM[side]??'#c9973a';
+    V(-6.5,NY-9,frontZ,-3,NY-5.5,frontZ+.8,2,'#f4efe4');V(-6.5,NY-6,frontZ,-3,NY-5.5,frontZ+.9,2,badge);}
 
   // ——双肩包：单独一块（原点在包的背面中心、贴背的那一面），站着背在背上，坐下挂到椅背后面
   let pack:THREE.BufferGeometry|null=null;
@@ -299,7 +309,7 @@ function build(input:Look,side:string,size:number):Avatar{
   const pen=atlas.pen(faceRect);const opts={hat:!!res.hat,glasses:!!res.glasses,hood:res.hood,beard:res.has('beard'),hairline:plan.hairline,hairDeep:hc[3]};
   const texture=new THREE.CanvasTexture(atlas.canvas);texture.magFilter=THREE.NearestFilter;texture.minFilter=THREE.NearestMipmapNearestFilter;texture.colorSpace=THREE.SRGBColorSpace;
   let last='';
-  const face=(st:FaceState)=>{const sig=JSON.stringify(st);if(sig===last)return;last=sig;paintFace(pen,L,st,opts);atlas.bleed(faceRect);texture.needsUpdate=true;};
+  const face=(st:FaceState)=>{const sig=JSON.stringify(st);if(sig===last)return;last=sig;(anime?paintAnimeFace:paintFace)(pen,L,st,opts);atlas.bleed(faceRect);texture.needsUpdate=true;};
   face({expression:L.tendency.expression==='happy'?'neutral':L.tendency.expression,speak:0,blink:false});
   atlas.bleed();
   const geometry=m.geometry(true);geometry.scale(T,T,T);

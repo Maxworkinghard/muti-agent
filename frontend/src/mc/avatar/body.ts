@@ -1,5 +1,5 @@
 /**
- * 体型与轮廓系统：每个人按设定选一种体型（8 种）、一种头型（4 种）、一种坐姿（3 种），不再是同一个模子换发型和衣服。
+ * 体型与轮廓系统：每个人选一种体型（8 种 Q 版 + 2 种精修）、一种头型（4 种 + 精修鹅蛋脸）、一种坐姿（3 种），不再是同一个模子换发型和衣服。
  * 体型改的是骨架本身：身高、肩宽、躯干的宽窄厚薄、胳膊和腿的粗细长短、头的大小；头型改的是头的比例、脸两侧的切角和下巴。
  * 所有体型都受同一组约束（座面 0.50、坐下脚着地、背贴靠背、小腿不碰座面前沿、胳膊不碰扶手），坐姿的腿部角度按体型解出来：
  *   - 大腿下沿贴座面：坐下根点下沉 sitDrop = (髋高 - 半腿厚) T；
@@ -10,12 +10,16 @@
 import * as THREE from 'three';
 import {T,SEAT_H,HEAD,RIG} from './rig';
 
-export type BodyType='standard'|'slim'|'cute'|'crisp'|'broad'|'longcoat'|'bulky'|'outdoor';
-export type HeadShape='default'|'round'|'square'|'long';
+export type BodyType='standard'|'slim'|'cute'|'crisp'|'broad'|'longcoat'|'bulky'|'outdoor'|'elegant'|'petite';
+export type HeadShape='default'|'round'|'square'|'long'|'oval';
 export type SitStyle='standard'|'relaxed'|'side';
 
-interface Preset {label:string;note:string;head:number;shape:HeadShape;torso:[number,number,number];arm:[number,number];leg:{w:number;thigh:number;shin:number}}
-/** 8 种体型（单位 T）：头的整体缩放、默认头型、躯干宽高深、胳膊粗细和长度、腿宽、大腿、小腿（含鞋） */
+/**
+ * family：chibi 是原来的 Q 版（约 3.3 头身）；refined 是 2026-10-09 起的“精致 Minecraft 动漫风”精修体型（约 3.9–4.4 头身，头不再那么大），
+ * 第一轮只有冷萃、好好两个样板用，其他人物仍是 Q 版，等用户看过样板再决定是否推广。
+ */
+interface Preset {label:string;note:string;head:number;shape:HeadShape;torso:[number,number,number];arm:[number,number];leg:{w:number;thigh:number;shin:number};family?:'chibi'|'refined'}
+/** 体型（单位 T）：头的整体缩放、默认头型、躯干宽高深、胳膊粗细和长度、腿宽、大腿、小腿（含鞋） */
 export const BODY:Record<BodyType,Preset>={
   standard:{label:'标准型',note:'约 3.3 头身，肩和腰均衡',head:0.77,shape:'default',torso:[18,24,10],arm:[7,22],leg:{w:9,thigh:12,shin:28}},
   slim:{label:'纤细型',note:'肩窄、躯干薄、腿更长',head:0.74,shape:'long',torso:[14,26,7],arm:[5.5,24],leg:{w:7,thigh:13,shin:30}},
@@ -25,6 +29,9 @@ export const BODY:Record<BodyType,Preset>={
   longcoat:{label:'长外套型',note:'更高，长外套拉出竖向轮廓',head:0.76,shape:'default',torso:[16,26,9],arm:[6,24],leg:{w:8,thigh:13,shin:30}},
   bulky:{label:'厚毛衣型',note:'个子偏矮、躯干又宽又厚',head:0.82,shape:'round',torso:[21,20,13],arm:[8.5,19],leg:{w:10,thigh:11,shin:28}},
   outdoor:{label:'户外机能型',note:'结实，肩和背包比标准型更厚',head:0.76,shape:'default',torso:[19,23,11],arm:[7.5,22],leg:{w:9.5,thigh:12,shin:28}},
+  // ——精修（refined）：头缩到 0.6，躯干和腿拉长，肩窄一点、四肢细一点；仍是方块拼的身体
+  elegant:{label:'修长型（精修）',note:'约 4.3 头身，肩窄腰细、腿长，长外套能垂到膝下',head:0.6,shape:'oval',torso:[15,27,8],arm:[5.5,25],leg:{w:7.5,thigh:15,shin:30},family:'refined'},
+  petite:{label:'小巧型（精修）',note:'约 3.9 头身，个子小、肩窄，比 Q 版的头小很多',head:0.6,shape:'oval',torso:[15,24,9],arm:[6,22],leg:{w:8,thigh:12,shin:28},family:'refined'},
 };
 /** 头型：在体型的头缩放上再乘一个比例（宽、高、深），脸两侧竖棱切多少（T），下巴两侧收多少（T） */
 export const HEAD_SHAPES:Record<HeadShape,{label:string;m:[number,number,number];cut:number;jaw:number}>={
@@ -32,11 +39,13 @@ export const HEAD_SHAPES:Record<HeadShape,{label:string;m:[number,number,number]
   round:{label:'圆润',m:[1.03,1,1.02],cut:3,jaw:1.5},
   square:{label:'方正',m:[1.04,.96,1],cut:1,jaw:0},
   long:{label:'长脸',m:[.95,1.07,.98],cut:2,jaw:1},
+  /** 精修的鹅蛋脸：略窄、侧棱切得多、下巴两侧收得多（动漫脸的 V 形下颌，仍是方块） */
+  oval:{label:'鹅蛋脸（精修）',m:[.97,1.02,.96],cut:3,jaw:2.5},
 };
 export const SIT_LABEL:Record<SitStyle,string>={standard:'标准坐',relaxed:'放松坐（腿往前伸、身子后靠）',side:'双腿侧坐（膝盖并拢偏向一侧）'};
 
 export interface Body {
-  type:BodyType;shape:HeadShape;
+  type:BodyType;shape:HeadShape;family:'chibi'|'refined';
   head:{scale:[number,number,number];cut:number;jaw:number};
   torso:{w:number;h:number;d:number};
   arm:{w:number;h:number;d:number;x:number;drop:number};
@@ -52,7 +61,7 @@ export function makeBody(type:BodyType,shape?:HeadShape):Body{
   const leg={w:p.leg.w,d:RIG.leg.d,thigh:p.leg.thigh,shin:p.leg.shin,shoe:RIG.leg.shoe,x:p.leg.w/2};
   const hipY=leg.thigh+leg.shin,neckY=hipY+th,eye=RIG.eyeY*scale[1];
   const eyeStand=(neckY+eye)*T,sitDrop=(hipY-leg.d/2)*T;
-  return {type,shape:shape??p.shape,head:{scale,cut:hs.cut,jaw:hs.jaw},torso:{w:tw,h:th,d:td},
+  return {type,shape:shape??p.shape,family:p.family??'chibi',head:{scale,cut:hs.cut,jaw:hs.jaw},torso:{w:tw,h:th,d:td},
     arm:{w:aw,h:ah,d:aw,x:tw/2+aw/2,drop:2},leg,hipY,neckY,headTop:neckY+HEAD.h*scale[1],
     eyeStand,eyeSit:eyeStand-sitDrop,sitDrop,labelAbove:((HEAD.h-RIG.eyeY)*scale[1]+16)*T,handReach:-(ah-2)*T};
 }

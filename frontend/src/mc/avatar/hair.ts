@@ -24,7 +24,7 @@ export interface HairBox {x0:number;y0:number;z0:number;x1:number;y1:number;z1:n
   /** 不画的面（贴着头、藏在别的发团里） */
   hide?:FaceKey[];
 }
-export type HairTexture='straight'|'wave'|'curl'|'buzz';
+export type HairTexture='straight'|'wave'|'curl'|'buzz'|'coil';
 export interface HairPlan {
   boxes:HairBox[];
   /** 头发外轮廓离头盒子的距离（帽子、耳机按它往外放） */
@@ -34,6 +34,8 @@ export interface HairPlan {
   /** 头顶分缝的位置（x），没有分缝是 null */
   part:number|null;
   texture:HairTexture;
+  /** 精修发型的“天使环”：侧面和后面在这个高度（头部局部 y）画一圈断续的高光带 */
+  ring?:number;
 }
 export interface HairOpts {hat:'beanie'|'cap'|'beret'|null;hood:boolean;glasses:boolean;ahoge:boolean;tuck?:boolean}
 
@@ -43,6 +45,7 @@ export const HAIR_LABEL:Record<HairStyle,string>={
   braid:'侧编麻花辫',sidetail:'侧马尾',tidy:'清爽侧分短发',spiky:'刺猬头',curly:'蓬松卷发',bob:'齐刘海波波头',sweep:'侧分长刘海',curtain:'中分',lowtail:'后梳低马尾',
   wavy:'大波浪长发',ponytail:'高马尾',twintails:'双马尾',topknot:'头顶发髻',odango:'双丸子头',crew:'寸头',quiff:'飞机头',
   flame:'冲天炮',shaggy:'乱中长发',hime:'姬发式长直发',
+  sidelong:'侧分长直发（精修）',cloud:'云朵短卷发（精修）',
 };
 /** 刘海最低能到哪（头部局部 y）：眉毛在 19–21，眼睛 9–18，眼镜框上沿 19 */
 export const FRINGE_FLOOR={glasses:19,normal:13};
@@ -53,7 +56,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
   const boxes:HairBox[]=[];
   const put=(x0:number,y0:number,z0:number,x1:number,y1:number,z1:number,look:HairBox['look']='paint',extra:Partial<HairBox>={})=>{if(x1-x0<.2||y1-y0<.2||z1-z0<.2)return;boxes.push({x0,y0,z0,x1,y1,z1,look,...extra});};
   const covered=o.hat||o.hood;
-  let part:number|null=null,texture:HairTexture='straight';
+  let part:number|null=null,texture:HairTexture='straight',ring:number|undefined;
   let outer={side:2,top:4,back:3,front:2};
   /**
    * 圆顶：一级 2 T，insets[i] 是第 i 级往里收多少（左右、后面；前面收一半）；
@@ -248,6 +251,32 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
       tie(-hx-5,24,-6,-hx-1,30,0);
       put(-hx-10,16,-7,-hx-3,30,1,'paint');put(-hx-10.5,4,-6.5,-hx-3.5,17,.5,'paint');put(-hx-9.5,-6,-5.5,-hx-4.5,5,-.5,'paint',{tip:true});put(-hx-8.5,-10,-4.5,-hx-5.5,-6,-1.5,3);
       break;}
+    case 'sidelong':{ // 精修·侧分长直发：分缝在人物左侧（+x），三级圆顶；一大片刘海往右扫，几缕尖梢斜斜盖到右眉；
+      // 耳前两缕长鬓发垂到锁骨、框住脸；两侧外层到肩、里层更长；后面一整片长发垂到背中，发梢一缕缕收成 V 形尖。
+      part=8;ring=27;dome(6,3,4,2.5,[0,1.5,3.5]);
+      sides(3,z=>z>9?4:z>-3?-6:-12,1,[4,5,4,6,5,4,4]);
+      back(5,3,x=>{const i=Math.floor((x+22)/4);return Math.round(-21+Math.abs(x)*.42+(i%2?2.5:0));},[4,4,4,4,4,4,4,4,4,4,4]);
+      useFringe([{x0:-hx-1,x1:-13,tip:19,lean:-1,depth:3.4},{x0:-13,x1:-8,tip:19,lean:-1,depth:2.4},{x0:-8,x1:-3,tip:20,lean:-1,depth:3},{x0:-3,x1:2,tip:22,lean:-1},{x0:2,x1:7,tip:25,lean:-1,depth:2.6},{x0:7,x1:12,tip:29,shape:'flat'},{x0:12,x1:hx+1,tip:25,lean:1,depth:2.2}]);
+      // 鬓发：耳前两缕，从太阳穴一直垂到锁骨，梢头收细
+      for(const s of [-1,1]){const x0=s>0?hx-1.4:-hx-2.2,x1=s>0?hx+2.2:-hx+1.4;put(x0,-8,hz-2.8,x1,27,hz+.2,'paint',{tip:true});put(x0+(s>0?.4:.8),-13,hz-2.2,x1-(s>0?.8:.4),-8,hz-.6,3);}
+      // 背后发梢两侧往外散开一点（轮廓不是一块平板）
+      for(const s of [-1,1])put(s>0?hx+1:-hx-4.5,-12,-hz-4,s>0?hx+4.5:-hx-1,0,-hz+2,'paint',{tip:true});
+      break;}
+    case 'cloud':{ // 精修·云朵短卷发：一头蓬松的短卷发，到下巴；轮廓是一团团大小不一的卷（顶上、两侧、后脑），刘海几个圆头的小卷，露出一点额头
+      texture='coil';dome(6,4,5,2.5,[0,1.5,3,4.5]);
+      sides(4,z=>z>8?10:z>-4?6:4,1,[4,4,5,4,5,4,4]);
+      back(5,4,x=>Math.round(4-Math.abs(x)*.05));
+      useFringe([{x0:-hx-2,x1:-11,tip:23,shape:'round',depth:3},{x0:-11,x1:-5,tip:25,shape:'round'},{x0:-5,x1:1,tip:24,shape:'round',depth:3.2},{x0:1,x1:7,tip:25,shape:'round'},{x0:7,x1:12,tip:23,shape:'round',depth:3},{x0:12,x1:hx+2,tip:22,shape:'round'}]);
+      if(!covered){let n=0;const lump=(x:number,y:number,z:number,sz:number)=>{const t:Tone=(n++%4===1?1:n%4===3?2:0);curl(x,y,z,sz,t);};
+        // 头顶一圈：前沿也有（从正面看头顶不是一条直线），往后越来越大
+        // 卷团中心比发冠顶面（h+6）略高，露出半个卷，正面看头顶是一团团起伏的轮廓
+        for(const [x,z,sz,dy] of [[-14,13,5,-1.5],[-7,15,4.5,-.5],[0,15,5,0],[7,15,4.5,-.5],[14,12,5,-1.5],[-13,9,6,0],[-5,11,5,1],[3,11,6,.5],[11,8,6,0],[15,1,5,-1],[-15,-2,6,-.5],[-7,1,7,1],[4,-1,6,1],[13,-7,6,0],[-11,-9,6,0],[-2,-11,7,.5],[8,-12,6,0]] as const)lump(x,h+5.6+dy,z,sz);
+        // 两侧：从太阳穴到下巴一串卷，最下面两个往外翘
+        for(const sx of [-1,1])for(const [y,z,sz,o] of [[31,7,5,0],[29,-2,6,0],[27,-11,5,0],[22,9,4.5,0],[21,4,5,0],[19,-6,6,0],[14,8,4.5,.5],[13,0,5,0],[11,-10,5,0],[7,7,4,1.2],[6,-1,5,1],[5,-8,5,.6],[1,3,4,1.8]] as const)lump(sx*(hx+3.2+sz/2-1.5+o),y,z,sz);
+        // 刘海下沿再挂几个小卷，脸边上露出一点卷翘
+        for(const [x,y] of [[-13,22],[-6,23],[1,23],[8,22],[14,21]] as const)lump(x,y,hz+1.8,3.6);
+        for(const [x,y,sz] of [[-12,30,6],[-3,31,7],[6,30,6],[14,27,5],[-8,22,6],[2,21,7],[11,20,5],[-13,13,5],[-4,11,6],[6,12,5],[14,10,4],[-7,4,5],[5,4,5]] as const)lump(x,y,-hz-5.2-(sz-5)/2,sz);}
+      break;}
     case 'hime':{ // 姬发式：齐刘海、两颊一刀切的鬓发，后面长发垂到背上
       dome(5,2,4,2,[0,2,4.5]);
       sides(2,z=>z>9?3:z>-3?12:-4);
@@ -259,7 +288,7 @@ export function planHair(style:HairStyle,o:HairOpts):HairPlan{
   if(o.ahoge&&!covered){const t=h+outer.top;put(-1,t,-1,1,t+4,1,0);put(-1,t+4,0,1,t+6,3,0);put(-1,t+5,3,1,t+7,6,2);}
   // 兜帽戴上：只剩脸前的刘海（收在帽沿里面），其余头发都在兜帽里
   if(o.hood){const keep=boxes.filter(b=>b.z0>=hz-.01&&b.x0>=-hx+.5&&b.x1<=hx-.5);boxes.length=0;boxes.push(...keep);outer={side:0,top:0,back:0,front:0};}
-  return {boxes,outer,hairline:line,part,texture};
+  return {boxes,outer,hairline:line,part,texture,ring};
 }
 
 /** 发丝贴图的配色：本色、暗、亮、最暗、发圈 */
@@ -287,17 +316,20 @@ export function hairTexel(plan:HairPlan,face:FaceKey,x:number,y:number,z:number,
     if(plan.part!==null&&Math.abs(x-plan.part)<.6&&z>-6)return 3;
     const k=lock(x,3);if(k.d<1&&z<hz-8&&hsh(x,z)%4!==0)return 1;
     const arc=hz-7+Math.abs(x)*.12+(k.i%2?.6:0);if(z>arc&&z<arc+2.2)return k.d<1?0:2;
-    if(tex==='curl'&&hsh(x+3,z)%9===0)return 2;
+    if((tex==='curl'||tex==='coil')&&hsh(x+3,z)%9===0)return 2;
     return z<-hz+2?1:0;
   }
   // 侧面、前面、后面：发缕竖着走
   const s=face==='px'||face==='nx'?z*(face==='px'?-1:1):face==='nz'?-x:x;
-  const wav=tex==='wave'?Math.round(Math.sin(y/3.2)*1.2):0;
+  // 波浪：缕缝慢慢摆；精修卷发（coil）：缕缝短促地左右折（一节一节的小卷），不是一道道直线
+  const wav=tex==='wave'?Math.round(Math.sin(y/3.2)*1.2):tex==='coil'?Math.round(Math.sin(y/1.6+Math.floor(s/5))*1.7):0;
   const k=lock(s+wav,face==='pz'?1:face==='nz'?2:0);
   if(box.tip&&fromTip<1)return 3;
   if(box.tip&&fromTip<2&&(k.d<1||k.i%2===1))return 3;
   // 刘海（脸前的发片）：每片左上角一道竖的高光，下半截暗一档
   if(face==='pz'&&box.z0>=hz-.01){const lx=x-box.x0;if(lx>=1&&lx<2&&y>h-7&&y<h-1)return 2;if(k.d<1&&y<h-4)return 1;return fromTip<3&&box.tip?1:0;}
+  // 天使环（精修发型）：侧面、后面在 ring 高度一道高光带，缕缝处断开，上下沿只有隔一缕的半截，像一圈反光
+  if(plan.ring!==undefined&&k.d>=1&&Math.abs(y-plan.ring)<1.7)return Math.abs(y-plan.ring)<.8||k.i%2===0?2:0;
   // 挑染：每 5 缕里有一缕整缕换成挑染色（缕缝暗线照旧）
   if(streak&&k.i%5===2&&k.d>=1&&!(box.tip&&fromTip<1))return 5;
   // 缕与缕之间的暗线：从这一缕的“分叉点”往下长到发梢
@@ -305,7 +337,7 @@ export function hairTexel(plan:HairPlan,face:FaceKey,x:number,y:number,z:number,
   if(k.d<1&&y<split)return 1;
   // 光泽：侧面和后面每缕靠左两列各一道短竖高光（3 T 和 2 T，错开 1 T），高低按缕错开——一缕一缕的反光，不是一圈虚线
   if(face!=='pz'&&k.w>=4){const band=h-10+((k.i*5)%3);if(k.d>=1&&k.d<2&&y>band&&y<band+4)return 2;if(k.d>=2&&k.d<3&&y>band+1&&y<band+3)return 2;}
-  if(tex==='curl'&&hsh(s*2,y*2)%13===0)return y>h-14?2:1;
+  if((tex==='curl'||tex==='coil')&&hsh(s*2,y*2)%13===0)return y>h-14?2:1;
   // 下半截暗一档（侧面背光），发梢附近再暗
   if(box.tip&&fromTip<4&&k.i%3===0)return 1;
   return y<10?1:0;

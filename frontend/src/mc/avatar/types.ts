@@ -1,7 +1,7 @@
 /** Q 版人物的造型配置：每个人一份静态数据（looks.ts），零件按名字从零件库里取，没有随机。 */
 import type {BodyType,HeadShape,SitStyle} from './body';
 export type {BodyType,HeadShape,SitStyle};
-export type HairStyle='tidy'|'spiky'|'curly'|'bob'|'sweep'|'curtain'|'lowtail'|'wavy'|'ponytail'|'twintails'|'topknot'|'odango'|'crew'|'quiff'|'flame'|'shaggy'|'hime'|'braid'|'sidetail';
+export type HairStyle='tidy'|'spiky'|'curly'|'bob'|'sweep'|'curtain'|'lowtail'|'wavy'|'ponytail'|'twintails'|'topknot'|'odango'|'crew'|'quiff'|'flame'|'shaggy'|'hime'|'braid'|'sidetail'|'sidelong'|'cloud';
 export type EyeType='round'|'sharp'|'droopy'|'sleepy'|'sparkle'|'narrow';
 export type BrowType='soft'|'straight'|'thick'|'arched'|'worried'|'sharp';
 export type MouthType='smile'|'flat'|'cat'|'smirk'|'grin'|'small';
@@ -11,7 +11,7 @@ export type OuterKind='cardigan'|'blazer'|'jacket'|'coat'|'vest'|'zip'|'varsity'
 export type BottomKind='pants'|'jeans'|'shorts'|'skirt'|'cargo';
 export type ShoeKind='sneakers'|'boots'|'loafers'|'slippers';
 export type AccKind='glasses'|'roundGlasses'|'headphones'|'neckphones'|'headset'|'beanie'|'cap'|'beret'|'hood'|'scarf'|'tie'|'bowtie'|'ribbon'|'clip'|'bow'|'pen'|'beard'|'watch'|'ahoge'|'earring'
-  |'goggles'|'monocle'|'shawl'|'necklace'|'shoulderBag'|'waistBag'|'backpack'|'charm'|'pin'|'tool'|'headband'|'flower';
+  |'goggles'|'monocle'|'shawl'|'necklace'|'shoulderBag'|'waistBag'|'backpack'|'charm'|'pin'|'tool'|'headband'|'flower'|'belt';
 /** 小标志（胸针 / 挂件 / 项链坠 / 手里的工具）的图案：跟人物身份走，同一个人在哪个场景都是这一个 */
 export type Emblem='heart'|'leaf'|'star'|'gear'|'puzzle'|'coin'|'clock'|'shield'|'megaphone'|'mask'|'bug'|'cup'|'note'|'palette'|'exclaim'|'therefore'|'mic'|'rice'|'ruler'|'block'|'flame'
   |'bear'|'cassette'|'controller'|'firecracker'|'whistle'|'magnifier'|'wrench'|'brush'|'scroll'|'extinguisher'|'sigma'|'cross';
@@ -27,7 +27,8 @@ export interface Look {
   body:{type:BodyType;head?:HeadShape;sit:SitStyle};
   /** streak：挑染的颜色（两三缕） */
   hair:{style:HairStyle;color:string;tie?:string;tuck?:boolean;streak?:string};
-  face:{eyes:EyeType;iris:string;brows:BrowType;mouth:MouthType;marks?:FaceMark[]};
+  /** style 'anime'：精修脸（脸部贴图两倍像素密度，动漫式的大眼、睫毛、渐变虹膜和两点高光），见 face.ts 的 paintAnimeFace */
+  face:{eyes:EyeType;iris:string;brows:BrowType;mouth:MouthType;marks?:FaceMark[];style?:'anime'};
   top:{kind:TopKind;color:string;trim?:string;pattern?:Pattern;sleeve?:'long'|'short'|'rolled'};
   outer?:{kind:OuterKind;color:string;trim?:string};
   bottom:{kind:BottomKind;color:string;socks?:string};

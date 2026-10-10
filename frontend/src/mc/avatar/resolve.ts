@@ -21,7 +21,7 @@ export interface Resolved {
 }
 const HATS=['beanie','cap','beret'] as const;
 /** 头发垂到头以下（长发、马尾） */
-const LONG:HairStyle[]=['wavy','hime','ponytail','lowtail','twintails','braid','sidetail'];
+const LONG:HairStyle[]=['wavy','hime','ponytail','lowtail','twintails','braid','sidetail','sidelong'];
 export function resolveLook(input:Look):Resolved{
   const look:Look=JSON.parse(JSON.stringify(input));const notes:string[]=[];
   let acc=[...look.acc];const has=(k:AccKind)=>acc.some(a=>a.kind===k);const drop=(k:AccKind,why:string)=>{if(has(k)){acc=acc.filter(a=>a.kind!==k);notes.push(why);}};
