@@ -1,4 +1,4 @@
-.stage-lab { height: 100vh; display: flex; flex-direction: column; padding: 16px; gap: 12px; background: #eee7d7; }
+.stage-lab { font-family: var(--font-mc-ui); height: 100vh; display: flex; flex-direction: column; padding: 16px; gap: 12px; background: #eee7d7; }
 .stage-lab > header { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
 .stage-lab h1 { font-size: 20px; margin: 0; }
 .stage-lab > header label { display: flex; gap: 8px; align-items: center; font-size: 13px; }

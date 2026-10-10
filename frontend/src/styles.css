@@ -22,37 +22,39 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 :root {
-  /* —— 视觉宪法色板 —— */
-  --floor-mint: #77a892;
-  --wall-cream: #F0E6D2;
-  --wall-cream-2: #fff8ea;
-  --wood-honey: #d4a86a;
-  --seat-blue: #3d8bff;
-  --seat-magenta: #ff4d9a;
-  --accent-yellow: #f0c84a;
+  /* UI 柔和色板：沿用 11c0c65 的父版本 */
   --ink: #2b2136;
   --ink-2: #5a4e66;
   --ink-muted: #a99db5;
 
-  /* 纸面：亮面浅底 + 极淡 mint，告别安静文具米黄 */
-  --paper: #fff6e4;
-  --cream: var(--wall-cream-2);
-  --sand: #f0e2c4;
-  --paper-mint: color-mix(in srgb, var(--floor-mint) 14%, var(--paper));
+  /* 暖纸底色 */
+  --paper: #f4ecd6;
+  --cream: #fbf5e4;
+  --sand: #e9dfc2;
 
-  /* 模式主色（高饱和，作主按钮）：娱乐橙 / 辩论蓝 / 情感粉 / 产品绿 */
-  --c-orange: #ff7a2f;
-  --c-blue: var(--seat-blue);
-  --c-pink: var(--seat-magenta);
-  --c-green: #3dba6e;
-  --c-yellow: var(--accent-yellow);
-  --c-purple: #9b6fe0;
-  --c-red: #ff5a5a;
-  --c-green-deep: #2e9a58;
-  --c-orange-deep: #e86520;
-  --c-blue-deep: #2f6fe0;
-  --c-pink-deep: #e03880;
+  /* 模式主色：娱乐橙 / 辩论蓝 / 情感粉 / 工作绿 */
+  --c-orange: #d98a4e;
+  --c-blue: #5f82b0;
+  --c-pink: #c47a9a;
+  --c-green: #6f9e6b;
+  --c-yellow: #d4b04c;
+  --c-purple: #8a6fb0;
+  --c-red: #c0625a;
+  --c-green-deep: #5d8a5a;
+  --c-orange-deep: color-mix(in srgb, var(--c-orange) 78%, var(--ink));
+  --c-blue-deep: color-mix(in srgb, var(--c-blue) 78%, var(--ink));
+  --c-pink-deep: color-mix(in srgb, var(--c-pink) 78%, var(--ink));
   --c-red-deep: #a2463e;
+
+  /* 保留新增变量的接口，统一引用柔和色板；不控制 3D 场景材质 */
+  --floor-mint: var(--c-green);
+  --wall-cream: var(--paper);
+  --wall-cream-2: var(--cream);
+  --wood-honey: var(--c-orange);
+  --seat-blue: var(--c-blue);
+  --seat-magenta: var(--c-pink);
+  --accent-yellow: var(--c-yellow);
+  --paper-mint: color-mix(in srgb, var(--floor-mint) 14%, var(--paper));
 
   /* 共用表面色（收拢散落 hex） */
   --surface-white: #ffffff;
@@ -64,9 +66,9 @@
   --surface-stage: #fff9e9;
   --surface-doc: #fffdf6;
   --live-hot: #ff7b6b;
-  --emo-slot-border: #e0b8cc;
-  --emo-slot-bg: #fff0f6;
-  --emo-slot-icon: #e8a0c0;
+  --emo-slot-border: #b9a9b3;
+  --emo-slot-bg: #fff7fa;
+  --emo-slot-icon: #c9b3c0;
   --badge-3d-bg: #c9d8d0;
   --badge-3d-fg: #1f3431;
   --placeholder: #9a8fa6;
@@ -75,7 +77,10 @@
   --shadow: 3px 3px 0 var(--ink);
   --btn-primary: var(--c-green);
   --btn-primary-hover: var(--c-green-deep);
-  font-family: 'Zpix', 'Fusion Pixel', 'Cascadia Mono', 'Consolas', 'Microsoft YaHei', monospace;
+  /* 旧版未加载像素网页字体；工作台沿用系统字体回退，3D 界面独立选择字体。 */
+  --font-ui: 'Cascadia Mono', 'Consolas', 'Microsoft YaHei', monospace;
+  --font-mc-ui: 'Zpix', 'Fusion Pixel', 'Cascadia Mono', 'Consolas', 'Microsoft YaHei', monospace;
+  font-family: var(--font-ui);
   color: var(--ink);
   background: var(--paper);
   font-size: 14px;
@@ -84,13 +89,8 @@
 html, body, #root { margin: 0; height: 100%; }
 body {
   background-color: var(--paper);
-  background-image:
-    radial-gradient(rgba(119, 168, 146, .11) 1.1px, transparent 1.2px),
-    linear-gradient(180deg, color-mix(in srgb, var(--floor-mint) 8%, var(--paper)) 0%, var(--paper) 42%, var(--wall-cream-2) 100%),
-    linear-gradient(rgba(43,33,54,.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(43,33,54,.035) 1px, transparent 1px);
-  background-size: 10px 10px, auto, 16px 16px, 16px 16px;
-  background-attachment: fixed;
+  background-image: linear-gradient(rgba(43,33,54,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(43,33,54,.05) 1px, transparent 1px);
+  background-size: 16px 16px;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
 .app { height: 100%; display: flex; flex-direction: column; }
@@ -686,7 +686,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 @font-face { font-family: MCFont; src: url('/mc/font/mc.ttf'); font-display: swap; }
 /* 我的世界舞台的界面：和工作台一样的奶油底、墨色描边、硬投影，不用游戏里的灰石按钮 */
-.mc-stage { position: absolute; inset: 0; container-type: inline-size; background: var(--ink); overflow: hidden; font-family: inherit; font-size: 14px; color: var(--ink); }
+.mc-stage { position: absolute; inset: 0; container-type: inline-size; background: var(--ink); overflow: hidden; font-family: var(--font-mc-ui); font-size: 14px; color: var(--ink); }
 .mc-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .mc-hud { position: absolute; inset: 0; pointer-events: none; }
 .mc-views { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; width: 150px; gap: 6px; pointer-events: auto; z-index: 10; }
@@ -730,7 +730,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mc-error-mark, .mc-lab-error { color: var(--c-red); }
 .mc-pack-credit { position: absolute; left: 12px; bottom: 12px; font-size: 11px; color: var(--cream); opacity: .7; z-index: 9; }
 .mc-unavailable { opacity: .45; filter: grayscale(1); cursor: default; }
-.mc-lab { padding: 24px; min-height: 100vh; background: var(--wall-cream); color: var(--ink); font-family: MCFont, monospace; }
+.mc-lab { --font-mc-ui: MCFont, monospace; padding: 24px; min-height: 100vh; background: var(--wall-cream); color: var(--ink); font-family: var(--font-mc-ui); }
 .mc-lab h1 { font-size: 32px; margin: 0; }
 .mc-lab header { display: flex; align-items: baseline; gap: 24px; margin-bottom: 16px; }
 .mc-lab header p { flex: 1; }

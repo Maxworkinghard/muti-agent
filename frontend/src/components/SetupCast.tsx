@@ -213,7 +213,7 @@ export function SetupCast({ draft, personas, maxMembers, notice, onStart }: {
         </section>
       )}
 
-      <footer className="setup-foot" style={{ ['--btn-primary' as string]: modeById(mode).color }}>
+      <footer className="setup-foot">
         <span>「{draft.theme}」{isRational && ` · ${format.label}（${format.note}）· 每次 ≤${DEBATE_CHAR_LIMIT} 字`}{!debateOk && ' · 辩论需要正反方各至少 1 人'}</span>
         <button className="px-btn primary" disabled={!canStart} onClick={start}>进入对话 ▶</button>
       </footer>

@@ -120,7 +120,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           const b = scene.seats[byId[e.task.to]?.seatIndex ?? 0];
           // 派活和交付经过中央交换台；送审是直接递到同事桌上，从两人中间上方划过去
           const via = e.task.status === 'review' ? { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - 8 } : scene.center;
-          const f: Flight = { id: e.task.id, from: a, to: b, via, color: p?.color ?? '#f0c84a' /* --accent-yellow */, title: e.task.title };
+          const f: Flight = { id: e.task.id, from: a, to: b, via, color: p?.color ?? '#d4b04c' /* --c-yellow */, title: e.task.title };
           setFlights((fs) => [...fs, f]);
           window.setTimeout(() => setFlights((fs) => fs.filter((x) => x.id !== f.id)), 1500);
           break;
