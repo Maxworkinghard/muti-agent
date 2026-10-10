@@ -100,7 +100,7 @@ export const SCENES: Record<string, SceneDef> = {
     ...ORIGINAL_SCENES.roundtable,
     id: 'roundtable-mc', name: '圆桌会议室 · 3D 重建样板（未完成）',
     sourceSceneId: 'roundtable', mcStage: 'roundtable',
-    description: '湖畔木构议事厅的圆桌重建样板，仅保留这一版；尚未完成，也未通过用户视觉验收',
+    description: '水上园林茶叙榭的圆桌重建样板，仅保留这一版；尚未完成，也未通过用户视觉验收',
   },
 };
 

@@ -56,11 +56,13 @@ try {
   key('KeyW');win.dispatchEvent(new Event('blur'));advance();assert.ok(controls.position.distanceTo(stopped)<1e-7);
   console.log('Pass：切到输入框和窗口失焦立即停住，重新进入不带旧按键。');
 
-  startAt([8,2.8,7.5],[0,2.8,7.5]);move(['KeyW','ShiftLeft'],2);
-  assert.ok(controls.position.x>=7.34&&controls.position.x<7.5,'不能穿过圆桌厅西侧真实木柱');
+  startAt([11.4,2.8,10.5],[0,2.8,10.5]);move(['KeyW','ShiftLeft'],2);
+  assert.ok(controls.position.x>=10.55&&controls.position.x<11.2,'不能穿过主榭西侧真实木柱');
   assert.ok(move(['KeyD'],.2).z<-.7,'墙边横移不应卡死');assert.ok(move(['KeyS'],.2).x>.7,'撞墙后应能后退');
-  startAt([8,2.8,14],[8,2.8,17]);move(['KeyW','ShiftLeft'],2);assert.ok(controls.position.z<15.3,'不能穿过圆桌厅南侧真实格窗');
-  startAt([8.5,10,6.5],[8.5,10,0]);move(['ControlLeft','ShiftLeft'],2);assert.ok(controls.position.y>=7.84&&controls.position.y<8,'从屋外下降不能穿真实屋顶');
+  startAt([13.5,2.8,16.2],[13.5,2.8,22]);move(['KeyW','ShiftLeft'],2);assert.ok(controls.position.z<17.25,'不能穿过主榭南侧真实木柱，停在 z='+controls.position.z.toFixed(2));
+  startAt([16,12,12],[16,11,12]);move(['ControlLeft','ShiftLeft'],2);assert.ok(controls.position.y>=9.7&&controls.position.y<10.3,'从屋外下降不能穿真实屋顶');
+  assert.equal(physics.cameraBlocked(new THREE.Vector3(26.5,5.6,12.5)),true,'曲廊卷棚必须挡镜头');
+  assert.equal(physics.cameraBlocked(new THREE.Vector3(26.5,3.2,12.5)),false,'曲廊行人的高度不能被屋顶箱体挡住');
   startAt([25,3,22],[25,3,20]);assert.ok(move(['KeyW'],.2).z<-.8,'行走范围外、flight 内必须能飞行');
   for(const t of room.layout.tables){
     const center=new THREE.Vector3(t.center[0],t.center[1]+t.height/2,t.center[2]),normal=new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0),t.skirtYaw);
@@ -74,7 +76,7 @@ try {
     const back=new THREE.Vector3(0,.8,-.21).applyAxisAngle(new THREE.Vector3(0,1,0),c.yaw).add(new THREE.Vector3(...c.position));
     assert.equal(physics.cameraBlocked(back),true,'真实椅背必须挡相机：'+c.id);
   }
-  console.log('Pass：圆桌真实木柱、格窗、屋顶、桌子、椅垫/椅背阻挡；屋外可飞行，墙边可横移和后退。');
+  console.log('Pass：主榭真实木柱、南侧柱、屋顶、桌子、椅垫/椅背阻挡；屋外可飞行，柱边可横移和后退。');
 
   const axes=['x','y','z'],r=.34;
   for(const [i,axis] of axes.entries())for(const sign of [-1,1]){
@@ -94,7 +96,7 @@ try {
   assert.equal(indoors.cameraBlocked(new THREE.Vector3(25,3,22)),true,'未定义 flight 的房间必须回退到 bounds');
   const outsideWalk=new THREE.Vector3(25,1,22);assert.equal(physics.cameraBlocked(new THREE.Vector3(25,2.8,22)),false);assert.equal(physics.canOccupy(outsideWalk),false,'允许相机飞行不能扩大角色行走范围');
   assert.deepEqual(physics.path([25,1,22],[8,1,6]),[],'角色不能在 flight 外围寻路');
-  const route=physics.path([8.05,1,6.05],[17.45,1,13.45]);assert.ok(route.length>0,'厅内绕桌原寻路必须可用');
+  const route=physics.path([11.5,1,8.5],[20.5,1,16.5]);assert.ok(route.length>0,'厅内绕桌寻路必须可用');
   for(const p of route){assert.equal(physics.canOccupy(new THREE.Vector3(...p)),true,'角色路线必须合法');assert.ok(p[0]>=room.bounds.min[0]&&p[0]<=room.bounds.max[0]&&p[2]>=room.bounds.min[2]&&p[2]<=room.bounds.max[2]);}
   console.log('Pass：flight 六个面/角点、反复撞边、贴边滑动及回退；无 flight 回退；角色仍受 bounds 约束，厅内绕桌寻路可用。');
 

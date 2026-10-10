@@ -1,153 +1,103 @@
 /**
- * 湖畔议事厅的家具与陈设（v2 自己设计、自己画贴图）：八角深木桌和石桌座（椅子用共用椅子族 props/chairs.ts）、
- * 桌上的茶具与纸卷、壁炉里的火、纸灯笼、盆栽、垂吊花篮、芦苇帘、草编席。尺寸按游戏人物比例（坐高 0.5、桌面 0.95）。
+ * 水上茶叙榭的家具与陈设（v2 自己设计、自己画贴图）：圆桌（和园林茶椅同一套木料、同一种马蹄足和牙板）、
+ * 宫灯（只留一两盏、很暗）、竹帘、花几盆景、系在埠头边的一条小船。
+ * 第二轮按用户要求：桌面留空，不放茶具；不再有茶寮风炉和绣墩；“茶叙感”交给空间和光，不交给摆件。
+ * 尺寸按人物比例：座高 0.50（共用椅子族）、桌面 0.72，坐下以后桌沿在腰腹，不挡胸口和手臂。
  */
 import * as THREE from 'three';
 import type {Painter} from '../../style';
-import {PAL,pick,rng,speckle,tone} from '../pixel';
-import {V2_BLOCK_PAINT} from '../blockTextures';
+import {rng,tone} from '../pixel';
 import {ColorBoxes,place,type V2Kit} from '../kit';
+import {GARDEN_WOOD} from '../../props/chairs';
 
-const F=PAL.frame;
-/** 道具贴图（16×16，按每米 16 像素平铺）。 */
+/** 家具木料：榉木，温润的中褐，比建筑的栗壳色浅一档、暖一点（建筑压得住，家具是画面里最亲近的一块暖色）；和园林茶椅共用一组 */
+const TABLE_WOOD=GARDEN_WOOD;
+/** 道具贴图（16×16，按每米 32 像素平铺；小件按自身尺寸整张铺）。都是画出来的纹，不撒随机点。 */
 export const PROP_PAINT:Record<string,Painter>={
-  // 桌面：比框架暖一档的胡桃色宽板。
-  tableTop:p=>{const r=rng(101);for(let b=0;b<4;b++){const c=pick(r,['#6e4630','#7a4f36','#64402b']);p.rect(0,b*4,16,4,c).rect(0,b*4,16,1,tone(c,1.1)).rect(0,b*4+3,16,1,'#3e2618');for(let i=0;i<3;i++)p.rect(Math.floor(r()*13),b*4+1+Math.floor(r()*2),3,1,tone(c,.86));}},
-  tableEdge:p=>{p.fill('#5a3826').rect(0,0,16,2,'#c9ad7c').rect(0,14,16,2,'#3e2618');},
-  chairWood:p=>{const r=rng(102),B=PAL.birch;p.fill(B.base);for(let x=0;x<16;x+=4)p.rect(x,0,1,16,B.dark);speckle(p,r,[B.light,B.dark],.12);},
-  // 布垫：粗布的十字纹，颜色用 color 乘上去。
-  cushion:p=>{const r=rng(103);p.fill('#f2ece0');for(let y=0;y<16;y+=2)p.rect(0,y,16,1,'#e2d9c8');for(let x=1;x<16;x+=3)p.rect(x,0,1,16,'#ece4d4');speckle(p,r,['#d8ceba'],.08);p.rect(0,0,16,1,'#ffffff').rect(0,15,16,1,'#c9bfac');},
-  // 草编席：浅麦色经纬，深色包边由几何体做。
-  mat:p=>{const r=rng(104);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const weave=((x>>1)+(y>>1))%2;p.px(x,y,weave?'#cdb57e':'#bda46c');}speckle(p,r,['#a88e58','#dcc590'],.06);},
-  matEdge:p=>{p.fill('#3f4a3a').rect(0,7,16,2,'#556250');},
-  paper:p=>{p.fill(PAL.paper.base);const r=rng(105);speckle(p,r,['#e6dabb','#f6eedb'],.2);},
-  // 写了几行字的便笺：整张铺在一张纸上。
-  note:p=>{p.fill(PAL.paper.base);for(let y=3;y<14;y+=2){const w=6+((y*7)%6);p.rect(2,y,w,1,'#8a7a62');}p.rect(0,0,16,1,'#d9cba8');},
-  // 卷起的卷轴：米白纸卷，两端深色轴头，中间一道朱红系带。
-  scrollRoll:p=>{p.fill('#e8dcc0');p.rect(0,0,16,2,'#f4ecd8');p.rect(0,13,16,3,'#c9b994');p.rect(0,0,2,16,'#4a3123').rect(14,0,2,16,'#4a3123');p.rect(7,0,2,16,'#b8452f');},
-  scroll:p=>{p.fill(PAL.paper.base);for(let y=3;y<14;y+=3)p.rect(3,y,10,1,'#8a7a62');p.rect(0,0,16,1,'#b8452f').rect(0,15,16,1,'#b8452f');},
-  ceramic:p=>{p.fill('#dfe6e2');p.rect(0,5,16,3,'#3f6f8a');p.rect(0,6,16,1,'#5a8aa4');p.rect(0,0,16,1,'#f4f8f6');},
-  teapot:p=>{p.fill('#5b3a2c');p.rect(0,4,16,2,'#74503c');p.rect(0,12,16,1,'#3e271c');},
-  tray:p=>{p.fill(F.light);p.rect(0,0,16,1,'#8a6248');},
-  // 纸灯笼：米色纸面、深木框，发光贴图。
-  lanternPaper:p=>{p.fill('#ffe2a8');p.rect(0,0,16,1,'#d7a25a').rect(0,15,16,1,'#d7a25a');for(let y=4;y<16;y+=4)p.rect(0,y,16,1,'#f4c27a');p.rect(7,0,2,16,'#f6cf8c');},
-  lanternFrame:p=>{p.fill(F.dark);p.rect(0,0,16,1,F.light);},
-  // 火：分层的焰心、橙焰、暗红焰尖，镂空背景。
-  flame:p=>{p.clear();const r=rng(106),X=PAL.fire;for(let x=0;x<16;x++){const h=6+Math.floor(r()*9)-(Math.abs(x-7.5)>5?4:0);for(let y=16-h;y<16;y++){const t=(y-(16-h))/h;p.px(x,y,t<.25?X.low:t<.55?X.mid:t<.8?X.hot:X.core);}}},
-  ember:p=>{const r=rng(107);p.fill('#3a1a10');speckle(p,r,['#ff8a2a','#ffc24a','#c23a14'],.35);},
-  logEnd:p=>{p.fill('#3a2a1e');p.rect(3,3,10,10,'#9a7448').rect(5,5,6,6,'#b88a54').rect(7,7,2,2,'#7a5634');},
-  pot:p=>{const r=rng(108);p.fill('#9a5a3c');p.rect(0,0,16,2,'#b8714c').rect(0,13,16,3,'#7a4430');speckle(p,r,['#8a4e34','#a8664a'],.12);},
-  stonePot:V2_BLOCK_PAINT['block/stone_bricks'],
-  shrub:V2_BLOCK_PAINT['block/oak_leaves'],
-  blossom:V2_BLOCK_PAINT['block/cherry_leaves'],
-  ivy:p=>{const r=rng(109);p.clear();for(let i=0;i<46;i++){const x=Math.floor(r()*15),y=Math.floor(r()*15);p.rect(x,y,2,2,pick(r,['#4e8a3a','#68a64a','#376a2c']));}for(let i=0;i<8;i++)p.px(Math.floor(r()*16),Math.floor(r()*16),pick(r,['#f2a7c0','#fbd3df','#e0e070']));},
-  // 芦苇帘：竖向细杆，留缝（阳光从缝里漏下来）。
-  blind:p=>{p.clear();for(let x=0;x<16;x+=2){p.rect(x,0,1,16,x%4?'#c9b07a':'#b39a64');}p.rect(0,7,16,1,'#6a4a2a');},
-  rope:p=>{p.fill('#a0844f');for(let y=0;y<16;y+=2)p.px(0,y,'#7a6038');},
-  iron:p=>{p.fill('#3a3a3e');p.rect(0,0,16,1,'#55555c');},
+  // 桌面：顺着 x 的四条宽板（每条 4 像素 = 12.5 厘米），板缝很淡，每条板上一两道长木纹
+  tableTop:p=>{const T=TABLE_WOOD.top;for(let b=0;b<4;b++){const c=T[b];p.rect(0,b*4,16,4,c).rect(0,b*4,16,1,tone(c,1.05)).rect(0,b*4+3,16,1,tone(c,.9));}
+    for(const [x,y,l] of [[2,1,9],[7,6,8],[1,9,6],[9,13,6],[11,2,4]] as const)p.rect(x,y,l,1,tone(T[Math.floor(y/4)],.9));},
+  tableEdge:p=>{p.fill(TABLE_WOOD.edge);p.rect(0,0,16,1,tone(TABLE_WOOD.edge,1.12)).rect(0,15,16,1,tone(TABLE_WOOD.edge,.8));for(const [x,l] of [[3,7],[11,4]] as const)p.rect(x,7,l,1,tone(TABLE_WOOD.edge,.9));},
+  legWood:p=>{p.fill(TABLE_WOOD.leg);p.rect(7,0,1,16,tone(TABLE_WOOD.leg,1.1));for(const [x,y,l] of [[3,2,8],[11,6,7]] as const)p.rect(x,y,1,l,tone(TABLE_WOOD.leg,.88));},
+  // 宫灯：米色绢面上一枝淡墨兰草，四角深色木框，红缨
+  silk:p=>{p.fill('#f6e7c8');p.rect(0,0,16,1,'#d9b98a').rect(0,15,16,1,'#d9b98a');p.rect(7,4,1,8,'#a38a5c').px(6,6,'#a38a5c').px(8,5,'#a38a5c').px(9,8,'#a38a5c').px(5,9,'#a38a5c').px(10,10,'#a38a5c');},
+  lanternFrame:p=>{p.fill('#3d2a20');p.rect(0,0,16,1,'#5a4030');},
+  tassel:p=>{p.fill('#8e3a30');for(let x=0;x<16;x+=2)p.rect(x,0,1,16,'#a5463a');},
+  // 竹帘：细竹篾一条条，留缝，两道深色编绳
+  blind:p=>{p.clear();for(let y=0;y<16;y+=2)p.rect(0,y,16,1,y%4?'#bba26a':'#a88f56');p.rect(4,0,1,16,'#5e4428').rect(11,0,1,16,'#5e4428');},
+  bambooRoll:p=>{p.fill('#a88f56');for(let x=0;x<16;x+=3)p.rect(x,0,1,16,'#8f773f');},
+  rope:p=>{p.fill('#8f7647');for(let y=0;y<16;y+=2)p.px(0,y,'#6d5634');},
+  clay:p=>{p.fill('#8a5a44');p.rect(0,0,16,2,'#9e6c52').rect(0,13,16,3,'#6d4434');},
+  boat:p=>{const cs=['#5e4433','#54392b','#654a37','#5a3f2f'];for(let y=0;y<16;y+=4){const c=cs[y/4];p.rect(0,y,16,4,c).rect(0,y+3,16,1,tone(c,.75));}},
 };
-const M=(k:V2Kit,name:keyof typeof PROP_PAINT,o?:Parameters<V2Kit['mat']>[2])=>k.mat(name,PROP_PAINT[name],o);
+const M=(k:V2Kit,name:keyof typeof PROP_PAINT,o?:Parameters<V2Kit['mat']>[2])=>k.mat('rt-'+name,PROP_PAINT[name],o);
 
-/** 八角桌：石砌桌座 + 木颈 + 厚桌面，桌面外圈一道浅色镶边。原点在地面中心。 */
-export function octagonTable(k:V2Kit,r:number,height:number){
-  const g=new THREE.Group();g.name='v2-octagon-table';
-  k.prism(g,.62,.12,8,M(k,'stonePot'),0,.06,0);k.prism(g,.46,.5,8,M(k,'stonePot'),0,.37,0);
-  k.prism(g,.34,.2,8,k.mat('frame-log',V2_BLOCK_PAINT['block/stripped_dark_oak_log']),0,.72,0);
-  k.prism(g,r*.72,.06,8,k.mat('frame-planks',V2_BLOCK_PAINT['block/dark_oak_planks']),0,height-.15,0);
-  k.prism(g,r,.12,8,[M(k,'tableEdge'),M(k,'tableTop'),M(k,'tableTop')],0,height-.06,0);
-  return g;
-}
-/** 桌上的茶具：托盘、茶壶、给每个座位一只茶杯，少数座位一卷纸。 */
-export function teaSet(k:V2Kit,seats:Array<[number,number]>,cx:number,cz:number,top:number,tableR=1.45){
-  /** 杯子、便笺、纸卷离桌心的距离跟着桌子半径走 */const sr=tableR/1.45;
-  const g=new THREE.Group();g.name='v2-tea';
-  // 小件的贴图按物件大小整张铺上（px = 16 / 尺寸），不然一只杯子上只剩一两个像素的花纹。
-  k.box(g,.62,.03,.42,M(k,'tray'),cx,top+.015,cz,40);
-  const pot=M(k,'teapot');k.box(g,.2,.15,.2,pot,cx-.08,top+.105,cz,80);k.box(g,.1,.04,.1,pot,cx-.08,top+.2,cz,160);k.box(g,.03,.03,.03,pot,cx-.08,top+.235,cz,500);
-  const spout=k.box(g,.12,.035,.035,pot,cx+.06,top+.15,cz,130);spout.rotation.z=.6;k.box(g,.03,.1,.03,pot,cx-.2,top+.11,cz,160);
-  for(const [dx,dz] of [[.15,.1],[.15,-.08]])k.box(g,.07,.06,.07,M(k,'ceramic'),cx+dx,top+.06,cz+dz,230);
-  seats.forEach(([x,z],i)=>{const dx=x-cx,dz=z-cz,l=Math.hypot(dx,dz),ux=dx/l,uz=dz/l,yaw=Math.atan2(dx,dz);
-    k.box(g,.11,.012,.11,M(k,'tray'),cx+ux*.98*sr-uz*.24,top+.006,cz+uz*.98*sr+ux*.24,140);k.box(g,.07,.07,.07,M(k,'ceramic'),cx+ux*.98*sr-uz*.24,top+.047,cz+uz*.98*sr+ux*.24,230);
-    const sheet=k.box(g,.3,.01,.22,M(k,'note'),cx+ux*.9*sr+uz*.1,top+.005,cz+uz*.9*sr-ux*.1,53);sheet.rotation.y=yaw+(i%2?.12:-.1);
-    if(i%3===0){const s=k.box(g,.36,.06,.06,M(k,'scrollRoll'),cx+ux*.62*sr,top+.03,cz+uz*.62*sr,44);s.rotation.y=yaw;}});
-  return g;
-}
-/** 纸灯笼：上下深木盖、四面发光纸，原点在灯笼顶部挂点。 */
-export function paperLantern(k:V2Kit,size=.36,glow=1.4){
-  const g=new THREE.Group(),h=size*1.35,f=M(k,'lanternFrame');
-  k.box(g,size+.06,.05,size+.06,f,0,-.025,0);k.box(g,size+.06,.05,size+.06,f,0,-h-.025,0);
-  k.box(g,size,h,size,M(k,'lanternPaper',{glow}),0,-h/2-.025,0);
-  for(const x of [-1,1])for(const z of [-1,1])k.box(g,.035,h,.035,f,x*size/2,-h/2-.025,z*size/2);
-  return g;
-}
-/** 吊杆：从挂点往上到梁底的一根细绳。 */
-export function cord(k:V2Kit,length:number){const g=new THREE.Group();k.box(g,.025,length,.025,M(k,'rope'),0,length/2,0);return g;}
-/** 壁炉里的火：几根原木、一层炭火、两片交叉的火焰（逐帧闪动）。原点在炉膛地面中心，朝 -x 开口。 */
-export function hearthFire(k:V2Kit){
-  const g=new THREE.Group();g.name='v2-fire';const bark=k.mat('bark',V2_BLOCK_PAINT['block/dark_oak_log']);
-  k.box(g,.9,.06,.7,M(k,'ember',{glow:1.2}),0,.03,0);
-  for(const [z,yaw] of [[-.12,.25],[.14,-.2],[0,0]] as const){const l=k.box(g,.18,.16,.9,[bark,bark,bark,bark,M(k,'logEnd'),M(k,'logEnd')],0,.12+(yaw===0?.12:0),z);l.rotation.y=Math.PI/2+yaw;}
-  const flameMat=M(k,'flame',{glow:2.4,transparent:true,side:THREE.DoubleSide});flameMat.depthWrite=false;
-  const flames:THREE.Mesh[]=[];for(const yaw of [0,Math.PI/2,Math.PI/4]){const f=new THREE.Mesh(new THREE.PlaneGeometry(.8,.75),flameMat);f.position.set(0,.5,0);f.rotation.y=yaw;f.renderOrder=2;f.castShadow=false;g.add(f);flames.push(f);}
-  g.userData.flicker=(now:number)=>{flames.forEach((f,i)=>{const s=1+.12*Math.sin(now/90+i*2.1)+.06*Math.sin(now/37+i);f.scale.set(1,s,1);f.position.y=.5*s-.02;});flameMat.emissiveIntensity=2.2+.5*Math.sin(now/70)+.3*Math.sin(now/23);};
-  return g;
-}
-/** 盆栽：方形陶盆或石盆里一丛方块叶团，可带花。原点在地面中心。 */
-export function pottedShrub(k:V2Kit,s:number,stone=false,flowers=false,seed=1){
-  const g=new THREE.Group(),r=rng(seed),pot=stone?M(k,'stonePot'):M(k,'pot');
-  k.box(g,.5*s,.42*s,.5*s,pot,0,.21*s,0);k.box(g,.56*s,.06*s,.56*s,pot,0,.42*s,0);
-  const leaf=M(k,'shrub',{transparent:false}),bloom=M(k,'blossom');
-  for(let i=0;i<5;i++){const w=(.36+r()*.22)*s;k.box(g,w,w*.8,w,flowers&&i%2?bloom:leaf,(r()-.5)*.3*s,.5*s+w*.4+i*.09*s,(r()-.5)*.3*s);}
-  return g;
-}
-/** 垂吊花篮：铁环吊篮 + 往下垂的常春藤和小花。原点在挂点。 */
-export function hangingBasket(k:V2Kit,len=.7){
-  const g=new THREE.Group();g.add(cord(k,len).translateY(-len));
-  k.box(g,.42,.18,.42,M(k,'pot'),0,-len-.09,0);
-  const ivy=M(k,'ivy',{side:THREE.DoubleSide});for(let i=0;i<5;i++){const a=i/5*Math.PI*2,h=.5+(i%3)*.18;const p=new THREE.Mesh(new THREE.PlaneGeometry(.22,h),ivy);p.position.set(Math.sin(a)*.2,-len-.05-h/2,Math.cos(a)*.2);p.rotation.y=a;p.castShadow=true;g.add(p);}
-  k.box(g,.46,.16,.46,M(k,'shrub'),0,-len+.04,0);
-  return g;
-}
 /**
- * 一枝垂下来的樱花（前景框景用）：几段深色细枝 + 每个枝节一团小方块花簇（三种粉、少量白），
- * 方块边长 3.5–8 厘米，远看是一簇簇花而不是一片片纸。原点在挂点，枝条往 +x 伸、往下垂。
+ * 圆桌：冰盘沿桌面（上面一层 4 厘米，下沿收进一道小线）、束腰、一圈窄牙板；六条方腿（上粗下细，脚下马蹄足往里勾），
+ * 腿间离地 0.2 米一圈细横枨。桌下是空的，能看到地面，不是一整根木圆柱。桌面外沿往里 16 厘米一道很细的嵌线。原点在地面中心。
  */
-export function blossomSpray(k:V2Kit,len:number,droop:number,seed=1){
-  const g=new THREE.Group();g.name='v2-blossom-spray';const r=rng(seed),bark=new THREE.Color(PAL.bark.dark),cb=new ColorBoxes();
-  const pinks=[PAL.cherry.base,PAL.cherry.light,PAL.cherry.dark,PAL.cherry.base,'#fff4f6'].map(c=>new THREE.Color(c));
-  const nodes:Array<[number,number,number]>=[];
-  const limb=(x0:number,y0:number,z0:number,dx:number,dy:number,dz:number,steps:number,th:number)=>{let x=x0,y=y0,z=z0;for(let i=0;i<steps;i++){const nx=x+dx*(.8+r()*.4),ny=y+dy*(.7+r()*.6),nz=z+dz+(r()-.5)*.08;
-    cb.add(Math.min(x,nx)-th/2,Math.min(y,ny)-th/2,Math.min(z,nz)-th/2,Math.max(x,nx)+th/2,Math.max(y,ny)+th/2,Math.max(z,nz)+th/2,bark,bark);x=nx;y=ny;z=nz;nodes.push([x,y,z]);}return [x,y,z] as [number,number,number];};
-  const n=Math.max(3,Math.round(len/.2));limb(0,0,0,len/n,-droop/n,0,n,.06);
-  const main=nodes.length;for(let i=1;i<main-1;i+=2){const [x,y,z]=nodes[i];limb(x,y,z,(r()-.3)*.18,-.16-r()*.14,(r()-.5)*.2,2+Math.floor(r()*2),.035);}
-  for(const [x,y,z] of nodes){const m=10+Math.floor(r()*8);for(let j=0;j<m;j++){const s=.035+r()*.045,px=x+(r()-.5)*.26,py=y+(r()-.6)*.22,pz=z+(r()-.5)*.26,c=pinks[Math.floor(r()*pinks.length)];
-    cb.add(px-s/2,py-s/2,pz-s/2,px+s/2,py+s/2,pz+s/2,c,c.clone().multiplyScalar(.86),c.clone().multiplyScalar(.72),false);}}
-  const mesh=new THREE.Mesh(cb.geometry(),k.flat('#ffffff',{vertex:true}));mesh.castShadow=true;g.add(mesh);
+export function roundTable(k:V2Kit,r:number,height:number){
+  const g=new THREE.Group();g.name='garden-round-table';const top=M(k,'tableTop'),edge=M(k,'tableEdge'),leg=M(k,'legWood');
+  k.prism(g,r,.04,32,[edge,top,top],0,height-.02,0,32);k.prism(g,r-.025,.02,32,edge,0,height-.05,0,32);
+  k.prism(g,r-.09,.03,32,leg,0,height-.075,0,32);k.prism(g,r-.065,.05,32,edge,0,height-.115,0,32);
+  const inlay=new THREE.Mesh(new THREE.RingGeometry(r-.175,r-.16,64),k.flat(TABLE_WOOD.leg));inlay.rotation.x=-Math.PI/2;inlay.position.y=height+.001;inlay.receiveShadow=true;g.add(inlay);
+  const R=r-.12,legH=height-.14;
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+Math.PI/6,x=Math.cos(a),z=Math.sin(a);
+    const up=k.box(g,.065,legH*.55,.065,leg,x*R,legH*.725,z*R,32);up.rotation.y=-a;
+    const low=k.box(g,.055,legH*.47,.055,leg,x*(R-.006),legH*.235+.03,z*(R-.006),32);low.rotation.y=-a;
+    const foot=k.box(g,.075,.04,.075,leg,x*(R-.03),.02,z*(R-.03),32);foot.rotation.y=-a;
+    // 牙头：腿和牙板相接处一块小角牙
+    const tooth=k.box(g,.16,.05,.03,edge,x*(R+.02),height-.165,z*(R+.02),32);tooth.rotation.y=-a+Math.PI/2;}
+  for(let i=0;i<6;i++){const a0=i/6*Math.PI*2+Math.PI/6,a1=(i+1)/6*Math.PI*2+Math.PI/6,ax=Math.cos(a0)*(R-.01),az=Math.sin(a0)*(R-.01),bx=Math.cos(a1)*(R-.01),bz=Math.sin(a1)*(R-.01);
+    const len=Math.hypot(bx-ax,bz-az),s=k.box(g,len,.03,.025,leg,(ax+bx)/2,.2,(az+bz)/2,32);s.rotation.y=-Math.atan2(bz-az,bx-ax);}
   return g;
 }
-/**
- * 茶台（厅西南角、默认机位左下的前景）：一块草席、一张矮几（几上两只茶罐、一只茶盘）、一只石炭炉（炭火 + 铁壶）、两个坐垫。
- * 原点在地面中心，长边沿 z。
- */
-export function teaStation(k:V2Kit){
-  const g=new THREE.Group();g.name='v2-tea-station';const wood=M(k,'tableTop'),edge=M(k,'tableEdge');
-  k.box(g,1.3,.02,1.7,M(k,'matEdge'),0,.01,0);k.box(g,1.16,.02,1.56,M(k,'mat'),0,.02,0);
-  for(const x of [-.24,.24])for(const z of [-.42,.42])k.box(g,.06,.32,.06,edge,x,.19,z-.1);
-  k.box(g,.6,.06,1.04,[edge,edge,wood,wood,edge,edge],0,.38,-.1);
-  k.box(g,.34,.02,.24,M(k,'tray'),0,.42,-.3,40);
-  for(const [x,z,h] of [[-.14,.12,.16],[-.02,.2,.12]] as const)k.box(g,.09,h,.09,M(k,'ceramic'),x,.41+h/2,z,180);
-  // 炭炉：石身、上面一层炭火、铁壶。
-  const stone=M(k,'stonePot');k.box(g,.38,.34,.38,stone,0,.19,.6);k.box(g,.3,.02,.3,M(k,'ember',{glow:1.6}),0,.365,.6);
-  const pot=M(k,'iron');k.box(g,.22,.17,.22,pot,0,.47,.6,80);k.box(g,.1,.04,.1,pot,0,.575,.6,160);const sp=k.box(g,.12,.035,.035,pot,-.13,.5,.6,130);sp.rotation.z=-.6;
-  for(const [x,z,i] of [[.48,-.3,0],[.48,.25,1]] as const)k.box(g,.44,.09,.44,M(k,'cushion',{color:PAL.fabric[i===0?3:6]}),x,.065,z);
+/** 宫灯（很暗的一两盏）：六角，上下木盖、绢面、红缨。原点在顶部挂点。 */
+export function palaceLantern(k:V2Kit,size=.42,glow=1.25){
+  const g=new THREE.Group();g.name='garden-palace-lantern';const f=M(k,'lanternFrame'),h=size*1.3;
+  k.prism(g,size*.62,.06,6,f,0,-.03,0);k.prism(g,size*.5,.05,6,f,0,-.085,0);
+  k.prism(g,size*.5,h,6,M(k,'silk',{glow}),0,-.11-h/2,0);
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+Math.PI/6;k.box(g,.03,h+.02,.03,f,Math.cos(a)*size*.5,-.11-h/2,Math.sin(a)*size*.5);}
+  k.prism(g,size*.56,.05,6,f,0,-.135-h,0);k.prism(g,size*.32,.07,6,f,0,-.2-h,0);
+  k.box(g,.035,.22,.035,M(k,'tassel'),0,-.26-h,0);
   return g;
 }
-/** 芦苇帘：卷起的帘轴 + 放下一段的帘面（有缝，阳光从缝里漏进来）。原点在顶部中心，帘面在 x-y 平面。 */
-export function reedBlind(k:V2Kit,width:number,drop:number){
-  const g=new THREE.Group();k.box(g,width,.1,.1,M(k,'chairWood'),0,-.05,0);
-  if(drop>0){const m=M(k,'blind',{side:THREE.DoubleSide}),geo=new THREE.PlaneGeometry(width,drop),uv=geo.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*width,uv.getY(i)*drop);const p=new THREE.Mesh(geo,m);p.position.y=-.1-drop/2;p.castShadow=true;p.receiveShadow=true;g.add(p);}
+/** 纸灯笼（廊下的小灯）：上下木盖、四面发光纸。原点在顶部挂点。 */
+export function paperLantern(k:V2Kit,size=.28,glow=1.1){
+  const g=new THREE.Group(),h=size*1.25,f=M(k,'lanternFrame');
+  k.box(g,size+.05,.04,size+.05,f,0,-.02,0);k.box(g,size+.05,.04,size+.05,f,0,-h-.02,0);
+  k.box(g,size,h,size,M(k,'silk',{glow}),0,-h/2-.02,0);
+  for(const x of [-1,1])for(const z of [-1,1])k.box(g,.025,h,.025,f,x*size/2,-h/2-.02,z*size/2);
   return g;
 }
-/** 八角草编席，深色包边。原点在地面中心。 */
-export function octagonMat(k:V2Kit,r:number){const g=new THREE.Group();k.prism(g,r,.02,8,M(k,'matEdge'),0,.012,0);k.prism(g,r-.14,.02,8,M(k,'mat'),0,.02,0);return g;}
+/** 吊绳：从挂点往上到梁底。 */
+export function cord(k:V2Kit,length:number){const g=new THREE.Group();k.box(g,.02,length,.02,M(k,'rope'),0,length/2,0);return g;}
+/** 竹帘：顶上一卷帘轴，放下一段帘面（篾缝透光，在地上落出细条纹）。原点在顶部中心，帘面在 x-y 平面。 */
+export function bambooBlind(k:V2Kit,width:number,drop:number){
+  const g=new THREE.Group();g.name='garden-blind';const roll=k.prism(g,.06,width,8,M(k,'bambooRoll'),0,-.06,0);roll.rotation.z=Math.PI/2;
+  if(drop>0){const m=M(k,'blind',{side:THREE.DoubleSide}),geo=new THREE.PlaneGeometry(width,drop),uv=geo.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*width*1.4,uv.getY(i)*drop*1.4);
+    const p=new THREE.Mesh(geo,m);p.position.y=-.12-drop/2;p.castShadow=true;p.receiveShadow=true;g.add(p);
+    for(const x of [-width*.3,width*.3])k.box(g,.015,drop+.1,.02,M(k,'rope'),x,-.1-drop/2,.02);}
+  return g;
+}
+/** 花几上一盆松（盆景）：细高的花几，陶盆，一棵小松（歪脖子的干，三层平展的松针团）。原点在地面中心。 */
+export function bonsaiStand(k:V2Kit,height=.82,seed=1){
+  const g=new THREE.Group();g.name='garden-bonsai';const wood=M(k,'legWood'),r=rng(seed);
+  for(const x of [-.14,.14])for(const z of [-.14,.14])k.box(g,.04,height,.04,wood,x,height/2,z,32);
+  k.box(g,.36,.04,.36,wood,0,height,0,32);k.box(g,.3,.03,.3,wood,0,.12,0,32);
+  k.box(g,.32,.1,.22,M(k,'clay'),0,height+.07,0,64);k.box(g,.28,.015,.18,k.flat('#4a3a2c'),0,height+.125,0);
+  const bark=k.flat('#5a4636'),cb=new ColorBoxes(),pine=[new THREE.Color('#3f6a45'),new THREE.Color('#4f7d52'),new THREE.Color('#33583a')];
+  const trunk=[[0,.13,0],[.05,.25,.02],[-.02,.36,.04],[.06,.45,0]];for(let i=1;i<trunk.length;i++){const [a,b,c]=trunk[i-1],[d,e,f]=trunk[i];const m=k.box(g,.035,e-b+.02,.035,bark,(a+d)/2,height+(b+e)/2,(c+f)/2);m.rotation.z=Math.atan2(a-d,e-b);}
+  for(const [x,y,z,s] of [[.12,.32,.02,.16],[-.1,.4,.03,.13],[.07,.5,-.02,.12]] as const)for(let j=0;j<6;j++){const px=x+(r()-.5)*s,pz=z+(r()-.5)*s*.7,ss=.04+r()*.04,c=pine[j%3];cb.add(px-ss,height+y,pz-ss,px+ss,height+y+.05,pz+ss,c,c.clone().multiplyScalar(.82),undefined,false);}
+  const m=new THREE.Mesh(cb.geometry(),k.flat('#ffffff',{vertex:true}));m.castShadow=true;g.add(m);
+  return g;
+}
+/** 小木船：船底、两舷、船头翘起，中间一块横板、船尾一支桨。原点在水面中心，船身顺着 x。 */
+export function boat(k:V2Kit){
+  const g=new THREE.Group();g.name='garden-boat';const m=M(k,'boat');
+  k.box(g,2.6,.12,.7,m,0,.02,0);for(const z of [-.36,.36])k.box(g,2.8,.26,.07,m,0,.17,z);
+  for(const s of [-1,1]){const p=k.box(g,.5,.3,.75,m,s*1.42,.24,0);p.rotation.z=s*.4;}
+  k.box(g,.14,.05,.72,m,.3,.24,0);const oar=k.box(g,1.6,.04,.06,M(k,'legWood'),-1.1,.36,.2);oar.rotation.y=.25;oar.rotation.z=-.12;
+  return g;
+}
 export {place};

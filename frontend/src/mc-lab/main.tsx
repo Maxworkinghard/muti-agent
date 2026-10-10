@@ -12,8 +12,12 @@ import '../styles.css';
 const selectedKind=MC_SCENE_KINDS.find(x=>x===new URLSearchParams(location.search).get('scene'))??'roundtable';
 const selectedScene=SCENES[selectedKind+'-mc'];
 function switchScene(value:string){const url=new URL(location.href);url.searchParams.set('scene',value);url.searchParams.delete('inspect');location.assign(url.toString());}
-const people=[...RATIONAL_PERSONAS,...LIBRARY_PERSONAS.filter(p=>!RATIONAL_PERSONAS.some(q=>q.id===p.id))].slice(0,selectedScene.maxSeats);
-const cast:Participant[]=people.map((persona,i)=>({agentId:persona.id,persona,seatIndex:i,personalityId:persona.defaultPersonalityId,color:persona.visual.shirt}));
+const roster=[...RATIONAL_PERSONAS,...LIBRARY_PERSONAS.filter(p=>!RATIONAL_PERSONAS.some(q=>q.id===p.id))];
+/** ?cast=id[@座位],…：只请这些人入座（比如 cast=hao-hao@6,leng-cui@7 只看两个精修样板）；不带参数就是默认的前 8 人。 */
+const castParam=new URLSearchParams(location.search).get('cast')?.split(',').map(s=>s.trim()).filter(Boolean);
+const picked=castParam?castParam.map((s,i)=>{const [id,seat]=s.split('@');const persona=roster.find(p=>p.id===id);return persona?{persona,seatIndex:seat===undefined?i:Number(seat)}:null;}).filter((x):x is {persona:typeof roster[number];seatIndex:number}=>!!x&&Number.isInteger(x.seatIndex)&&x.seatIndex>=0&&x.seatIndex<selectedScene.maxSeats):null;
+const people=picked?.length?picked:roster.slice(0,selectedScene.maxSeats).map((persona,seatIndex)=>({persona,seatIndex}));
+const cast:Participant[]=people.map(({persona,seatIndex})=>({agentId:persona.id,persona,seatIndex,personalityId:persona.defaultPersonalityId,color:persona.visual.shirt}));
 const cfg:SessionConfig={sessionId:'mc-lab',mode:selectedScene.recommendedMode,sceneId:selectedScene.id,theme:{title:'人工智能应不应该进入课堂？'},maxRounds:3,maxChars:150,participants:cast,engineOptions:{},createdAt:'2026-10-05'};
 const coverMode=import.meta.env.DEV&&new URLSearchParams(location.search).has('cover');
 const selectedMaterial=(['original','hd','style'] as const).find(x=>x===new URLSearchParams(location.search).get('material'));

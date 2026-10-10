@@ -45,6 +45,8 @@ export interface Room {
   boardStyle?:BoardStyle; boardFrame?:string;
   /** 房间自己画话题板（v2 场景用）；不设就按 boardStyle 用公共样式画 */
   drawBoard?:(c:CanvasRenderingContext2D,W:number,H:number,info:BoardInfo)=>void; boardYaw?:number; decorateBoard?:(k:Kit,sign:THREE.Object3D)=>void; animate?:(now:number)=>void; waterColor?:string;
+  /** 不画出来、只挡镜头的箱体。曲廊卷棚是道具网格，碰撞补在这里。 */
+  occluders?:Array<{id:string;center:Point;half:Point;yaw:number}>;
 }
 export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;yaw:number}> {
   const boxes:Array<{id:string;center:Point;half:Point;yaw:number}>=[];
@@ -52,5 +54,6 @@ export function propBoxes(room:Room):Array<{id:string;center:Point;half:Point;ya
     // 圆桌用四个转开 45° 的长条拼成近似圆盘（最多外扩 7%），斜对角的座位不会被方形外框误判成撞桌。
     if(t.shape==='round'){const r=t.length/2,w=r*Math.sin(Math.PI/8);for(let k=0;k<4;k++)boxes.push({id:t.id+(k?'#'+k:''),center,half:[r,t.height/2,w],yaw:t.skirtYaw+k*Math.PI/4});}
     else boxes.push({id:t.id,center,half:[t.length/2,t.height/2,t.depth/2],yaw:t.skirtYaw});}
+  for(const o of room.occluders??[])boxes.push(o);
   return boxes;
 }

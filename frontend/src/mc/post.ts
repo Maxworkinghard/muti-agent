@@ -12,16 +12,16 @@ import {VolumetricPass,type LightRig} from './volumetric';
 import {ScenePass,SANITIZE,warmLut,cleanLut} from '../rendering/postCommon';
 export {warmLut} from '../rendering/postCommon';
 /**
- * 画质档（第 11.4 节）：
+ * 画质档（第 11.4 节）。像素密度不在这里按高/中降低，由舞台的 renderPixelRatio 同步到本合成器。
  * 高：太阳阴影 4096、舞台灯阴影、屏幕空间环境光遮蔽、光柱（体积光）、泛光、景深；
  * 中：太阳阴影 2048、舞台灯阴影、泛光，光柱用画好的面片（在场景里），没有屏幕空间遮蔽和景深；
  * 低：不算阴影，只保留抗锯齿和调色。
  */
 export type Quality='high'|'medium'|'low';
 export const QUALITY_LABEL:Record<Quality,string>={high:'高',medium:'中',low:'低'};
-export interface Post {composer:EffectComposer;outline:OutlinePass;quality:Quality;setQuality(q:Quality):void;setSize(w:number,h:number):void;setFocus(distance:number|null):void;render():void;dispose():void}
+export interface Post {composer:EffectComposer;outline:OutlinePass;quality:Quality;setQuality(q:Quality):void;setSize(w:number,h:number):void;setPixelRatio(ratio:number):void;setFocus(distance:number|null):void;render():void;dispose():void}
 /** styled：带色板的新画风——干净的调色表，不加光柱和景深，环境光遮蔽只留一点接触阴影。 */
-export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.PerspectiveCamera,quality:Quality,rig:LightRig,styled=false,saturation?:number):Post {
+export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.PerspectiveCamera,quality:Quality,rig:LightRig,styled=false,saturation?:number,bloomStrength?:number):Post {
   const composer=new EffectComposer(renderer);
   const render=new ScenePass(scene,camera),depth=render.target.depthTexture!;
   // 环境光遮蔽用场景的深度反推法线；构造时直接传深度会因为 0.186 的一个空引用出错，所以先建好再换。
@@ -35,15 +35,17 @@ export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera
   bokeh.render=(r,writeBuffer,readBuffer)=>{const u=bokeh.uniforms as Record<string,THREE.IUniform>;u.tColor.value=readBuffer.texture;u.nearClip.value=camera.near;u.farClip.value=camera.far;r.setRenderTarget(bokeh.renderToScreen?null:writeBuffer);if(!bokeh.renderToScreen)r.clear();(bokeh as unknown as {_fsQuad:{render(r:THREE.WebGLRenderer):void}})._fsQuad.render(r);};
   const bloom=new UnrealBloomPass(new THREE.Vector2(512,512),.055,.35,1.3);
   const outline=new OutlinePass(new THREE.Vector2(1,1),scene,camera);outline.edgeStrength=4;outline.edgeGlow=.6;outline.edgeThickness=1;
-  if(styled){gtao.updateGtaoMaterial({radius:.28,distanceExponent:1.4,thickness:1,scale:.28,samples:12});bloom.strength=.16;bloom.radius=.28;bloom.threshold=.95;}
+  if(styled){gtao.updateGtaoMaterial({radius:.28,distanceExponent:1.4,thickness:1,scale:.28,samples:12});bloom.strength=bloomStrength??.16;bloom.radius=.28;bloom.threshold=.95;}
   const output=new OutputPass(),lut=new LUTPass({lut:styled?cleanLut(32,saturation):warmLut(),intensity:1});
   const smaa=new SMAAPass();
   const sanitize=new ShaderPass(SANITIZE,'tNone');sanitize.uniforms.tDiffuse.value=render.target.texture;
   for(const pass of [render,sanitize,gtao,volume,bokeh,bloom,outline,output,lut,smaa])composer.addPass(pass);
-  let focus:number|null=null;
+  let focus:number|null=null,pixelRatio=renderer.getPixelRatio();
   const post:Post={composer,outline,quality,
     setQuality(q){post.quality=q;gtao.enabled=q==='high';volume.enabled=!styled&&q==='high';bokeh.enabled=q==='high'&&focus!==null;bloom.enabled=q!=='low';renderer.shadowMap.enabled=q!=='low';/* 中档仍保留泛光与阴影，避免自动降级变闷 */},
     setSize(w,h){composer.setSize(w,h);},
+    // 与主画布同一密度。比例没变就跳过：setPixelRatio 会按旧的逻辑尺寸重分配缓冲。
+    setPixelRatio(ratio){if(ratio===pixelRatio)return;pixelRatio=ratio;composer.setPixelRatio(ratio);},
     setFocus(d){focus=d;bokeh.enabled=post.quality==='high'&&d!==null;if(d!==null)(bokeh.uniforms as Record<string,THREE.IUniform>).focus.value=d;},
     render(){outline.enabled=outline.selectedObjects.length>0;composer.render();},
     dispose(){composer.dispose();render.dispose();sanitize.dispose();volume.dispose();lut.material.dispose();(lut.material.uniforms.lut.value as THREE.Texture|null)?.dispose();gtao.dispose();bokeh.dispose();bloom.dispose();outline.dispose();output.dispose();smaa.dispose();}};

@@ -306,3 +306,13 @@ scripts/legacy.mjs                 未验证的历史比较入口
 临时日志、截图、输入轨迹及浏览器资料均在仓库外 `muti-agent-final-20261009` 系统临时目录；隔离 envDir/固定模型没有读取私人配置或访问真实模型供应商。软件渲染帧率低，不能据此证明硬件 GPU 性能、完整动画各瞬间或音频听感；未对真实服务商质量作声明。既存大于 500 kB 的构建 chunk 警告、七个娱乐人物头像 fallback 提示和主页面 `/favicon.ico` 404 仍保留，未出现新的房间/脚本错误；本次不扩展为性能或美术改造。
 
 本次超出最初三个问题的唯一变更是用户随后明确授权的 3D 场景退役；没有修改 2D 视觉或讨论业务，没有新增插件/依赖，没有重构人物模型或场景渲染架构。圆桌仍未完成，未宣布视觉实现完成或用户视觉验收通过。交付后停止治理扩展，等待下一阶段任务。
+
+## 园林茶叙第一轮（2026-10-09）
+
+上文整节是替换前的测量，不要改写。分支 `art/garden-roundtable-r1` 的基线和恢复点都是 `6d45dc3`（本地分支 `audit/pre-garden-r1-20261009`）。这一轮用园林茶叙榭换掉湖畔议事厅，删除 `frontend/src/mc/v2/roundtable/hall.ts` 和 `frontend/src/mc/v2/landscape.ts`。
+
+因此上面的默认机位 `[7.7, 3.05, 14.5]`、1770 方块，以及“当前圆桌”的浏览器记录，指的都是旧湖畔议事厅，不是茶叙榭。茶叙榭的机位、边界、光线和验证写在 [ROUNDTABLE_GARDEN.md](design/ROUNDTABLE_GARDEN.md)。视觉仍未验收。
+
+## 园林茶叙第二轮（2026-10-10）
+
+按用户 2026-10-10 的第二轮要求，把“湖上孤立的榭 + 远处背景岸”改成围合的园林水面（北岸假山与方亭、两层楼、沿墙游廊、园墙月洞门、西水口拱桥与河道借景）。没有删除文件；新增 `terrain.ts`、`garden.ts`、`shore.ts`、`water.ts`、`mesh.ts`。共用部分只改了三处：`mc/light.ts` 的光照网格范围随方块向负方向扩展（旧房间的方块都在 −1 以上，结果不变）、`mc/style.ts` 的 `Look` 加可选的 `shadowArea` / `bloom`（不设时行为和以前一样）、`McStage3D.tsx::applyLook` 读这两项。恢复点仍是 `6d45dc3`；两轮改动一起提交在 `art/garden-roundtable-r1`。详细记录见 [ROUNDTABLE_GARDEN.md](design/ROUNDTABLE_GARDEN.md)。

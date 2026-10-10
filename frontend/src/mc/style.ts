@@ -27,6 +27,10 @@ export interface Look {
   skyTop?:string;
   /** 调色时的饱和度倍数：默认 1.2（给平涂色板提一点色）；原版方块贴图本身就艳，设 1 就是不再额外加饱和 */
   saturation?:number;
+  /** 太阳阴影覆盖的范围（水平中心 x、z 和半宽，米）。不设就只罩住人能走的范围再往外 3 米；户外有中景建筑时要罩大一些，不然中景不投影。 */
+  shadowArea?:{center:[number,number];half:number};
+  /** 泛光强度（默认按画风取 0.16）：不想靠泛光造氛围的房间压低 */
+  bloom?:number;
 }
 const clamp=(n:number)=>Math.max(0,Math.min(255,Math.round(n)));
 const rgb=(hex:string)=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));

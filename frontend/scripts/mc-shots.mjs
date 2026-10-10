@@ -9,6 +9,7 @@
 //   当前只拍圆桌重建样板；旧版本和其他 3D 场景已移除。
 //   node scripts/mc-shots.mjs collage <输出.jpg> <标题> <图片=说明> ...   把几张截图拼成一页（--cols=列数，--w=每格宽），无头 Chrome 存成 JPG
 //   --quality=high|medium 画质档（默认 high）
+//   --cast=id[@座位],… 只请这些人入座（mc-lab 的 cast 参数，例如 --cast=hao-hao@6,leng-cui@7）
 // 照片在 frontend/.shots/<标签>/，对比页是 frontend/.shots/compare-<改前>-<改后>.html。
 //
 // 每个房间拍的镜头：
@@ -91,7 +92,7 @@ async function shoot(label, rooms) {
     const summary = [];
     for (const room of rooms) for (const material of materials) {
       logs.length = 0; const t0 = Date.now(), tag = (material === 'room' ? room : `${room}@${material}`) + (QUALITY === 'high' ? '' : '-' + QUALITY), cam = cams[room], metrics = { room, material, shots: {} };
-      await send('Page.navigate', { url: `http://localhost:${port}/mc-lab.html?scene=${room}&cover${material === 'room' ? '' : '&material=' + material}` });
+      await send('Page.navigate', { url: `http://localhost:${port}/mc-lab.html?scene=${room}&cover${material === 'room' ? '' : '&material=' + material}${flags.cast ? '&cast=' + encodeURIComponent(flags.cast) : ''}` });
       // 舞台放大到 1440×960 再拍。
       for (let i = 0; i < 40; i++) { const ok = await evaluate(`(() => { if (!document.head) return false; const st = document.createElement('style'); st.textContent = '.mc-lab-cover .mc-lab-stage{width:1440px!important;max-width:none!important}'; document.head.appendChild(st); return true; })()`).catch(() => false); if (ok) break; await sleep(100); }
       const state = await waitLoaded('.mc-lab-error');

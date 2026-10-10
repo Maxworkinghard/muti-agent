@@ -1,118 +1,140 @@
 /**
- * v2 圆桌会议室「湖畔木构议事厅」：把方块结构（hall.ts）、家具陈设（furnish.ts）、远景（../landscape.ts）、
- * 话题匾（board.ts）装成一个 Room。起点契约记录见 docs/archive/rebuild/00-contract.md，当前接口以 Room 定义为准。
+ * v2 圆桌「水上园林茶叙榭」（第二轮，方向由用户 2026-10-09 / 2026-10-10 给定，尚未通过视觉验收）：
+ * 一座围合的苏式园林水面——主榭（茶叙榭）在南岸、三面临水；北岸中景是黄石假山和山顶方亭、临水两层楼、沿墙游廊、粉墙月洞门；
+ * 东面水廊通到半岛上的六角亭；西面水口一座石拱桥，水流出园成河道，河道尽头远远一座小塔（借景）。略带阴翳的傍晚，自然光为主。
+ * 方块结构（structure.ts + terrain.ts）、细木作（timber.ts）、中景建筑（garden.ts）、驳岸（shore.ts）、水面（water.ts）、
+ * 植物（flora.ts）、家具陈设（furnish.ts）、天和远景（scenery.ts）、地面（floor.ts）、话题匾（board.ts）在这里装成一个 Room。
+ * 总平面见 site.ts，设计说明见 docs/design/ROUNDTABLE_GARDEN.md。
  */
 import * as THREE from 'three';
 import type {Kit} from '../../props/furniture';
 import type {ActorAnchor,Room} from '../../rooms/types';
 import type {Point} from '../../rooms/builders';
 import {MC_SCENE_NAMES} from '../../rooms/names';
-import {V2_BLOCK_PAINT} from '../blockTextures';
 import {createV2Kit,place,type V2Kit} from '../kit';
-import {buildLandscape} from '../landscape';
-import {HALL,TERRAIN,buildHall} from './hall';
+import {makeChair} from '../../props/chairs';
+import {GARDEN_PAINT} from './paint';
+import {buildGarden} from './structure';
+import {buildTimber,mats} from './timber';
+import {buildGardenArchitecture,gardenOccluders} from './garden';
+import {buildShore} from './shore';
+import {gardenWater} from './water';
+import {buildScenery,sunDirection,type Evening} from './scenery';
+import {bambooGrove,banana,canopyTree,ferns,lotusPatch,pine,reeds,rockery,shrubs,weepingWillow} from './flora';
+import {boat,bambooBlind,bonsaiStand,cord,palaceLantern,paperLantern,roundTable} from './furnish';
+import {teaHallFloor} from './floor';
 import {drawHallBoard} from './board';
-import {blossomSpray,teaStation,cord,hearthFire,octagonTable,paperLantern,pottedShrub,PROP_PAINT,reedBlind,teaSet} from './furnish';
-import {makeChair,SOFT_FABRIC} from '../../props/chairs';
-import {plankHall} from '../../props/floors';
+import {hillHeight} from './terrain';
+import {CANOPY,GROUND,HALL,POST_X,POST_Z,VIEW,WATER,WILLOWS} from './site';
 
 /** 同一个道具 Kit 只配一个 v2 工具（材质缓存、统一释放）。 */
 const kits=new WeakMap<Kit,V2Kit>();
 const v2=(k:Kit)=>{let x=kits.get(k);if(!x){x=createV2Kit(k.owned);kits.set(k,x);}return x;};
 
 export const RT={
-  /** 桌面外接圆半径 2.05（直径 4.1 米）、座位圈半径 2.60：每人约 2.0 米弧长。桌高仍是 0.95。 */
-  tableR:2.05,tableH:.95,seatGap:.55,
-  /** 座位从正东偏 30° 起每 45° 一个：默认机位（西南角）正对着两个座位之间的空当，看得到桌面 */
-  phase:Math.PI/6};
+  /** 圆桌半径 1.6（直径 3.2 米）、桌高 0.72；椅子中心离桌沿约 0.55 米，每席弧长约 1.7 米，八席。 */
+  tableR:1.6,tableH:.72,seatGap:.55,
+  /** 座位相位：默认机位（西南角）正对着两个座位之间的空当，越过空当看得到桌面和对面的人 */
+  phase:THREE.MathUtils.degToRad(26.4),
+  /** 每个座位一点点不同的转角和远近（弧度、米）：松一点，不像会议桌那样一个个排齐 */
+  yaw:[.06,-.05,.03,-.07,.05,-.03,.07,-.04],radius:[.04,-.03,.05,0,-.04,.03,-.02,.05],
+};
+/** 椅垫只用一种素色（灰过的月白青），八把椅子是一套 */
+export const CUSHION='#a9b2ae';
+/** 略带阴翳的傍晚：太阳在西南偏西（方位角 208° 即罗盘约 242°）、仰角 14°，被薄云罩着的淡金；天边雾色偏冷的灰。 */
+export const EVENING:Evening={azimuth:208,elevation:14,sun:'#ffe4c6',haze:'#c6cad0'};
 
 export function buildRoundtableV2():Room{
-  const {x:cx,z:cz}=HALL.table,R=RT.tableR+RT.seatGap;
+  const {x:cx,z:cz}=HALL.table;
   const anchors:ActorAnchor[]=[],chairs:Room['layout']['chairs']=[];
-  for(let i=0;i<8;i++){const a=RT.phase+i*Math.PI/4,x=cx+R*Math.cos(a),z=cz+R*Math.sin(a),yaw=Math.atan2(cx-x,cz-z);
+  for(let i=0;i<8;i++){const a=RT.phase+i*Math.PI/4,R=RT.tableR+RT.seatGap+RT.radius[i],x=cx+R*Math.cos(a),z=cz+R*Math.sin(a),yaw=Math.atan2(cx-x,cz-z)+RT.yaw[i];
     anchors.push({seat:[x,1.5,z],stand:[x,1,z],homeYaw:yaw,mic:'seat-'+i,chair:'chair-'+i});
     chairs.push({id:'chair-'+i,side:'judge',position:[x,1,z],yaw,slide:.2,actor:i});}
-  /** 匾挂在北口抬高的那根梁下，比原先高 0.2 米；匾下和匾上都还看得到湖与山 */
-  const board={position:[cx,4.6,5.08] as Point,width:3,height:1};
+  /** 话题匾：挂在北面中间一跨的檐枋下，朝厅内（+z）；匾下是月台、水面和北岸假山亭 */
+  const board={position:[cx,4.04,POST_Z[0]+.16] as Point,width:2.8,height:.86};
+  // 人工灯只有两盏，都很暗：厅内西北角一盏宫灯（不在桌子正上方，不挡人脸）、水廊转角一盏纸灯。自然光是主光。
   const lights:Room['lights']=[
-    // 暖光只照亮自己周围一圈：桌上一池、壁炉前一池，衰减得快，和窗外的冷天光形成对比。
-    {position:[cx,3.95,cz],length:.4,intensity:5,distance:7,kind:'lantern',shadow:false,color:'#ffcf8a'},
-    {position:[18.6,1.55,10],length:.3,intensity:8,distance:8,kind:'lantern',shadow:true,color:'#ff9a4a'},
-    {position:[6.5,3.05,1.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
-    {position:[19.5,3.05,1.5],length:.3,intensity:.8,distance:5,kind:'lantern',shadow:false,color:'#ffd49a'},
+    {position:[12.2,3.75,8.6],length:.3,intensity:.8,distance:4.5,kind:'lantern',shadow:false,color:'#ffe9cc'},
+    {position:[26.5,3.45,8.4],length:.3,intensity:.6,distance:4,kind:'lantern',shadow:false,color:'#ffe9cc'},
   ];
-  /** 默认机位：西南角、略高于站立人眼，离桌子 7 米；左边是北口外的湖和山，右边是桌子和壁炉 */
-  const camera:Point=[7.7,3.05,14.5],cameraTarget:Point=[14.6,2.0,5.4];
-  let fire:THREE.Group|null=null;
+  const [camera,cameraTarget]=[VIEW.camera,VIEW.target];
+  const animated:Array<(now:number)=>void>=[];
+  const {builder,roofAt}=buildGarden();
   const room:Room={
     kind:'roundtable',title:MC_SCENE_NAMES.roundtable,seatedSpeech:true,material:'original',
-    blocks:buildHall().connect(),ceiling:[],anchors,host:[cx,1,cz+3.2],camera,cameraTarget,fov:50,
+    blocks:builder.connect(),ceiling:[],anchors,host:[cx,1,cz+3.9],camera,cameraTarget,fov:VIEW.fov,
     fit:[...anchors.map(a=>[a.seat[0],a.seat[1]+1.3,a.seat[2]] as Point),...[-1,1].map(s=>[board.position[0]+s*board.width/2,board.position[1]+board.height/2+.1,board.position[2]] as Point)],
-    judge:[17.4,2.7,13.9],judgeTarget:[12.6,1.9,8.8],
-    layout:{tables:[{id:'round-table',side:'judge',center:[cx,1,cz],length:RT.tableR*2,depth:RT.tableR*2,height:RT.tableH,shape:'round',skirtYaw:0}],chairs,desk:[],podium:{position:[cx,1,cz+3.2],yaw:Math.PI},board,phaseLamps:[]},
-    // 地面：厅内 x 7–19、z 5–15 盖一张 16 像素/米的浅木地板（深橡木包边，壁炉前的石炉床对着方块世界 x 17–18、z 8–11），
-    // 桌下一块八角地毯（中心就是桌子 13,10，相对这张地面是 6,5）。方块地面照旧负责走路、碰撞和光照。
-    banners:[],windows:[],floor:[{y:1.002,x0:7,x1:19,z0:5,z1:15}],lights,
-    floorArt:(c,w,d)=>plankHall(c,w,d,{border:8,hearth:{x0:10,x1:12,z0:3,z1:7},rug:{cx:6,cz:5,r:2.45}}),
-    bounds:{min:[6.05,1,1.05],max:[19.95,5.95,15.95]},
-    flight:{min:[-4,1,-6],max:[30,16,24]},
-    // 光：低角度的西南斜阳更强、天光和环境光更弱——室内深处暗下来，地上的柱影和帘影更清楚，灯和炉火的暖光池才看得见。
-    look:{background:'#c3d7ea',outdoor:true,sky:'#b9d2ee',ground:'#8f8676',ambient:.7,
-      sun:{color:'#ffe6c4',intensity:4.4,azimuth:205,elevation:17,shadow:.95},exposure:1.1,indirect:.28,
-      haze:'#c3d7ea',fog:[80,420],skyTop:'#3f7fd0',saturation:1},
-    paint:{...V2_BLOCK_PAINT},
+    judge:[20.65,3.05,8.45],judgeTarget:[13.2,1.75,15.4],
+    layout:{tables:[{id:'round-table',side:'judge',center:[cx,1,cz],length:RT.tableR*2,depth:RT.tableR*2,height:RT.tableH,shape:'round',skirtYaw:0}],chairs,desk:[],podium:{position:[cx,1,cz+3.9],yaw:Math.PI},board,phaseLamps:[]},
+    // 地面图盖住整个厅（x 10–23、z 7–19）：柱线以内方砖、柱线一圈青石。
+    banners:[],windows:[],floor:[{y:1.002,x0:10,x1:23,z0:7,z1:19}],lights,
+    floorArt:(c,w,d)=>teaHallFloor(c,w,d,{edge:{x0:POST_X[0]-10+.14,x1:POST_X[3]-10-.14,z0:POST_Z[0]-7+.14,z1:POST_Z[3]-7-.14}}),
+    // 网格做的屋顶和中景建筑不进方块碰撞：水廊卷棚（底面在梁枋附近，人在廊里走不会被托住）、园墙、北岸楼亭、拱桥各补一只挡镜头的箱子。
+    occluders:[
+      {id:'corridor-roof-a',center:[23.65,5.5,12.5],half:[1.45,.45,2.5],yaw:0},
+      {id:'corridor-roof-b',center:[26.5,5.5,7.55],half:[2.5,.45,2.45],yaw:0},
+      {id:'corridor-roof-c',center:[31.1,5.5,4.5],half:[2.1,.45,2.5],yaw:0},
+      {id:'corridor-roof-hip-n',center:[27.05,5.5,12.5],half:[1.95,.45,2.5],yaw:0},
+      {id:'corridor-roof-hip-s',center:[26.5,5.5,3.55],half:[2.5,.45,1.55],yaw:0},
+      ...gardenOccluders(),
+    ],
+    bounds:{min:[POST_X[0]+.45,1,POST_Z[0]+.45],max:[POST_X[3]-.45,5.9,POST_Z[3]-.45]},
+    // 观察镜头能飞遍园内（围墙以内），飞不出园墙
+    flight:{min:[-15,1,-43],max:[51,20,26]},
+    // 光：自然光为主——被薄云罩着的西南斜阳（暖、柔），天光偏冷；人工灯只有两盏很暗的；不靠泛光造氛围。
+    // 太阳阴影罩住整个园子（中景的楼亭、树也投影）。
+    look:{background:'#c6cad0',outdoor:true,sky:'#b4bfce',ground:'#a39b8d',ambient:1.1,
+      sun:{color:EVENING.sun,intensity:3.6,azimuth:EVENING.azimuth,elevation:EVENING.elevation,shadow:.82},exposure:1.28,indirect:.38,
+      haze:EVENING.haze,fog:[60,420],skyTop:'#5d7299',saturation:.96,shadowArea:{center:[18,-8],half:44},bloom:.05},
+    paint:{...GARDEN_PAINT},
     boardStyle:'sign',boardFrame:'block/dark_oak_planks',
     drawBoard:drawHallBoard,
-    // 共用椅子族的会议木椅：座面 0.50、自然木框、低饱和布垫（每个座位一种颜色）
-    makeChair:(k,c)=>makeChair(v2(k),'meeting',SOFT_FABRIC[(c.actor??0)%SOFT_FABRIC.length]),
-    decorateBoard:(k,sign)=>{const g=v2(k),iron=g.mat('iron',PROP_PAINT.iron),drop=HALL.beamY+1-(board.position[1]+board.height/2);
-      // 两根铁吊杆把匾挂在抬高的梁下。
-      for(const s of [-1,1]){g.box(sign,.08,.16,.12,iron,s*1.25,board.height/2+.06,-.02);g.box(sign,.035,drop,.035,iron,s*1.25,board.height/2+drop/2,-.02);}},
-    animate:now=>{(fire?.userData.flicker as ((n:number)=>void)|undefined)?.(now);},
-    decorate:(k,root)=>{const g=v2(k);
-      root.add(buildLandscape(g,{water:-.35,shore:0,farShore:-110,mountains:-200,west:-70,east:100,ground:0,seed:7,hole:TERRAIN,center:[cx,cz]}));
-      // 柱础：每根柱子脚下一块石头。
-      const stone=g.mat('stone',V2_BLOCK_PAINT['block/stone_bricks']);
-      for(const x of HALL.cols.x)for(const z of [4,15])g.box(root,.86,.18,.86,stone,x+.5,1.09,z+.5);
-      for(const z of [7,12])for(const x of [6,19])g.box(root,.86,.18,.86,stone,x+.5,1.09,z+.5);
-      // 檩条：顺屋脊方向，贴着望板底面；藻井那段断开。
-      const beam=g.mat('purlin',V2_BLOCK_PAINT['block/stripped_dark_oak_log']);
-      const purlin=(x:number,z0:number,z1:number)=>{const top=HALL.underside(Math.floor(x));g.box(root,.34,.34,z1-z0,beam,x,top-.17,(z0+z1)/2);};
-      for(const x of [8.5,17.5])purlin(x,3,17);
-      for(const x of [10.5,15.5])for(const [z0,z1] of [[3,7],[13,17]])purlin(x,z0,z1);
-      for(const [z0,z1] of [[3,7],[13,17]]){const top=HALL.underside(12);g.box(root,.4,.4,z1-z0,beam,13,top-.2,(z0+z1)/2);}
-      // 北山墙的童柱：梁上一根短柱顶住脊檩，从厅里看出去，山花被它分成两扇三角窗。
-      g.box(root,.32,HALL.underside(12)-7,.32,beam,13,(HALL.underside(12)+7)/2,4.5);
-      // 会议圈：八角桌、茶具。地毯画在地面贴图上，不再铺一块草编席。
-      root.add(place(octagonTable(g,RT.tableR,RT.tableH),cx,1,cz));
-      root.add(teaSet(g,anchors.map(a=>[a.seat[0],a.seat[2]] as [number,number]),cx,cz,1+RT.tableH,RT.tableR));
-      // 壁炉：火、壁炉台和台上两三件小东西。
-      fire=hearthFire(g);root.add(place(fire,19,1,10));
-      const mantel=g.mat('frame-planks',V2_BLOCK_PAINT['block/dark_oak_planks']);g.box(root,.42,.16,4.3,mantel,17.85,3.08,10);
-      g.box(root,.18,.26,.18,g.mat('ceramic',PROP_PAINT.ceramic),17.8,3.29,8.6);g.box(root,.14,.2,.14,g.mat('teapot',PROP_PAINT.teapot),17.8,3.26,8.95);
-      root.add(place(pottedShrub(g,.55,true,true,5),17.82,3.16,11.35));
-      // 灯：桌子上方的大纸灯从天窗楼顶垂下来，前廊两个外角各一盏小灯。
-      const top=HALL.caisson.top;root.add(place(cord(g,top-4.55),cx,4.55,cz));root.add(place(paperLantern(g,.56,.8),cx,4.55,cz));
-      // 前廊是露天平台：两角各一根木灯柱，顶上一盏小纸灯。
-      for(const x of [6.5,19.5]){g.box(root,.16,1.8,.16,beam,x,1.9,1.5);g.box(root,.5,.08,.12,beam,x,2.84,1.5);root.add(place(paperLantern(g,.3,.7),x,2.88+.42,1.5));}
-      // 植物：西栏上两盆、前廊两角、书架边一大盆，节奏不对称。
-      root.add(place(pottedShrub(g,.7,false,false,11),6.5,1.5,8.6));
-      root.add(place(pottedShrub(g,.8,false,true,12),6.5,1.5,13.6));
-      root.add(place(pottedShrub(g,1.2,true,false,13),7.3,1,2.0));
-      root.add(place(pottedShrub(g,1.1,true,true,14),18.2,1,2.2));
-      root.add(place(pottedShrub(g,1.3,false,false,15),18.1,1,14.1));
-      // 西南一跨放下半幅芦苇帘：低角度的阳光穿过帘缝，在地上落成条纹。
-      root.add(place(reedBlind(g,2.6,1.6),6.5,5,14.0,Math.PI/2));
-      // 山墙封檐板：南北两端顺着屋面坡度各两块深色板，盖住台阶瓦和两层屋面之间的空隙；东西檐口一根檐檩。
-      const verge=g.mat('verge',V2_BLOCK_PAINT['block/dark_oak_planks']),slope=Math.atan(.5),len=9*Math.hypot(1,.5);
-      for(const z of [2.94,17.06])for(const s of [-1,1]){const m=g.box(root,len,.9,.12,verge,13+s*4.5,9.55-2.25-.45,z);m.rotation.z=-s*slope;}
-      for(const x of [3.98,22.02])g.box(root,.28,1.04,14.1,beam,x,4.5,10);
-      // 前景框景：默认机位左上方，从西侧那根檩条（x=8.5）上垂下两枝樱花。
-      root.add(place(blossomSpray(g,1.6,1.15,21),8.5,5.66,10.7,Math.PI/2));root.add(place(blossomSpray(g,1.0,.85,22),8.5,5.66,9.5,Math.PI/2+.5));
-      // 前景左下：西侧中间一跨、半高石栏里面的茶台（矮几、炭炉、铁壶、两个坐垫），让镜头前不是一整片空地板。
-      root.add(place(teaStation(g),8.9,1,9.5,Math.PI));
-      // 西侧入口（北边一跨）外的三块踏步石。
-      const step=g.mat('cobble',V2_BLOCK_PAINT['block/cobblestone']);for(const [x,z] of [[4.2,5.6],[3.1,5.1],[2.0,5.8]] as const)g.box(root,.8,.08,.7,step,x,.04,z);
+    makeChair:(k)=>makeChair(v2(k),'garden',CUSHION),
+    decorateBoard:(k,sign)=>{const g=v2(k),iron=g.flat('#3a3633',{rough:.5}),drop=HALL.postTop-.3-(board.position[1]+board.height/2);
+      // 两根细铁杆把匾吊在檐枋下面
+      for(const s of [-1,1]){g.box(sign,.07,.12,.1,iron,s*1.15,board.height/2+.05,-.02);g.box(sign,.03,drop,.03,iron,s*1.15,board.height/2+drop/2,-.02);}},
+    animate:now=>{for(const f of animated)f(now);},
+    decorate:(k,root)=>{const g=v2(k),floor=GROUND,M=mats(g);
+      root.add(buildScenery(g,EVENING));
+      root.add(gardenWater(g,{sun:sunDirection(EVENING),sunColor:EVENING.sun,shallow:'#4f5641',deep:'#26302b',sky:'#c2cad1'}));
+      buildTimber(g,root,{roofAt});
+      root.add(buildGardenArchitecture(g,M));
+      const shore=buildShore(g);root.add(shore.mesh);
+      // ——圆桌（桌面留空）；厅内只挂一盏不亮的宫灯在西北角
+      root.add(place(roundTable(g,RT.tableR,RT.tableH),cx,floor,cz));
+      root.add(place(cord(g,1.3),12.2,4.15,8.6));root.add(place(palaceLantern(g,.26,.8),12.2,4.15,8.6));
+      // ——东北角一个花几盆景（框住东面的水和廊），西面中间一跨放下半幅竹帘：斜阳穿过篾缝在地上、桌上落出细条纹
+      root.add(place(bonsaiStand(g,.86,3),20.85,floor,8.3));
+      root.add(place(bambooBlind(g,3.6,1.15),POST_X[0]-.06,HALL.postTop-.36,(POST_Z[1]+POST_Z[2])/2,Math.PI/2));
+      root.add(place(bambooBlind(g,2.75,.3),POST_X[0]-.06,HALL.postTop-.36,(POST_Z[2]+POST_Z[3])/2,Math.PI/2));
+      // ——水廊转角一盏纸灯（很暗）
+      root.add(place(cord(g,.4),26.5,3.55,8.4));root.add(place(paperLantern(g,.24,.75),26.5,3.55,8.4));
+      // ——树（位置在 site.ts）：柳只在水边，大树在院角、山后和墙根，松在假山和小岛的石头上
+      for(const w of WILLOWS)root.add(weepingWillow(g,w.x,floor,w.z,w.lean,w.s,w.seed));
+      // 南院西南角的大榉树：往东北探，傍晚的斜阳穿过它的树冠，在榭里落下斑驳的光
+      for(const t of CANOPY)root.add(canopyTree(g,t.x,floor+hillHeight(t.x,t.z),t.z,{h:t.h,spread:t.spread,lean:t.lean,palette:t.palette,cell:t.cell},t.seed));
+      for(const [x,z,s,seed] of [[9.6,-28.6,1.15,41],[17.8,-35.6,1,42],[-1.3,.3,1.1,43]] as const)root.add(pine(g,x,x<0?WATER+1.1:floor+hillHeight(x,z),z,s,seed));
+      // ——竹：靠墙角、墙根，不进院子中间
+      root.add(bambooGrove(g,-4.6,floor,25.6,1.4,16,4.5,6.8,51));root.add(bambooGrove(g,30.4,floor,25.8,1.3,14,4,6,52));
+      // 南院：月洞门东侧墙根一小丛竹、前面一块立石（粉墙前的竹石小景），从厅里往南看不是一片白墙
+      root.add(bambooGrove(g,21.4,floor,25.9,.8,9,3.6,5.4,56));
+      root.add(bambooGrove(g,-10,floor,-41.8,1.6,18,5,7.5,53));root.add(bambooGrove(g,47.6,floor,-41.6,1.5,16,4.5,7,54));
+      root.add(banana(g,27.6,floor,25.4,27));root.add(banana(g,27.2,floor,-27.6,28));
+      // 南墙月洞门外：门里看得见的一丛竹（和 CANOPY 里那棵桂，都在园外，不进碰撞），门洞不是一块白板
+      root.add(bambooGrove(g,17.6,floor,30.4,1.8,20,4.5,6.8,55));
+      // ——水里的：荷只在东北的浅湾和小岛西南一片；菖蒲芦苇在水口两岸和东北湾边
+      root.add(lotusPatch(g,34,-21.6,43.5,-14,34,31));root.add(lotusPatch(g,-7.4,4.6,-3,11.6,16,32));
+      root.add(reeds(g,[[-12.6,4.2],[-11.4,5],[-12.4,-4.2],[-11,-5.2],[44.6,-14.6],[45.4,-12.4],[3.4,-21.4],[-7.8,13.2]],WATER,35));
+      // ——湖石：南院西南角一块立峰（在大树下）、月洞门旁两块小的、小岛上一组、两层楼台角一块
+      root.add(rockery(g,[[-1.6,floor,23.4,1.5],[13.2,floor,25.7,.55],[20.2,floor,25.4,.85],[-2.4,WATER-.2,-.3,1.2],[-.4,WATER-.2,1.6,.9],[-1.2,WATER-.2,-1.6,.7],[28.4,floor,-25.4,.6]],41));
+      // ——灌木：假山上石崖之间的平处、山谷里一团团（不在崖边、不在石阶上），墙根几团
+      const hillShrubs:Array<[number,number,number,number]>=[];{let seed=71;const rr=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+        for(let i=0;i<60&&hillShrubs.length<16;i++){const x=1+rr()*25,z=-40+rr()*15,h=hillHeight(x,z);if(h<1||h>=4.5)continue;
+          if([[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>Math.abs(hillHeight(x+dx*.9,z+dz*.9)-h)>.6))continue;if(hillShrubs.some(([sx,,sz])=>Math.hypot(sx-x,sz-z)<2.4))continue;hillShrubs.push([x,floor+h,z,.55+rr()*.5]);}}
+      root.add(shrubs(g,[...hillShrubs,[-8,floor,-40,1.2],[-13.2,floor,-25,1],[-12.6,floor,-36.5,1.1],[44,floor,24.6,.9],[2,floor,25.6,.8],[40.6,floor,-40.4,1]],61));
+      root.add(ferns(g,shore.crevices.filter((_c,i,a)=>i%Math.max(1,Math.ceil(a.length/40))===0).map(c=>({x:c.x,y:floor-.05,z:c.z,out:c.out})),62));
+      root.add(place(boat(g),17.4,WATER,-.45,.12));
+      root.traverse(o=>{const f=o.userData.animate as ((now:number)=>void)|undefined;if(f)animated.push(f);});
     },
   };
   return room;

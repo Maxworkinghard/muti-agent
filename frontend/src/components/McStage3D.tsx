@@ -24,7 +24,7 @@ import {batchMovingParts} from '../mc/props/batching';
 import {createPropIndirectLight} from '../mc/props/indirectLight';
 import {inspectionCamera} from '../mc/props/inspection';
 import {createPost,type Quality} from '../mc/post';
-import {QUALITY_KEY,savedQuality,nextAutoQuality} from '../mc/quality';
+import {QUALITY_KEY,savedQuality,nextAutoQuality,renderPixelRatio} from '../mc/quality';
 import {createDust,createFakeShafts,type LightRig} from '../mc/volumetric';
 import {createClouds} from '../mc/clouds';
 import {Sounds} from '../mc/sound';
@@ -37,14 +37,15 @@ function storedQuality():Quality|null{try{return savedQuality(localStorage);}cat
 /** 按房间的光线设定摆太阳和半球光：太阳不再跟着辩论进度落山，屋里一直是明亮的白天。 */
 function applyLook(scene:THREE.Scene,env:Environment,look:Look,room:Room):THREE.Mesh|null {
   env.hemi.color.set(look.sky);env.hemi.groundColor.set(look.ground);env.hemi.intensity=look.ambient;
-  const center=new THREE.Vector3((room.bounds.min[0]+room.bounds.max[0])/2,1,(room.bounds.min[2]+room.bounds.max[2])/2);
+  const area=look.shadowArea,center=area?new THREE.Vector3(area.center[0],1,area.center[1]):new THREE.Vector3((room.bounds.min[0]+room.bounds.max[0])/2,1,(room.bounds.min[2]+room.bounds.max[2])/2);
   const az=THREE.MathUtils.degToRad(look.sun.azimuth),el=THREE.MathUtils.degToRad(look.sun.elevation);
   const dir=new THREE.Vector3(Math.cos(el)*Math.cos(az),Math.sin(el),-Math.cos(el)*Math.sin(az)).normalize();
   env.direction.copy(dir);env.elevation=el;
   env.sun.color.set(look.sun.color);env.sun.intensity=look.sun.intensity;env.sun.shadow.intensity=look.sun.shadow;env.sun.shadow.radius=look.outdoor?2.2:3.2;
-  env.sun.position.copy(center).addScaledVector(dir,60);env.sun.target.position.copy(center);env.sun.target.updateMatrixWorld();
-  const half=Math.max(room.bounds.max[0]-room.bounds.min[0],room.bounds.max[2]-room.bounds.min[2])*.75+3;
-  const sc=env.sun.shadow.camera;sc.left=-half;sc.right=half;sc.top=half;sc.bottom=-half;sc.near=1;sc.far=150;sc.updateProjectionMatrix();
+  // 太阳放在阴影范围外面一点，远近两头都包住范围里所有能投影的东西（低角度的太阳要退得更远）。
+  const half=area?.half??Math.max(room.bounds.max[0]-room.bounds.min[0],room.bounds.max[2]-room.bounds.min[2])*.75+3,back=Math.max(60,half*1.6);
+  env.sun.position.copy(center).addScaledVector(dir,back);env.sun.target.position.copy(center);env.sun.target.updateMatrixWorld();
+  const sc=env.sun.shadow.camera;sc.left=-half;sc.right=half;sc.top=half;sc.bottom=-half;sc.near=1;sc.far=Math.max(150,back+half*2.5);sc.updateProjectionMatrix();
   env.daylight=1;
   if(look.outdoor){
     // 真户外：打开天空盒，短软影、晴天蓝，告别绿地毯+死灰天。
@@ -160,16 +161,17 @@ export function McStage3D(props:McStageProps){
         const shafts=createFakeShafts(look?[]:room.windows),dust=createDust(rig),clouds=createClouds(assets.textures.get('environment/clouds.png')!);scene.add(shafts.mesh,dust.points,clouds.mesh);
         // 新画风不要光柱和浮尘：它们把画面蒙上一层灰黄，显得旧。云只在露天看得见。
         if(look){shafts.mesh.visible=false;dust.points.visible=false;clouds.mesh.visible=!!look.outdoor&&!look.skyTop;}
-        const post=createPost(renderer,scene,cam.camera,qualityRef.current,rig,!!look,look?.saturation);
+        const post=createPost(renderer,scene,cam.camera,qualityRef.current,rig,!!look,look?.saturation,look?.bloom);
         const draws=new Map<string,number>();let firstDraw=-1;
         if(import.meta.env.DEV)scene.traverse(o=>{if(!(o instanceof THREE.Mesh))return;let before=0;const prior=o.onBeforeRender;o.onBeforeRender=function(...args){prior.apply(this,args);before=renderer.info.render.calls;if(firstDraw<0)firstDraw=before;};o.onAfterRender=(_r,_s,_c,_g,mat)=>{let owner:THREE.Object3D|null=o;while(owner?.parent&&owner.parent!==scene)owner=owner.parent;const key=(owner?.name||'world')+':'+mat.type;draws.set(key,(draws.get(key)??0)+renderer.info.render.calls-before);};});
         if(import.meta.env.DEV)(window as unknown as {__mcStage:unknown}).__mcStage={scene,renderer,post,env,camera:cam.camera,stageCamera:cam,players,props:stageProps,room,assets};
         let appliedQuality:Quality|null=null;
-        const applyQuality=(q:Quality)=>{if(q===appliedQuality)return;shafts.mesh.visible=!look&&q==='medium';dust.points.visible=!look&&q!=='low';const shadowsChanged=(appliedQuality==='low')!==(q==='low');appliedQuality=q;post.setQuality(q);renderer.setPixelRatio(q==='high'?Math.min(devicePixelRatio,2):1);renderer.transmissionResolutionScale=.5;stageProps.setReflections(q!=='low');stageProps.setEnvironment(q==='low'?null:envTexture,q==='low'?0:.32);players.forEach(p=>{p.material.envMap=q==='low'?null:envTexture;p.material.needsUpdate=true;});env.setShadow(q==='high'?4096:2048);
+        const applyQuality=(q:Quality)=>{if(q===appliedQuality)return;shafts.mesh.visible=!look&&q==='medium';dust.points.visible=!look&&q!=='low';const shadowsChanged=(appliedQuality==='low')!==(q==='low');appliedQuality=q;post.setQuality(q);renderer.transmissionResolutionScale=.5;stageProps.setReflections(q!=='low');stageProps.setEnvironment(q==='low'?null:envTexture,q==='low'?0:.32);players.forEach(p=>{p.material.envMap=q==='low'?null:envTexture;p.material.needsUpdate=true;});env.setShadow(q==='high'?4096:2048);
           lanternLights.forEach((l,i)=>{l.castShadow=room.lights[i].shadow&&q!=='low';const size=q==='high'?1024:512;if(l.shadow.mapSize.x!==size){l.shadow.mapSize.set(size,size);l.shadow.map?.dispose();l.shadow.map=null;}l.shadow.needsUpdate=true;});
           if(shadowsChanged)scene.traverse(o=>{if(o instanceof THREE.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])m.needsUpdate=true;});resize();};
         const galleryBuilder=new Builder();const unique=[...new Map(room.blocks.map(b=>[b.id,b])).values()];unique.forEach((b,i)=>galleryBuilder.put(2+i%9*2,2,3+Math.floor(i/9)*3,b.id,b.props));const gallery=buildBlockMesh(galleryBuilder.connect(),assets,light,shading);gallery.visible=false;scene.add(gallery);
-        const resize=()=>{const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);post.setSize(w,h);cam.camera.aspect=w/h;cam.camera.updateProjectionMatrix();};const observer=new ResizeObserver(resize);observer.observe(host);
+        const resize=()=>{const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;const ratio=renderPixelRatio(appliedQuality??qualityRef.current,devicePixelRatio);renderer.setPixelRatio(ratio);post.setPixelRatio(ratio);renderer.setSize(w,h,false);post.setSize(w,h);cam.camera.aspect=w/h;cam.camera.updateProjectionMatrix();};const observer=new ResizeObserver(resize);observer.observe(host);
+        let dprWatch=matchMedia(`(resolution: ${devicePixelRatio}dppx)`);const onDpr=()=>{dprWatch.removeEventListener('change',onDpr);dprWatch=matchMedia(`(resolution: ${devicePixelRatio}dppx)`);dprWatch.addEventListener('change',onDpr);resize();};dprWatch.addEventListener('change',onDpr);
         applyQuality(qualityRef.current);
         const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
         const hit=(e:PointerEvent)=>{const rect=renderer.domElement.getBoundingClientRect();mouse.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(mouse,cam.camera);let best:string|null=null,bestDistance=Infinity;for(const [id,p] of players){if(!p.root.visible)continue;const box=new THREE.Box3().setFromObject(p.root);const point=ray.ray.intersectBox(box,new THREE.Vector3());if(point){const d=point.distanceTo(ray.ray.origin);if(d<bestDistance){bestDistance=d;best=id;}}}return best;};
@@ -234,6 +236,8 @@ export function McStage3D(props:McStageProps){
           gallery.visible=!!galleryRef.current;glassMesh.visible=staticMesh.visible=entities.root.visible=stageProps.root.visible=propBatches.root.visible=!galleryRef.current;if(!look)ceiling.visible=!galleryRef.current;
           post.outline.selectedObjects=s.focus&&players.has(s.focus)?[players.get(s.focus)!.root]:[];post.outline.visibleEdgeColor.set(teamColor(s.actors[s.focus??'']?.side??'host'));post.outline.hiddenEdgeColor.copy(post.outline.visibleEdgeColor);
           if(qualityRef.current!==appliedQuality)applyQuality(qualityRef.current);
+          // 舞台的 CSS 尺寸不变时 ResizeObserver 不触发，例如只改了屏幕缩放。下一帧补上密度。
+          else if(renderPixelRatio(appliedQuality??qualityRef.current,devicePixelRatio)!==renderer.getPixelRatio())resize();
           // 太阳阴影隔一帧重画一次：人动得慢，看不出差别，能省下一大块填充。
           env.sun.shadow.autoUpdate=false;if(frames%2===0){env.sun.shadow.needsUpdate=true;lanternLights.forEach(l=>{if(l.castShadow)l.shadow.needsUpdate=true;});}
           renderer.shadowMap.needsUpdate=true;renderer.info.reset();draws.clear();firstDraw=-1;if(latest.current.visible!==false)post.render();calls=renderer.info.render.calls;frames++;if(time-measureAt>=1000){fps=frames*1000/(time-measureAt);frames=0;measureAt=time;}
@@ -245,7 +249,7 @@ export function McStage3D(props:McStageProps){
           const hsig=JSON.stringify([s.session,s.bubbles,s.chat,s.title,s.toast,s.focus,s.globalError,Object.values(s.actors).map(a=>[a.id,a.error,a.mind,a.actionText])]);if(time-lastHud>100||hsig!==hudSignature){lastHud=time;hudSignature=hsig;setHud(s);}
           latest.current.onSnapshot?.(s,outputs,{fps,calls,loadedMs,quality:qualityRef.current});raf=requestAnimationFrame(frame);
         };
-        cleanup=()=>{cancelAnimationFrame(raf);observer.disconnect();document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('click',click);renderer.domElement.removeEventListener('pointerleave',leave);cam.dispose();sounds.dispose();players.forEach(p=>p.dispose());particles.dispose();propBatches.dispose();propIndirect.dispose();stageProps.dispose();entities.dispose();document.removeEventListener('pointerdown',outsideDown);disposeObject(staticMesh);disposeObject(glassMesh);disposeObject(ceiling);disposeObject(front);if(roof)disposeObject(roof);if(skyDome){disposeObject(skyDome);((skyDome.material as THREE.MeshBasicMaterial).map)?.dispose();}disposeObject(gallery);lanternLights.forEach(l=>l.dispose());shafts.dispose();dust.dispose();clouds.dispose();env.dispose();envTexture?.dispose();cubeTarget.dispose();pmrem.dispose();post.dispose();renderer.dispose();renderer.domElement.remove();assets?.dispose();};
+        cleanup=()=>{cancelAnimationFrame(raf);observer.disconnect();dprWatch.removeEventListener('change',onDpr);document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('click',click);renderer.domElement.removeEventListener('pointerleave',leave);cam.dispose();sounds.dispose();players.forEach(p=>p.dispose());particles.dispose();propBatches.dispose();propIndirect.dispose();stageProps.dispose();entities.dispose();document.removeEventListener('pointerdown',outsideDown);disposeObject(staticMesh);disposeObject(glassMesh);disposeObject(ceiling);disposeObject(front);if(roof)disposeObject(roof);if(skyDome){disposeObject(skyDome);((skyDome.material as THREE.MeshBasicMaterial).map)?.dispose();}disposeObject(gallery);lanternLights.forEach(l=>l.dispose());shafts.dispose();dust.dispose();clouds.dispose();env.dispose();envTexture?.dispose();cubeTarget.dispose();pmrem.dispose();post.dispose();renderer.dispose();renderer.domElement.remove();assets?.dispose();};
         // 开场前先把着色器编译完（Windows 上走 D3D 编译很慢），免得第一帧卡好几秒。
         const disposeStage=cleanup;cleanup=()=>{spectator.dispose();spectatorRef.current=null;cameraRef.current=null;disposeStage();};
         setProgress({n:.85,step:'准备画面'});captureEnvironment();envProgress=0;await renderer.compileAsync(scene,cam.camera);if(disposed)return;

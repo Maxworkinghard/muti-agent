@@ -12,6 +12,9 @@ export const hex=(c:number[])=>'#'+c.map(v=>clamp(v).toString(16).padStart(2,'0'
 export function tone(color:string,k:number){const c=rgb(color);if(k<1)return hex([c[0]*k*.97,c[1]*k*.99,c[2]*k*1.03]);return hex(c.map((v,i)=>v+(255-v)*(k-1)*(i===2?.85:1)));}
 export function blend(a:string,b:string,t:number){const x=rgb(a),y=rgb(b);return hex(x.map((v,i)=>v+(y[i]-v)*t));}
 export function rng(seed:number){let s=(seed>>>0)||1;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
+/** 平滑的值噪声（格点随机 + 双线性），远景地形起伏用。 */
+export function valueNoise(seed:number){const cache=new Map<string,number>();const at=(i:number,j:number)=>{const k=i+','+j;let v=cache.get(k);if(v===undefined){v=rng((i*73856093)^(j*19349663)^seed)();cache.set(k,v);}return v;};
+  return (x:number,z:number)=>{const i=Math.floor(x),j=Math.floor(z),fx=x-i,fz=z-j,sx=fx*fx*(3-2*fx),sz=fz*fz*(3-2*fz);const a=at(i,j),b=at(i+1,j),c=at(i,j+1),d=at(i+1,j+1);return a+(b-a)*sx+(c-a)*sz+(a-b-c+d)*sx*sz;};}
 /** 从色板里按权重挑一个颜色。 */
 export function pick(r:()=>number,colors:string[],weights?:number[]){const w=weights??colors.map(()=>1),sum=w.reduce((a,b)=>a+b,0);let n=r()*sum;for(let i=0;i<colors.length;i++){n-=w[i];if(n<0)return colors[i];}return colors[colors.length-1];}
 

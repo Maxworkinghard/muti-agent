@@ -55,7 +55,9 @@ export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):Stage
   root.userData.surfaces={style:'flat-pixel',floor:room.floorArt?'pixel-art':'blocks',board:style};
   return {root,contacts,fixtures:[],beamScale:0,
     update(s){for(const c of chairs)c.g.position.copy(c.home).addScaledVector(c.back,c.slide*(1-(s.sit[c.actor]??1)));if(water)water.offset.y=1-(Math.floor(s.now/100)%waterFrames+1)/waterFrames;room.animate?.(s.now);drawInfo(s);},
-    setEnvironment(map,intensity=.15){for(const m of [...k.owned,...owned])if(m instanceof THREE.MeshStandardMaterial){m.envMap=map;m.envMapIntensity=intensity;m.needsUpdate=true;}},setReflections(){},
+    setEnvironment(map,intensity=.15){for(const m of [...k.owned,...owned])if(m instanceof THREE.MeshStandardMaterial){m.envMap=map;m.envMapIntensity=intensity;m.needsUpdate=true;}},
+    // 房间自己的实时倒影（比如湖面）挂在物件的 userData.setReflections 上，低画质时停掉
+    setReflections(enabled){root.traverse(o=>(o.userData.setReflections as ((on:boolean)=>void)|undefined)?.(enabled));},
     createBook(){return createHandBook(assets,(name,make)=>{let mat=bookMaterials.get(name);if(!mat){mat=keep(make());bookMaterials.set(name,mat);}return mat;});},
-    dispose(){root.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});[...k.owned,...owned].forEach(o=>o.dispose());}};
+    dispose(){root.traverse(o=>{(o.userData.dispose as (()=>void)|undefined)?.();if(o instanceof THREE.Mesh)o.geometry.dispose();});[...k.owned,...owned].forEach(o=>o.dispose());}};
 }

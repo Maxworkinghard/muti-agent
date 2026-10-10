@@ -121,3 +121,5 @@ export const V2_BLOCK_PAINT:Record<string,Painter>={
 /** 方便检查：v2 只认这些贴图。 */
 export const V2_PAINTED=new Set(Object.keys(V2_BLOCK_PAINT));
 export {blend};
+/** 画法工具（各场景按自己的色板组合出自己的贴图表）。 */
+export {ashlar,cobble,planks,vertical,rings,bark,noise,grassTop,leaves,plant};

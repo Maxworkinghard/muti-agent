@@ -9,7 +9,8 @@
  *   - 扶手内侧 ±0.43：宽肩 / 厚毛衣的胳膊外沿约 ±0.40，手势往外摆还留 3 厘米。
  * 椅子 id、slide、碰撞箱（physics）都不在这里，房间照旧给。
  * 款式：meeting 会议木椅（自然木 + 低饱和布垫）、office 现代办公椅（雪橇底，脚下没有五爪）、classroom 浅木课椅、
- *       debate 稳重的正式座椅（深胡桃 + 软包 + 铜钉）、outdoor 户外木椅（风化木条）、lounge 软包扶手椅（播客）。
+ *       debate 稳重的正式座椅（深胡桃 + 软包 + 铜钉）、outdoor 户外木椅（风化木条）、lounge 软包扶手椅（播客）、
+ *       garden 园林茶椅（圆桌水榭：和圆桌同一套榉木、马蹄足、S 形靠背板、无扶手）。
  */
 import * as THREE from 'three';
 import {SEAT_H} from '../avatar/rig';
@@ -37,9 +38,11 @@ const mesh:Painter=p=>{p.fill('#3f444b');for(let y=0;y<16;y+=2)for(let x=(y%4?1:
 /** 布面：浅底（颜色由材质色乘上去），一道很淡的斜纹，没有砖缝一样的横竖线 */
 const cloth:Painter=p=>{p.fill('#ede7db');for(let y=0;y<16;y++)for(let x=0;x<16;x++)if((x+y*3)%8===0)p.px(x,y,'#e1d9ca');for(let x=0;x<16;x+=8)p.px(x+3,(x*5)%16,'#f6f1e6');};
 
-export type ChairKind='meeting'|'office'|'classroom'|'debate'|'outdoor'|'lounge';
+export type ChairKind='meeting'|'office'|'classroom'|'debate'|'outdoor'|'lounge'|'garden';
 /** 低饱和的布垫色（会议椅、办公椅）：灰过的砖红、灰蓝、麦黄、灰绿、灰紫、灰青、陶土、亚麻 */
 export const SOFT_FABRIC=['#9a6c60','#62738a','#a4926a','#6f8269','#7c6a7a','#5f7c79','#a07a5e','#b9ae98'];
+/** 园林茶椅和圆桌共用的木料（榉木）：桌面板四种深浅、边框、腿、亮面（roundtable/furnish.ts 的圆桌也用这一组） */
+export const GARDEN_WOOD={top:['#8a5f3e','#94683f','#82593a','#8e6340'],edge:'#6f4a30',leg:'#5e3f2b',light:'#a57a52'};
 
 /** 每个道具 Kit 配一个 v2 工具（材质缓存、统一释放），椅子用它画像素贴图 */
 const kits=new WeakMap<object,V2Kit>();
@@ -139,10 +142,41 @@ function lounge(k:V2Kit,fabric:string){
   return g;
 }
 
-/** 造一把椅子。fabric 是布面颜色（会议、办公、辩论、播客用；课椅、户外椅是纯木的，不用）。 */
+/**
+ * 园林茶椅（圆桌水榭，第二轮）：和圆桌同一套木料、同一种马蹄足和牙板——灯挂椅的意思但更矮：
+ * 细方腿（后腿一直通到搭脑、座面以上微微往后仰），座框冰盘沿 + 一块素色软垫，座下前面一道券口牙子，
+ * 两侧和后面低处各一道横枨（前面不设低枨，脚和小腿有地方放）；靠背是一块 S 形的靠背板，搭脑两头略微挑出。无扶手。
+ */
+function garden(k:V2Kit,fabric:string){
+  const g=new THREE.Group();g.name='chair-garden';
+  const W=GARDEN_WOOD,legV=k.mat('chair-garden-leg',p=>{p.fill(W.leg);p.rect(7,0,1,16,tone(W.leg,1.1));p.rect(3,2,1,8,tone(W.leg,.88)).rect(11,6,1,7,tone(W.leg,.88));}),
+    legH=k.mat('chair-garden-rail',p=>{p.fill(W.edge);p.rect(0,7,16,1,tone(W.edge,1.1));p.rect(2,3,8,1,tone(W.edge,.88)).rect(6,11,7,1,tone(W.edge,.88));}),
+    splat=k.mat('chair-garden-splat',p=>{p.fill(W.top[1]);for(const [y,x,l] of [[2,3,9],[6,1,7],[10,6,8],[13,2,6]] as const)p.rect(x,y,l,1,tone(W.top[1],.9));p.rect(0,0,1,16,tone(W.top[1],.82)).rect(15,0,1,16,tone(W.top[1],.82));}),
+    cush=k.mat('chair-cloth',cloth,{color:fabric});
+  const zf=CHAIR.front-.03,zb=CHAIR.back-.02,L=.036,X=.2;
+  // 腿：前腿到座面；后腿到座面后继续往上、往后仰一点到搭脑
+  for(const x of [-X,X]){k.box(g,L,S-.05,L,legV,x,(S-.05)/2,zf,PX);k.box(g,L,S-.05,L,legV,x,(S-.05)/2,zb,PX);
+    const up=k.box(g,L-.004,TOP-S+.05,L-.004,legV,x,S-.05+(TOP-S+.05)/2,zb-.02,PX);up.rotation.x=-.05;
+    // 马蹄足：脚下一小块往里勾
+    for(const z of [zf,zb])k.box(g,L+.012,.03,L+.012,legV,x-Math.sign(x)*.004,.015,z+(z===zf?-.004:.004),PX);}
+  // 座框（四面冰盘沿）+ 座面 + 布垫（顶面正好 S）
+  k.box(g,2*X+.05,.032,zf-zb+.06,legH,0,S-.044,ZC,PX);k.box(g,2*X+.034,.012,zf-zb+.044,legH,0,S-.066,ZC,PX);
+  k.box(g,2*X-.01,.026,zf-zb+.02,cush,0,S-.013,ZC+.002,PX);
+  // 券口牙子：座下前面一道窄板，两头深、中间浅（三段）
+  k.box(g,.09,.05,.016,legH,-X+.065,S-.1,zf+.006,PX);k.box(g,.09,.05,.016,legH,X-.065,S-.1,zf+.006,PX);k.box(g,2*X-.2,.026,.016,legH,0,S-.088,zf+.006,PX);
+  // 横枨：两侧离地 0.15、后面离地 0.22（前面空着）
+  for(const x of [-X,X])k.box(g,.022,.022,zf-zb,legH,x,.15,(zf+zb)/2,PX);
+  k.box(g,2*X,.022,.022,legH,0,.22,zb,PX);
+  // 靠背：S 形靠背板（三段，下段往后、中段竖直、上段往后仰）+ 搭脑（两头挑出一点）
+  const back=(y0:number,y1:number,z0:number,z1:number)=>{const l=Math.hypot(y1-y0,z1-z0),m=k.box(g,.15,l,.016,splat,0,(y0+y1)/2,(z0+z1)/2,PX);m.rotation.x=Math.atan2(z1-z0,y1-y0);};
+  back(S+.03,S+.1,zb+.004,zb-.006);back(S+.1,TOP-.12,zb-.006,zb-.012);back(TOP-.12,TOP-.035,zb-.012,zb-.03);
+  k.box(g,2*X+.11,.036,.04,legH,0,TOP-.018,zb-.03,PX);for(const s of [-1,1])k.box(g,.04,.03,.04,legH,s*(X+.07),TOP-.008,zb-.03,PX);
+  return g;
+}
+/** 造一把椅子。fabric 是布面颜色（会议、办公、辩论、播客、园林茶椅用；课椅、户外椅是纯木的，不用）。 */
 export function makeChair(kit:Kit|V2Kit,kind:ChairKind,fabric='#8a8478'){
   const k=chairKit(kit);
-  const g=kind==='office'?office(k,fabric):kind==='classroom'?classroom(k):kind==='debate'?debate(k,fabric):kind==='outdoor'?outdoor(k):kind==='lounge'?lounge(k,fabric):meeting(k,fabric);
+  const g=kind==='garden'?garden(k,fabric):kind==='office'?office(k,fabric):kind==='classroom'?classroom(k):kind==='debate'?debate(k,fabric):kind==='outdoor'?outdoor(k):kind==='lounge'?lounge(k,fabric):meeting(k,fabric);
   g.userData.chair={kind,seat:SEAT_H,front:CHAIR.front,back:CHAIR.back,armIn:CHAIR.armIn,top:CHAIR.backTop};
   return g;
 }

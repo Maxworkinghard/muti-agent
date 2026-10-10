@@ -69,14 +69,14 @@ DiscussionView / stage-lab / mc-lab
 
 | 路径 | 当前关系 | 保留与迁移条件 |
 |---|---|---|
-| `v2/roundtable/` | 唯一 3D 房间实现，三个场景入口使用同一份 | 仍是未完成样板，保留并不代表用户视觉验收 |
+| `v2/roundtable/` | 唯一 3D 房间（第二轮：围合的园林水面）。`site`（总平面、岸线多边形）、`structure` + `terrain`（方块：主榭、月台、水廊、曲桥、南院、园路、驳岸、假山）、`timber`（主榭和水廊的细木作、屋面、六角亭）、`garden`（园墙与月洞门、山顶方亭、两层楼、北廊、石拱桥）、`shore`（驳岸和崖面叠石）、`water`（自写着色的倒影水面）、`scenery`（天穹和园外远景）、`flora` / `floor` / `furnish` / `paint` / `mesh`，由 `index.ts` 装成 Room | 仍是未完成样板，保留并不代表用户视觉验收。交接见 [ROUNDTABLE_GARDEN.md](docs/design/ROUNDTABLE_GARDEN.md) |
 | `rooms/` | Builder、Room 类型、验证、物理和唯一登记入口 | 没有旧房间构造器或版本回退 |
 | `player.ts → avatar/ → skin.ts` | 共同人物构造/表情路径，圆桌与人物实验台使用 | 已接入不代表美术获批；保留 33 人 look 与 fallback |
 | `props/chairs.ts` / `props/floors.ts` | 圆桌和 avatar-lab 共用的椅子/地面 | 当前几何、造型与颜色保持原样 |
 
 “只保留圆桌重建版”是用户明确的场景收敛决定，不是 Agent 自行判断旧版审美较差。四种讨论业务和全部 2D 场景继续存在；圆桌 v2 尚未完成，也未通过视觉验收。历史归档和 Git 恢复基线用于追溯，不再作为当前场景任务。
 
-边界契约：`bounds` 保留室内净空间与角色行走/寻路范围；`flight ?? bounds` 是自由相机范围，移动时保留相机半径余量。`RoomPhysics` 从真实方块模型及家具生成碰撞体，在飞行范围内仍逐步检查实体碰撞；椅垫和椅背不再按名称跳过。圆桌现有边界和默认机位保持原样；真实物理及浏览器验证见 [收敛记录](docs/MAINTENANCE_AUDIT.md#圆桌-3d-收敛用户调整范围)。
+边界契约：`bounds` 是柱线以内的行走/寻路范围，`flight ?? bounds` 是自由相机范围，移动时保留相机半径余量。`RoomPhysics` 从真实方块模型及家具生成碰撞体，在飞行范围内仍逐步检查实体碰撞；椅垫和椅背不再按名称跳过。默认机位、行走范围和飞行范围以 `v2/roundtable/site.ts` 的 `VIEW` 和 `index.ts` 里的 `bounds` / `flight` 为准（第二轮 flight 是园墙以内）。水廊屋面、园墙、北岸楼亭和拱桥是道具网格，不占方块；镜头碰撞写在 `occluders` 里（`garden.ts::gardenOccluders`），人在廊内的高度不会被屋顶挡住。方块光照网格的范围随方块往负方向扩展（`light.ts`）；`Look.shadowArea` 可以把太阳阴影罩到中景，`Look.bloom` 可以压低泛光。主榭方块屋顶仍然挡镜头。水面实时倒影挂在网格的 `userData.setReflections` 上，`styledProps.setReflections` 在低画质时关掉；同物件的 `userData.dispose` 释放水面几何、材质和倒影目标。`mc-lab` 用查询参数 `cast` 只请指定人物入座。真实物理及浏览器验证见 [收敛记录](docs/MAINTENANCE_AUDIT.md#圆桌-3d-收敛用户调整范围) 和 [第一轮交接](docs/design/ROUNDTABLE_GARDEN.md)。
 
 ## 实验、构建与维护
 
