@@ -25,6 +25,8 @@ export interface Room {
   kind?:McSceneKind; title?:string; outdoor?:boolean; standingSeats?:number[]; seatedSpeech?:boolean;
   /** 新画风：光线、按色板重画的方块贴图（贴图名 → 画法）、地面图（每米 16 像素，画在 floor 那块饰面上） */
   look?:Look; paint?:Record<string,Painter>; floorArt?:(c:CanvasRenderingContext2D,w:number,d:number)=>void;
+  /** 地面图的光泽（不设是 0.95 的哑光）：粗糙度，以及环境反射比别的物件强几倍（打磨过的金砖、上了蜡的地板） */
+  floorFinish?:{roughness:number;env?:number};
   /** 剖面俯视时藏起来的方块：朝镜头的那面墙。默认机位在屋外高处，从这里往里看。 */
   cutaway?:Block[];
   /** 全景的基础竖直视角（度）；剖面俯视的机位离得远，用窄一点的视角减少透视变形。 */

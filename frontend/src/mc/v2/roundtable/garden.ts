@@ -31,7 +31,10 @@ const stepLattice:Draw=(c,w,h)=>{c.clearRect(0,0,w,h);const f=Wd.base;R(c,0,0,w,
 function wallPlaster(k:V2Kit){
   const key='rt-wall-plaster-64',cached=wallMats.get(k);if(cached)return cached;
   const N=64,cv=document.createElement('canvas');cv.width=cv.height=N;const c=cv.getContext('2d')!,P=GARDEN.plaster,n=valueNoise(611);
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=n(x/9,y/9)*.6+n(x/23,y/23)*.4,damp=Math.max(0,(y-46)/18);c.fillStyle=blend(v<.28?blend(P.base,P.light,.35):P.base,P.shade,(v>.72?.22:0)+damp*.3);c.fillRect(x,N-1-y,1,1);}
+  // y 是从下往上数的像素行（贴图每 4 米一铺，墙身从离地 0.5 米到 3.2 米，对应 y 8–51）：墙脚 8–18 返潮，瓦顶下 44–51 几道雨痕
+  const streak=(x:number)=>{const k=((x*37)%11)/11;return k<.18?1:k<.27?.5:0;};
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=n(x/9,y/9)*.6+n(x/23,y/23)*.4,damp=Math.max(0,Math.min(1,(19-y)/9))*(.7+n(x/5,3)*.6),rain=y>=40?streak(x)*Math.min(1,(y-40)/8)*(.6+n(x/3,y/6)*.4):0;
+    c.fillStyle=blend(blend(v<.28?blend(P.base,P.light,.35):P.base,P.shade,(v>.72?.22:0)+damp*.55+rain*.45),'#b9b3a6',damp*.18);c.fillRect(x,N-1-y,1,1);}
   const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestMipmapNearestFilter;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(1/4,1/4);
   const m=new THREE.MeshStandardMaterial({map:t,roughness:.95,metalness:0});m.name=key;k.owned.push(t,m);wallMats.set(k,m);return m;
 }
@@ -40,7 +43,7 @@ const wallMats=new WeakMap<V2Kit,THREE.MeshStandardMaterial>();
 interface Shared {k:V2Kit;g:THREE.Group;M:Mats;plaster:TexBoxes;brick:TexBoxes;tile:TexBoxes;stone:TexBoxes}
 
 // ——园墙
-const WALL_T=.4,WALL_H=3.2,BASE_H=.5;
+export const WALL_T=.4,WALL_H=3.2,BASE_H=.5;
 interface Run {id:string;along:'x'|'z';fixed:number;from:number;to:number;gates:Array<{at:number;r:number}>;windows:Array<{at:number;kind:number}>;ends?:boolean}
 const RUNS:Run[]=[
   {id:'north',along:'x',fixed:WALLS.north+.3,from:WALLS.west,to:WALLS.east,gates:[{at:WALLS.gateNorth,r:1.2}],windows:[]},

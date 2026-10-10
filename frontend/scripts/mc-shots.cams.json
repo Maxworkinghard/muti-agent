@@ -1,6 +1,6 @@
 {
   "roundtable": {
-    "_说明": "水上园林茶叙榭（第二轮）：fixed 从西北水面看主榭（跨轮次不变，用来对比）；details 依次是：坐在南面 2 号席往北看（seat，用 --cast 只请两个样板时这一席是空的）、坐在东面 0 号席往西看水口拱桥和河道尽头的塔（borrow，同样用 --cast 拍）、从水廊里回看主榭（corridor）、从北岸两层楼平台跨水面看主榭（shore）、西北高处俯瞰全园（aerial）、坐着的人近景（seated）、北面中间一跨望北岸（lake）、南院月洞门（gate）、水上看假山和山顶方亭（hill）、西北岸柳下看主榭（west）、厅内地面全景（floor）、厅内往东北看廊屋交接（junctionin）、坐在南面 2 号席看 6、7 号席上的两个精修样板（samples），从东南看 6 号席的脸（samplesa）、从北面看 7 号席的脸（samplesb），这三张都用 --cast=hao-hao@6,leng-cui@7 拍。默认机位是房间自己的 overview（主圆桌视角）。",
+    "_说明": "水上园林茶叙榭（第二轮）：fixed 从西北水面看主榭（跨轮次不变，用来对比）；details 依次是：坐在南面 2 号席往北看（seat，用 --cast 只请两个样板时这一席是空的）、坐在东面 0 号席往西看水口拱桥和河道尽头的塔（borrow，同样用 --cast 拍）、从水廊里回看主榭（corridor）、从北岸两层楼平台跨水面看主榭（shore）、西北高处俯瞰全园（aerial）、坐着的人近景（seated）、北面中间一跨望北岸（lake）、南院月洞门（gate）、水上看假山和山顶方亭（hill）、西北岸柳下看主榭（west）、厅内地面全景（floor）、厅内往东北看廊屋交接（junctionin）、坐在南面 2 号席看 6、7 号席上的两个精修样板（samples），从东南看 6 号席的脸（samplesa）、从北面看 7 号席的脸（samplesb），这三张都用 --cast=hao-hao@6,leng-cui@7 拍；南院西段的粉墙、漏窗和墙上的爬山虎（court）。默认机位是房间自己的 overview（主圆桌视角）。",
     "fixed": {"pos": [1.5, 6.5, -9.5], "target": [16, 3.2, 11], "fov": 48},
     "details": [
       {"name": "seat", "pos": [15.1, 2.2, 14.5], "target": [16.4, 2.5, -24], "fov": 60},
@@ -17,7 +17,8 @@
       {"name": "junctionin", "pos": [14, 3.2, 14], "target": [24.5, 4.3, 3], "fov": 30},
       {"name": "samples", "pos": [15.2, 2.3, 14.2], "target": [17.4, 2.05, 11], "fov": 40},
       {"name": "samplesa", "pos": [17.2, 2.3, 14.2], "target": [16.95, 2.05, 10.57], "fov": 34},
-      {"name": "samplesb", "pos": [17.4, 2.6, 8.3], "target": [18.04, 2.05, 11.81], "fov": 34}
+      {"name": "samplesb", "pos": [17.4, 2.6, 8.3], "target": [18.04, 2.05, 11.81], "fov": 34},
+      {"name": "court", "pos": [16, 2.2, 20.6], "target": [8.5, 2.3, 26.6], "fov": 58}
     ]
   }
 }

@@ -14,9 +14,10 @@ export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):Stage
   const root=new THREE.Group();root.name='styled-props';
   const k=createKit(assets),flat=createFlatBatch(),dynamic=new Set<THREE.Object3D>(),owned:Array<THREE.Material|THREE.Texture>=[flat];
   const keep=<T extends THREE.Material|THREE.Texture>(x:T)=>{owned.push(x);return x;};
+  const floorMats=new Set<THREE.Material>(),floorEnv=room.floorFinish?.env??1;
   // 地面图：每米 16 像素，最近邻放大，和方块贴图一样是清楚的像素格。
   if(room.floorArt)for(const f of room.floor){const w=f.x1-f.x0,d=f.z1-f.z0,art=room.floorArt;
-    const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);const fm=k.pixels(w*16,d*16,c=>art(c,w,d));
+    const g=new THREE.PlaneGeometry(w,d);g.rotateX(-Math.PI/2);const fm=k.pixels(w*16,d*16,c=>art(c,w,d));if(room.floorFinish){fm.roughness=room.floorFinish.roughness;floorMats.add(fm);}
     // 地面图贴着方块地面（离地 2 毫米），深度往镜头这边偏一点，不和方块顶面打架；人的鞋底在 y=1，不会陷进地面图里
     fm.polygonOffset=true;fm.polygonOffsetFactor=-1;fm.polygonOffsetUnits=-2;
     const quad=mesh(g,fm,(f.x0+f.x1)/2,f.y,(f.z0+f.z1)/2,false);quad.name='floor-art';root.add(quad);}
@@ -55,7 +56,7 @@ export function createStyledProps(room:Room,cast:PropCast[],assets:Assets):Stage
   root.userData.surfaces={style:'flat-pixel',floor:room.floorArt?'pixel-art':'blocks',board:style};
   return {root,contacts,fixtures:[],beamScale:0,
     update(s){for(const c of chairs)c.g.position.copy(c.home).addScaledVector(c.back,c.slide*(1-(s.sit[c.actor]??1)));if(water)water.offset.y=1-(Math.floor(s.now/100)%waterFrames+1)/waterFrames;room.animate?.(s.now);drawInfo(s);},
-    setEnvironment(map,intensity=.15){for(const m of [...k.owned,...owned])if(m instanceof THREE.MeshStandardMaterial){m.envMap=map;m.envMapIntensity=intensity;m.needsUpdate=true;}},
+    setEnvironment(map,intensity=.15){for(const m of [...k.owned,...owned])if(m instanceof THREE.MeshStandardMaterial){m.envMap=map;m.envMapIntensity=floorMats.has(m)?intensity*floorEnv:intensity;m.needsUpdate=true;}},
     // 房间自己的实时倒影（比如湖面）挂在物件的 userData.setReflections 上，低画质时停掉
     setReflections(enabled){root.traverse(o=>(o.userData.setReflections as ((on:boolean)=>void)|undefined)?.(enabled));},
     createBook(){return createHandBook(assets,(name,make)=>{let mat=bookMaterials.get(name);if(!mat){mat=keep(make());bookMaterials.set(name,mat);}return mat;});},

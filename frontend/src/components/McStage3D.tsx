@@ -161,7 +161,7 @@ export function McStage3D(props:McStageProps){
         const shafts=createFakeShafts(look?[]:room.windows),dust=createDust(rig),clouds=createClouds(assets.textures.get('environment/clouds.png')!);scene.add(shafts.mesh,dust.points,clouds.mesh);
         // 新画风不要光柱和浮尘：它们把画面蒙上一层灰黄，显得旧。云只在露天看得见。
         if(look){shafts.mesh.visible=false;dust.points.visible=false;clouds.mesh.visible=!!look.outdoor&&!look.skyTop;}
-        const post=createPost(renderer,scene,cam.camera,qualityRef.current,rig,!!look,look?.saturation,look?.bloom);
+        const post=createPost(renderer,scene,cam.camera,qualityRef.current,rig,!!look,{saturation:look?.saturation,bloom:look?.bloom,ao:look?.ao});
         const draws=new Map<string,number>();let firstDraw=-1;
         if(import.meta.env.DEV)scene.traverse(o=>{if(!(o instanceof THREE.Mesh))return;let before=0;const prior=o.onBeforeRender;o.onBeforeRender=function(...args){prior.apply(this,args);before=renderer.info.render.calls;if(firstDraw<0)firstDraw=before;};o.onAfterRender=(_r,_s,_c,_g,mat)=>{let owner:THREE.Object3D|null=o;while(owner?.parent&&owner.parent!==scene)owner=owner.parent;const key=(owner?.name||'world')+':'+mat.type;draws.set(key,(draws.get(key)??0)+renderer.info.render.calls-before);};});
         if(import.meta.env.DEV)(window as unknown as {__mcStage:unknown}).__mcStage={scene,renderer,post,env,camera:cam.camera,stageCamera:cam,players,props:stageProps,room,assets};

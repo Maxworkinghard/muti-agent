@@ -31,6 +31,8 @@ export interface Look {
   shadowArea?:{center:[number,number];half:number};
   /** 泛光强度（默认按画风取 0.16）：不想靠泛光造氛围的房间压低 */
   bloom?:number;
+  /** 屏幕空间环境光遮蔽的强度（高画质才算，默认 0.28）：墙角、柱脚、椅腿和地面交接处的那一圈暗 */
+  ao?:number;
 }
 const clamp=(n:number)=>Math.max(0,Math.min(255,Math.round(n)));
 const rgb=(hex:string)=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));

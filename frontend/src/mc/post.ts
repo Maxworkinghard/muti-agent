@@ -20,8 +20,10 @@ export {warmLut} from '../rendering/postCommon';
 export type Quality='high'|'medium'|'low';
 export const QUALITY_LABEL:Record<Quality,string>={high:'高',medium:'中',low:'低'};
 export interface Post {composer:EffectComposer;outline:OutlinePass;quality:Quality;setQuality(q:Quality):void;setSize(w:number,h:number):void;setPixelRatio(ratio:number):void;setFocus(distance:number|null):void;render():void;dispose():void}
-/** styled：带色板的新画风——干净的调色表，不加光柱和景深，环境光遮蔽只留一点接触阴影。 */
-export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.PerspectiveCamera,quality:Quality,rig:LightRig,styled=false,saturation?:number,bloomStrength?:number):Post {
+/** 带色板的新画风（styled）的参数：调色表的饱和度、泛光强度、环境光遮蔽强度（默认只留一点接触阴影）。 */
+export interface StyledPost {saturation?:number;bloom?:number;ao?:number}
+/** styled：带色板的新画风——干净的调色表，不加光柱和景深，环境光遮蔽按房间给的强度。 */
+export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.PerspectiveCamera,quality:Quality,rig:LightRig,styled=false,o:StyledPost={}):Post {
   const composer=new EffectComposer(renderer);
   const render=new ScenePass(scene,camera),depth=render.target.depthTexture!;
   // 环境光遮蔽用场景的深度反推法线；构造时直接传深度会因为 0.186 的一个空引用出错，所以先建好再换。
@@ -35,8 +37,8 @@ export function createPost(renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera
   bokeh.render=(r,writeBuffer,readBuffer)=>{const u=bokeh.uniforms as Record<string,THREE.IUniform>;u.tColor.value=readBuffer.texture;u.nearClip.value=camera.near;u.farClip.value=camera.far;r.setRenderTarget(bokeh.renderToScreen?null:writeBuffer);if(!bokeh.renderToScreen)r.clear();(bokeh as unknown as {_fsQuad:{render(r:THREE.WebGLRenderer):void}})._fsQuad.render(r);};
   const bloom=new UnrealBloomPass(new THREE.Vector2(512,512),.055,.35,1.3);
   const outline=new OutlinePass(new THREE.Vector2(1,1),scene,camera);outline.edgeStrength=4;outline.edgeGlow=.6;outline.edgeThickness=1;
-  if(styled){gtao.updateGtaoMaterial({radius:.28,distanceExponent:1.4,thickness:1,scale:.28,samples:12});bloom.strength=bloomStrength??.16;bloom.radius=.28;bloom.threshold=.95;}
-  const output=new OutputPass(),lut=new LUTPass({lut:styled?cleanLut(32,saturation):warmLut(),intensity:1});
+  if(styled){gtao.updateGtaoMaterial({radius:.28,distanceExponent:1.4,thickness:1,scale:o.ao??.28,samples:12});bloom.strength=o.bloom??.16;bloom.radius=.28;bloom.threshold=.95;}
+  const output=new OutputPass(),lut=new LUTPass({lut:styled?cleanLut(32,o.saturation):warmLut(),intensity:1});
   const smaa=new SMAAPass();
   const sanitize=new ShaderPass(SANITIZE,'tNone');sanitize.uniforms.tDiffuse.value=render.target.texture;
   for(const pass of [render,sanitize,gtao,volume,bokeh,bloom,outline,output,lut,smaa])composer.addPass(pass);

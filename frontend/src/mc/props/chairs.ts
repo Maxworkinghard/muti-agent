@@ -42,7 +42,7 @@ export type ChairKind='meeting'|'office'|'classroom'|'debate'|'outdoor'|'lounge'
 /** 低饱和的布垫色（会议椅、办公椅）：灰过的砖红、灰蓝、麦黄、灰绿、灰紫、灰青、陶土、亚麻 */
 export const SOFT_FABRIC=['#9a6c60','#62738a','#a4926a','#6f8269','#7c6a7a','#5f7c79','#a07a5e','#b9ae98'];
 /** 园林茶椅和圆桌共用的木料（榉木）：桌面板四种深浅、边框、腿、亮面（roundtable/furnish.ts 的圆桌也用这一组） */
-export const GARDEN_WOOD={top:['#8a5f3e','#94683f','#82593a','#8e6340'],edge:'#6f4a30',leg:'#5e3f2b',light:'#a57a52'};
+export const GARDEN_WOOD={top:['#6f4a35','#78513a','#6a4632','#734d37'],edge:'#5a3b2b',leg:'#4b3225',light:'#8a644c'};
 
 /** 每个道具 Kit 配一个 v2 工具（材质缓存、统一释放），椅子用它画像素贴图 */
 const kits=new WeakMap<object,V2Kit>();
@@ -149,9 +149,9 @@ function lounge(k:V2Kit,fabric:string){
  */
 function garden(k:V2Kit,fabric:string){
   const g=new THREE.Group();g.name='chair-garden';
-  const W=GARDEN_WOOD,legV=k.mat('chair-garden-leg',p=>{p.fill(W.leg);p.rect(7,0,1,16,tone(W.leg,1.1));p.rect(3,2,1,8,tone(W.leg,.88)).rect(11,6,1,7,tone(W.leg,.88));}),
-    legH=k.mat('chair-garden-rail',p=>{p.fill(W.edge);p.rect(0,7,16,1,tone(W.edge,1.1));p.rect(2,3,8,1,tone(W.edge,.88)).rect(6,11,7,1,tone(W.edge,.88));}),
-    splat=k.mat('chair-garden-splat',p=>{p.fill(W.top[1]);for(const [y,x,l] of [[2,3,9],[6,1,7],[10,6,8],[13,2,6]] as const)p.rect(x,y,l,1,tone(W.top[1],.9));p.rect(0,0,1,16,tone(W.top[1],.82)).rect(15,0,1,16,tone(W.top[1],.82));}),
+  const W=GARDEN_WOOD,legV=k.mat('chair-garden-leg',p=>{p.fill(W.leg);p.rect(7,0,1,16,tone(W.leg,1.1));p.rect(3,2,1,8,tone(W.leg,.88)).rect(11,6,1,7,tone(W.leg,.88));},{rough:.5}),
+    legH=k.mat('chair-garden-rail',p=>{p.fill(W.edge);p.rect(0,7,16,1,tone(W.edge,1.1));p.rect(2,3,8,1,tone(W.edge,.88)).rect(6,11,7,1,tone(W.edge,.88));},{rough:.5}),
+    splat=k.mat('chair-garden-splat',p=>{p.fill(W.top[1]);for(const [y,x,l] of [[2,3,9],[6,1,7],[10,6,8],[13,2,6]] as const)p.rect(x,y,l,1,tone(W.top[1],.9));p.rect(0,0,1,16,tone(W.top[1],.82)).rect(15,0,1,16,tone(W.top[1],.82));},{rough:.5}),
     cush=k.mat('chair-cloth',cloth,{color:fabric});
   const zf=CHAIR.front-.03,zb=CHAIR.back-.02,L=.036,X=.2;
   // 腿：前腿到座面；后腿到座面后继续往上、往后仰一点到搭脑

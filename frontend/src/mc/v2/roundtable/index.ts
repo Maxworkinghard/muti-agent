@@ -16,16 +16,16 @@ import {makeChair} from '../../props/chairs';
 import {GARDEN_PAINT} from './paint';
 import {buildGarden} from './structure';
 import {buildTimber,mats} from './timber';
-import {buildGardenArchitecture,gardenOccluders} from './garden';
+import {WALL_H,WALL_T,buildGardenArchitecture,gardenOccluders} from './garden';
 import {buildShore} from './shore';
 import {gardenWater} from './water';
 import {buildScenery,sunDirection,type Evening} from './scenery';
-import {bambooGrove,banana,canopyTree,ferns,lotusPatch,pine,reeds,rockery,shrubs,weepingWillow} from './flora';
-import {boat,bambooBlind,bonsaiStand,cord,palaceLantern,paperLantern,roundTable} from './furnish';
+import {bambooGrove,banana,canopyTree,ferns,lotusPatch,pine,reeds,rockery,shrubs,wallIvy,weepingWillow} from './flora';
+import {boat,bambooBlind,bonsaiStand,cord,orchidStand,palaceLantern,paperLantern,pillarCouplet,roundTable} from './furnish';
 import {teaHallFloor} from './floor';
 import {drawHallBoard} from './board';
 import {hillHeight} from './terrain';
-import {CANOPY,GROUND,HALL,POST_X,POST_Z,VIEW,WATER,WILLOWS} from './site';
+import {CANOPY,GROUND,HALL,POST_X,POST_Z,VIEW,WALLS,WATER,WILLOWS} from './site';
 
 /** 同一个道具 Kit 只配一个 v2 工具（材质缓存、统一释放）。 */
 const kits=new WeakMap<Kit,V2Kit>();
@@ -42,7 +42,7 @@ export const RT={
 /** 椅垫只用一种素色（灰过的月白青），八把椅子是一套 */
 export const CUSHION='#a9b2ae';
 /** 略带阴翳的傍晚：太阳在西南偏西（方位角 208° 即罗盘约 242°）、仰角 14°，被薄云罩着的淡金；天边雾色偏冷的灰。 */
-export const EVENING:Evening={azimuth:208,elevation:14,sun:'#ffe4c6',haze:'#c6cad0'};
+export const EVENING:Evening={azimuth:208,elevation:14,sun:'#ffdcb2',haze:'#c6cad0'};
 
 export function buildRoundtableV2():Room{
   const {x:cx,z:cz}=HALL.table;
@@ -83,9 +83,11 @@ export function buildRoundtableV2():Room{
     flight:{min:[-15,1,-43],max:[51,20,26]},
     // 光：自然光为主——被薄云罩着的西南斜阳（暖、柔），天光偏冷；人工灯只有两盏很暗的；不靠泛光造氛围。
     // 太阳阴影罩住整个园子（中景的楼亭、树也投影）。
-    look:{background:'#c6cad0',outdoor:true,sky:'#b4bfce',ground:'#a39b8d',ambient:1.1,
-      sun:{color:EVENING.sun,intensity:3.6,azimuth:EVENING.azimuth,elevation:EVENING.elevation,shadow:.82},exposure:1.28,indirect:.38,
-      haze:EVENING.haze,fog:[60,420],skyTop:'#5d7299',saturation:.96,shadowArea:{center:[18,-8],half:44},bloom:.05},
+    look:{background:'#c6cad0',outdoor:true,sky:'#aab8d2',ground:'#8f877c',ambient:1.2,
+      sun:{color:EVENING.sun,intensity:3.9,azimuth:EVENING.azimuth,elevation:EVENING.elevation,shadow:.85},exposure:1.34,indirect:.38,
+      haze:EVENING.haze,fog:[60,420],skyTop:'#5d7299',saturation:1,shadowArea:{center:[18,-8],half:44},bloom:.05,ao:.5},
+    // 金砖打磨过：一点光泽，映出外面的亮处（环境反射是舞台中间拍的那张，地面比别的物件多映一倍多）
+    floorFinish:{roughness:.38,env:2.4},
     paint:{...GARDEN_PAINT},
     boardStyle:'sign',boardFrame:'block/dark_oak_planks',
     drawBoard:drawHallBoard,
@@ -104,7 +106,9 @@ export function buildRoundtableV2():Room{
       root.add(place(roundTable(g,RT.tableR,RT.tableH),cx,floor,cz));
       root.add(place(cord(g,1.3),12.2,4.15,8.6));root.add(place(palaceLantern(g,.26,.8),12.2,4.15,8.6));
       // ——东北角一个花几盆景（框住东面的水和廊），西面中间一跨放下半幅竹帘：斜阳穿过篾缝在地上、桌上落出细条纹
-      root.add(place(bonsaiStand(g,.86,3),20.85,floor,8.3));
+      root.add(place(bonsaiStand(g,.86,3),20.85,floor,8.3));root.add(place(orchidStand(g,.9,5),11.2,floor,8.3));
+      // ——北面中间一跨的抱柱联（匾下、框住北望的水和假山亭）：右边上联、左边下联，朝厅内
+      for(const [x,text] of [[POST_X[2],'蝉噪林逾静'],[POST_X[1],'鸟鸣山更幽']] as const)root.add(place(pillarCouplet(g,text,1.95),x,floor+.55,POST_Z[0]+.14+.015));
       root.add(place(bambooBlind(g,3.6,1.15),POST_X[0]-.06,HALL.postTop-.36,(POST_Z[1]+POST_Z[2])/2,Math.PI/2));
       root.add(place(bambooBlind(g,2.75,.3),POST_X[0]-.06,HALL.postTop-.36,(POST_Z[2]+POST_Z[3])/2,Math.PI/2));
       // ——水廊转角一盏纸灯（很暗）
@@ -132,6 +136,12 @@ export function buildRoundtableV2():Room{
         for(let i=0;i<60&&hillShrubs.length<16;i++){const x=1+rr()*25,z=-40+rr()*15,h=hillHeight(x,z);if(h<1||h>=4.5)continue;
           if([[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>Math.abs(hillHeight(x+dx*.9,z+dz*.9)-h)>.6))continue;if(hillShrubs.some(([sx,,sz])=>Math.hypot(sx-x,sz-z)<2.4))continue;hillShrubs.push([x,floor+h,z,.55+rr()*.5]);}}
       root.add(shrubs(g,[...hillShrubs,[-8,floor,-40,1.2],[-13.2,floor,-25,1],[-12.6,floor,-36.5,1.1],[44,floor,24.6,.9],[2,floor,25.6,.8],[40.6,floor,-40.4,1]],61));
+      // ——粉墙上的爬山虎：只在墙和树、竹挨着的几段（南墙西段月洞门以西、北墙西头、东墙榉树后、北墙两层楼东侧），一段两三米，不满墙爬
+      const wallAt=(along:'x'|'z',fixed:number,face:1|-1)=>({along,fixed,face,halfThick:WALL_T/2+.02,ground:floor});
+      root.add(wallIvy(g,wallAt('x',WALLS.south-.3,-1),9.2,12.2,WALL_H*.9,71));
+      root.add(wallIvy(g,wallAt('x',WALLS.north+.3,1),-8.6,-5,WALL_H*.95,72));
+      root.add(wallIvy(g,wallAt('z',WALLS.east-.3,-1),-14.2,-11,WALL_H*.85,73));
+      root.add(wallIvy(g,wallAt('x',WALLS.north+.3,1),48.6,50.8,WALL_H*.8,74));
       root.add(ferns(g,shore.crevices.filter((_c,i,a)=>i%Math.max(1,Math.ceil(a.length/40))===0).map(c=>({x:c.x,y:floor-.05,z:c.z,out:c.out})),62));
       root.add(place(boat(g),17.4,WATER,-.45,.12));
       root.traverse(o=>{const f=o.userData.animate as ((now:number)=>void)|undefined;if(f)animated.push(f);});

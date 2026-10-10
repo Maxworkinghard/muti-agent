@@ -73,19 +73,21 @@ const woodDraw=(base:string,o:{vertical?:boolean;joints?:boolean}={}):Draw=>(c,w
   if(o.joints)for(let y=0;y<16;y+=4)line(y,0,16,tone(base,.78));};
 
 export const mats=(k:V2Kit)=>({
-  wood:pix(k,'rt-wood',16,16,woodDraw(Wd.base)),
-  woodV:pix(k,'rt-wood-v',16,16,woodDraw(Wd.base,{vertical:true})),
-  woodDark:pix(k,'rt-wood-dark',16,16,woodDraw(Wd.dark)),
-  ceiling:pix(k,'rt-ceiling',16,16,woodDraw('#665448',{joints:true})),
-  ceilingBoth:pix(k,'rt-ceiling-2s',16,16,woodDraw('#5c4b40'),{side:THREE.DoubleSide}),
+  wood:pix(k,'rt-wood',16,16,woodDraw(Wd.base),{rough:.6}),
+  woodV:pix(k,'rt-wood-v',16,16,woodDraw(Wd.base,{vertical:true}),{rough:.6}),
+  woodDark:pix(k,'rt-wood-dark',16,16,woodDraw(Wd.dark),{rough:.6}),
+  ceiling:pix(k,'rt-ceiling',16,16,woodDraw('#7a604c',{joints:true}),{rough:.72}),
+  ceilingBoth:pix(k,'rt-ceiling-2s',16,16,woodDraw('#6c5545'),{side:THREE.DoubleSide,rough:.72}),
+  /** 主榭轩顶的望板：浅一档、偏灰的老杉木色，和深色弯椽拉开（不偏橙） */
+  ceilingLight:pix(k,'rt-ceiling-light',16,16,woodDraw('#8e7c69',{joints:true}),{rough:.7}),
   plaster:pix(k,'rt-plaster',16,16,plasterDraw),
   brick:pix(k,'rt-brick',16,16,greyBrick),
   ridge:pix(k,'rt-ridge',16,8,tileRidge),
   tile:k.flat(T.base,{rough:.8}),tileDark:k.flat(T.deep,{rough:.8}),
   stone:pix(k,'rt-stone',16,16,(c,w,h)=>{const S=GARDEN.stone;R(c,0,0,w,h,S.base);R(c,0,0,w,1,S.light);R(c,0,h-1,w,1,S.edge);R(c,0,0,1,h,S.light);R(c,w-1,0,1,h,S.edge);for(const [x,y] of [[4,4],[10,6],[6,11],[12,12]] as const)R(c,x,y,2,1,S.dark);}),
-  guaLuo:pix(k,'rt-gualuo',32,12,guaLuo,{alpha:true,side:THREE.DoubleSide}),
-  mrBack:pix(k,'rt-mr-back',24,12,mrBack,{alpha:true,side:THREE.DoubleSide}),
-  mrSkirt:pix(k,'rt-mr-skirt',32,8,mrSkirt),
+  guaLuo:pix(k,'rt-gualuo',32,12,guaLuo,{alpha:true,side:THREE.DoubleSide,rough:.65}),
+  mrBack:pix(k,'rt-mr-back',24,12,mrBack,{alpha:true,side:THREE.DoubleSide,rough:.65}),
+  mrSkirt:pix(k,'rt-mr-skirt',32,8,mrSkirt,{rough:.6}),
   ice:pix(k,'rt-ice',64,64,iceCrack,{alpha:true,side:THREE.DoubleSide}),
 });
 export type Mats=ReturnType<typeof mats>;
@@ -112,13 +114,14 @@ export function meiRenKao(k:V2Kit,g:THREE.Object3D,M:Mats,ax:number,az:number,bx
   for(const s of [-1,1]){const p=k.box(b,.05,.56,.05,M.wood,s*len/2,.76,.3,32);p.rotation.x=.5;}
 }
 /** 船篷轩：从两根檐枋（z0、z1，高 y0）拱到中间（高 y0+rise）的弧形顶棚，顺着 x 从 x0 到 x1；弯椽每 0.5 米一根。 */
-function xuanCeiling(k:V2Kit,g:THREE.Object3D,M:Mats,x0:number,x1:number,z0:number,z1:number,y0:number,rise:number,ends:boolean){
+function xuanCeiling(k:V2Kit,g:THREE.Object3D,M:Mats,x0:number,x1:number,z0:number,z1:number,y0:number,rise:number,ends:boolean,boards:THREE.Material=M.ceiling){
   const n=12,arc=(t:number)=>new THREE.Vector3(0,y0+rise*(1-(2*t-1)**2),z0+(z1-z0)*t);
   for(let i=0;i<n;i++){const a=arc(i/n),b=arc((i+1)/n),len=a.distanceTo(b),mid=a.clone().add(b).multiplyScalar(.5);
-    const board=k.box(g,x1-x0,.03,len+.01,M.ceiling,(x0+x1)/2,mid.y+.03,mid.z,16);board.rotation.x=-Math.atan2(b.y-a.y,b.z-a.z);
+    const board=k.box(g,x1-x0,.03,len+.01,boards,(x0+x1)/2,mid.y+.03,mid.z,16);board.rotation.x=-Math.atan2(b.y-a.y,b.z-a.z);
     for(let x=x0+.25;x<x1;x+=.5){const r=k.box(g,.06,.06,len+.01,M.woodDark,x,mid.y-.015,mid.z,32);r.rotation.x=board.rotation.x;}}
-  // 两道轩梁（弧顶两侧）和两端的弧形山板
+  // 两道轩梁（弧顶两侧）、弧顶一根脊檩，和两端的弧形山板
   for(const t of [.3,.7]){const p=arc(t);k.box(g,x1-x0,.09,.1,M.wood,(x0+x1)/2,p.y-.07,p.z,32);}
+  {const p=arc(.5);k.box(g,x1-x0,.07,.14,M.woodDark,(x0+x1)/2,p.y-.04,p.z,32);}
   // 两端的弧形山板：木板封住（和轩顶同一种木），沿弧边一道深色压条
   if(ends)for(const x of [x0,x1]){const shape=new THREE.Shape();shape.moveTo(z0,y0);for(let i=1;i<=24;i++){const p=arc(i/24);shape.lineTo(p.z,p.y);}shape.lineTo(z0,y0);
     const m=new THREE.Mesh(new THREE.ShapeGeometry(shape),M.ceilingBoth);m.rotation.y=-Math.PI/2;m.position.set(x,0,0);m.receiveShadow=true;g.add(m);
@@ -265,7 +268,7 @@ export function buildTimber(k:V2Kit,root:THREE.Object3D,o:TimberOptions){
   // ——圆光罩：东面中间一跨，通曲廊
   moonScreen(k,g,M,x1,POST_Z[1]+.13,POST_Z[2]-.13,floor,top-.32,floor+1.62,1.38);
   // ——船篷轩：北檐枋到南檐枋拱起 1.4 米；四周檐枋上面一圈垫板封住屋面下的空隙
-  xuanCeiling(k,g,M,x0,x1,z0,z1,top,1.4,true);
+  xuanCeiling(k,g,M,x0,x1,z0,z1,top,1.4,true,M.ceilingLight);
   for(const z of [z0,z1])k.box(g,x1-x0,.5,.04,M.plaster,(x0+x1)/2,top+.25,z,16);
   // 檐下平顶：檐口那一圈瓦的里沿到檐枋之间（0.41 米宽），封住屋面底下的空腔
   for(const zz of [z0-.295,z1+.295])k.box(g,HALL.x1+1-HALL.x0,.02,.41,M.ceiling,(HALL.x0+HALL.x1+1)/2,top-.01,zz,16);

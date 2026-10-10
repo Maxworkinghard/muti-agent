@@ -76,7 +76,7 @@ DiscussionView / stage-lab / mc-lab
 
 “只保留圆桌重建版”是用户明确的场景收敛决定，不是 Agent 自行判断旧版审美较差。四种讨论业务和全部 2D 场景继续存在；圆桌 v2 尚未完成，也未通过视觉验收。历史归档和 Git 恢复基线用于追溯，不再作为当前场景任务。
 
-边界契约：`bounds` 是柱线以内的行走/寻路范围，`flight ?? bounds` 是自由相机范围，移动时保留相机半径余量。`RoomPhysics` 从真实方块模型及家具生成碰撞体，在飞行范围内仍逐步检查实体碰撞；椅垫和椅背不再按名称跳过。默认机位、行走范围和飞行范围以 `v2/roundtable/site.ts` 的 `VIEW` 和 `index.ts` 里的 `bounds` / `flight` 为准（第二轮 flight 是园墙以内）。水廊屋面、园墙、北岸楼亭和拱桥是道具网格，不占方块；镜头碰撞写在 `occluders` 里（`garden.ts::gardenOccluders`），人在廊内的高度不会被屋顶挡住。方块光照网格的范围随方块往负方向扩展（`light.ts`）；`Look.shadowArea` 可以把太阳阴影罩到中景，`Look.bloom` 可以压低泛光。主榭方块屋顶仍然挡镜头。水面实时倒影挂在网格的 `userData.setReflections` 上，`styledProps.setReflections` 在低画质时关掉；同物件的 `userData.dispose` 释放水面几何、材质和倒影目标。`mc-lab` 用查询参数 `cast` 只请指定人物入座。真实物理及浏览器验证见 [收敛记录](docs/MAINTENANCE_AUDIT.md#圆桌-3d-收敛用户调整范围) 和 [第一轮交接](docs/design/ROUNDTABLE_GARDEN.md)。
+边界契约：`bounds` 是柱线以内的行走/寻路范围，`flight ?? bounds` 是自由相机范围，移动时保留相机半径余量。`RoomPhysics` 从真实方块模型及家具生成碰撞体，在飞行范围内仍逐步检查实体碰撞；椅垫和椅背不再按名称跳过。默认机位、行走范围和飞行范围以 `v2/roundtable/site.ts` 的 `VIEW` 和 `index.ts` 里的 `bounds` / `flight` 为准（第二轮 flight 是园墙以内）。水廊屋面、园墙、北岸楼亭和拱桥是道具网格，不占方块；镜头碰撞写在 `occluders` 里（`garden.ts::gardenOccluders`），人在廊内的高度不会被屋顶挡住。方块光照网格的范围随方块往负方向扩展（`light.ts`）；`Look.shadowArea` 可以把太阳阴影罩到中景，`Look.bloom` 可以压低泛光，`Look.ao` 给高画质的环境光遮蔽强度；`Room.floorFinish` 给地面图粗糙度和环境反射倍数（打磨过的地面）。主榭方块屋顶仍然挡镜头。水面实时倒影挂在网格的 `userData.setReflections` 上，`styledProps.setReflections` 在低画质时关掉；同物件的 `userData.dispose` 释放水面几何、材质和倒影目标。`mc-lab` 用查询参数 `cast` 只请指定人物入座。真实物理及浏览器验证见 [收敛记录](docs/MAINTENANCE_AUDIT.md#圆桌-3d-收敛用户调整范围) 和 [第一轮交接](docs/design/ROUNDTABLE_GARDEN.md)。
 
 ## 实验、构建与维护
 

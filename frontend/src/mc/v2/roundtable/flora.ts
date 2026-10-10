@@ -182,3 +182,28 @@ export function ferns(k:V2Kit,spots:Array<{x:number;y:number;z:number;out:[numbe
       b.add(Math.min(x0,x1)-w,Math.min(y0,y1),Math.min(z0,z1)-w,Math.max(x0,x1)+w,Math.max(y0,y1)+.012,Math.max(z0,z1)+w,c,c.clone().multiplyScalar(.8),t0,t1);}}
   return swayMesh(k,b,.03,1.4,'garden-ferns');
 }
+/**
+ * 粉墙上的爬山虎（薜荔）：从墙根一丛往上爬，几根主藤一路往上、往两边分叉，叶子是贴着墙面的小方片（几种深浅的绿，偶尔一片转红），
+ * 越往上越稀、越小。wall 给墙心线：along 'x' 的墙面朝 +z / −z（face），'z' 的墙面朝 +x / −x；叶片离墙面 2 厘米。
+ * from…to 是沿墙的范围（世界坐标），height 是最高爬到墙身多高（米，从墙脚量）。叶子在风里只轻轻动一点。
+ */
+export function wallIvy(k:V2Kit,w:{along:'x'|'z';fixed:number;face:1|-1;halfThick:number;ground:number},from:number,to:number,height:number,seed=1){
+  const r=rng(seed),b=new SwayBoxes(),greens=['#3d6131','#4a6e37','#56793f','#33532b','#5f8445'].map(C),red=C('#8c4a33'),vine=C('#4a3f2c');
+  const surf=w.fixed+w.face*(w.halfThick+.005);
+  // (u 沿墙, v 离地) → 世界坐标的盒子；d0、d1 是离墙面的距离
+  const box=(u0:number,u1:number,v0:number,v1:number,d0:number,d1:number,c:THREE.Color,s0:number,s1:number)=>{const a=surf+w.face*d0,bb=surf+w.face*d1,z0=Math.min(a,bb),z1=Math.max(a,bb);
+    if(w.along==='x')b.add(u0,w.ground+v0,z0,u1,w.ground+v1,z1,c,c.clone().multiplyScalar(.8),s0,s1,false);else b.add(z0,w.ground+v0,u0,z1,w.ground+v1,u1,c,c.clone().multiplyScalar(.8),s0,s1,false);};
+  const grow=(u:number,v:number,top:number,drift:number,depth:number)=>{
+    for(let i=0;v<top&&i<60;i++){const nu=u+drift*.06+(r()-.5)*.08,nv=v+.11,s0=Math.min(1,v/height),s1=Math.min(1,nv/height);
+      box(Math.min(u,nu)-.01,Math.max(u,nu)+.01,v,nv,.004,.016,vine,s0*.3,s1*.3);
+      // 叶子：一节两到五片、互相叠着，盖住藤；越往上越少越小，边上零零星星
+      const fade=1-v/(top+.01),n=Math.round((2+r()*3)*(.35+fade*.65));
+      for(let j=0;j<n;j++){const lu=nu+(r()-.5)*.42,lv=nv+(r()-.5)*.16,s=(.06+r()*.06)*(.6+fade*.55),c=r()<.04?red:greens[Math.floor(r()*greens.length)],d=.012+r()*.03;
+        box(lu-s,lu+s,lv-s*.9,lv+s*.9,d,d+.018,c,s1*.5,s1*.6);}
+      if(depth<2&&r()<.12)grow(nu,nv,top-r()*.5,(r()<.5?-1:1)*(1.5+r()*2),depth+1);
+      u=nu;v=nv;}
+  };
+  const span=to-from,roots=Math.max(2,Math.round(span/.45));
+  for(let i=0;i<roots;i++){const u=from+span*(i+.5)/roots+(r()-.5)*.3,top=height*(.45+r()*.55);grow(u,0,top,(r()-.5)*1.4,0);}
+  return swayMesh(k,b,.012,.7,'garden-ivy');
+}

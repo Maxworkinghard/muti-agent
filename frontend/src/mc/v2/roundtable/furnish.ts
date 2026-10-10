@@ -19,6 +19,7 @@ export const PROP_PAINT:Record<string,Painter>={
     for(const [x,y,l] of [[2,1,9],[7,6,8],[1,9,6],[9,13,6],[11,2,4]] as const)p.rect(x,y,l,1,tone(T[Math.floor(y/4)],.9));},
   tableEdge:p=>{p.fill(TABLE_WOOD.edge);p.rect(0,0,16,1,tone(TABLE_WOOD.edge,1.12)).rect(0,15,16,1,tone(TABLE_WOOD.edge,.8));for(const [x,l] of [[3,7],[11,4]] as const)p.rect(x,7,l,1,tone(TABLE_WOOD.edge,.9));},
   legWood:p=>{p.fill(TABLE_WOOD.leg);p.rect(7,0,1,16,tone(TABLE_WOOD.leg,1.1));for(const [x,y,l] of [[3,2,8],[11,6,7]] as const)p.rect(x,y,1,l,tone(TABLE_WOOD.leg,.88));},
+  celadon:p=>{p.fill('#9db8a2');p.rect(0,0,16,2,'#b6ccb8');p.rect(0,12,16,4,'#87a490');p.rect(0,6,16,1,'#a9c2ad');},
   // 宫灯：米色绢面上一枝淡墨兰草，四角深色木框，红缨
   silk:p=>{p.fill('#f6e7c8');p.rect(0,0,16,1,'#d9b98a').rect(0,15,16,1,'#d9b98a');p.rect(7,4,1,8,'#a38a5c').px(6,6,'#a38a5c').px(8,5,'#a38a5c').px(9,8,'#a38a5c').px(5,9,'#a38a5c').px(10,10,'#a38a5c');},
   lanternFrame:p=>{p.fill('#3d2a20');p.rect(0,0,16,1,'#5a4030');},
@@ -37,7 +38,7 @@ const M=(k:V2Kit,name:keyof typeof PROP_PAINT,o?:Parameters<V2Kit['mat']>[2])=>k
  * 腿间离地 0.2 米一圈细横枨。桌下是空的，能看到地面，不是一整根木圆柱。桌面外沿往里 16 厘米一道很细的嵌线。原点在地面中心。
  */
 export function roundTable(k:V2Kit,r:number,height:number){
-  const g=new THREE.Group();g.name='garden-round-table';const top=M(k,'tableTop'),edge=M(k,'tableEdge'),leg=M(k,'legWood');
+  const g=new THREE.Group();g.name='garden-round-table';const top=M(k,'tableTop',{rough:.4}),edge=M(k,'tableEdge',{rough:.45}),leg=M(k,'legWood',{rough:.5});
   k.prism(g,r,.04,32,[edge,top,top],0,height-.02,0,32);k.prism(g,r-.025,.02,32,edge,0,height-.05,0,32);
   k.prism(g,r-.09,.03,32,leg,0,height-.075,0,32);k.prism(g,r-.065,.05,32,edge,0,height-.115,0,32);
   const inlay=new THREE.Mesh(new THREE.RingGeometry(r-.175,r-.16,64),k.flat(TABLE_WOOD.leg));inlay.rotation.x=-Math.PI/2;inlay.position.y=height+.001;inlay.receiveShadow=true;g.add(inlay);
@@ -82,7 +83,7 @@ export function bambooBlind(k:V2Kit,width:number,drop:number){
 }
 /** 花几上一盆松（盆景）：细高的花几，陶盆，一棵小松（歪脖子的干，三层平展的松针团）。原点在地面中心。 */
 export function bonsaiStand(k:V2Kit,height=.82,seed=1){
-  const g=new THREE.Group();g.name='garden-bonsai';const wood=M(k,'legWood'),r=rng(seed);
+  const g=new THREE.Group();g.name='garden-bonsai';const wood=M(k,'legWood',{rough:.5}),r=rng(seed);
   for(const x of [-.14,.14])for(const z of [-.14,.14])k.box(g,.04,height,.04,wood,x,height/2,z,32);
   k.box(g,.36,.04,.36,wood,0,height,0,32);k.box(g,.3,.03,.3,wood,0,.12,0,32);
   k.box(g,.32,.1,.22,M(k,'clay'),0,height+.07,0,64);k.box(g,.28,.015,.18,k.flat('#4a3a2c'),0,height+.125,0);
@@ -98,6 +99,39 @@ export function boat(k:V2Kit){
   k.box(g,2.6,.12,.7,m,0,.02,0);for(const z of [-.36,.36])k.box(g,2.8,.26,.07,m,0,.17,z);
   for(const s of [-1,1]){const p=k.box(g,.5,.3,.75,m,s*1.42,.24,0);p.rotation.z=s*.4;}
   k.box(g,.14,.05,.72,m,.3,.24,0);const oar=k.box(g,1.6,.04,.06,M(k,'legWood'),-1.1,.36,.2);oar.rotation.y=.25;oar.rotation.z=-.12;
+  return g;
+}
+/**
+ * 抱柱联：贴在柱子朝厅内一面的一条竖板，深色退光漆底，一道细金边，五个楷书字（浅金）。
+ * 原点在板的底边中心，字面朝 +z；字从上往下排。
+ */
+export function pillarCouplet(k:V2Kit,text:string,h=2){
+  const g=new THREE.Group();g.name='garden-couplet';const W=.21,D=.03,chars=[...text];
+  const cw=96,cv=document.createElement('canvas');cv.width=cw;cv.height=Math.round(cw*h/W);const c=cv.getContext('2d')!;
+  c.fillStyle='#2b201a';c.fillRect(0,0,cv.width,cv.height);
+  c.strokeStyle='#8a7550';c.lineWidth=3;c.strokeRect(7,7,cv.width-14,cv.height-14);
+  c.fillStyle='#d2c294';c.textAlign='center';c.textBaseline='middle';c.font=`600 ${Math.round(cw*.66)}px "KaiTi","STKaiti","Kaiti SC","楷体",serif`;
+  const top=cw*.75,step=(cv.height-top*2)/(chars.length-1||1);chars.forEach((ch,i)=>c.fillText(ch,cw/2,top+i*step));
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;k.owned.push(t);
+  const face=new THREE.MeshStandardMaterial({map:t,roughness:.45,metalness:0});k.owned.push(face);
+  const lacquer=k.flat('#2b201a',{rough:.45});
+  // 盒子的六个面：+x、−x、+y、−y、+z（字面）、−z
+  const board=new THREE.Mesh(new THREE.BoxGeometry(W,h,D),[lacquer,lacquer,lacquer,lacquer,face,lacquer]);board.position.y=h/2;board.castShadow=true;board.receiveShadow=true;g.add(board);
+  return g;
+}
+/** 兰花几：细高的花几（和盆景花几同一种木），青瓷盆，一丛往外拱、梢头下垂的长叶，两枝淡黄绿的花。原点在地面中心。 */
+export function orchidStand(k:V2Kit,height=.9,seed=1){
+  const g=new THREE.Group();g.name='garden-orchid';const wood=M(k,'legWood',{rough:.5}),r=rng(seed);
+  for(const x of [-.13,.13])for(const z of [-.13,.13])k.box(g,.04,height,.04,wood,x,height/2,z,32);
+  k.box(g,.34,.04,.34,wood,0,height,0,32);k.box(g,.28,.03,.28,wood,0,.12,0,32);
+  k.prism(g,.12,.17,8,M(k,'celadon',{rough:.35}),0,height+.105,0,64);k.prism(g,.105,.012,8,k.flat('#3a2e24'),0,height+.19,0);
+  const b=new ColorBoxes(),leaf=[new THREE.Color('#3c6a3a'),new THREE.Color('#4a7a44'),new THREE.Color('#33583a')],flower=new THREE.Color('#e3dfae'),y0=height+.19;
+  for(let i=0;i<13;i++){const a=i/13*Math.PI*2+r()*.4,L=.42+r()*.22,lift=.22+r()*.14,c=leaf[i%3];let px=0,py=y0,pz=0;
+    for(let j=0;j<7;j++){const t=(j+1)/7,nx=Math.cos(a)*L*t,nz=Math.sin(a)*L*t,ny=y0+lift*Math.sin(t*Math.PI*.85)-t*t*.12,w=.012*(1-t*.6);
+      b.add(Math.min(px,nx)-w,Math.min(py,ny)-.004,Math.min(pz,nz)-w,Math.max(px,nx)+w,Math.max(py,ny)+.004,Math.max(pz,nz)+w,c,c.clone().multiplyScalar(.75));px=nx;py=ny;pz=nz;}}
+  for(let s=0;s<2;s++){const a=r()*Math.PI*2,sx=Math.cos(a)*.05,sz=Math.sin(a)*.05,h2=.32+r()*.1;b.add(sx-.006,y0,sz-.006,sx+.006,y0+h2,sz+.006,leaf[1],leaf[2]);
+    for(let f=0;f<4;f++){const fy=y0+h2-.02-f*.05,fx=sx+Math.cos(a+f)*.035,fz=sz+Math.sin(a+f)*.035;b.add(fx-.018,fy-.012,fz-.018,fx+.018,fy+.012,fz+.018,flower,flower.clone().multiplyScalar(.85));}}
+  const m=new THREE.Mesh(b.geometry(),k.flat('#ffffff',{vertex:true}));m.castShadow=true;m.receiveShadow=true;g.add(m);
   return g;
 }
 export {place};

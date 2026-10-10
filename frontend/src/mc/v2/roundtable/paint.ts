@@ -48,11 +48,12 @@ const plaster:Painter=p=>{const r=rng(71);p.fill(P.base);for(let i=0;i<7;i++)p.p
 const chestnut:Painter=p=>{p.fill(W.base);p.rect(6,0,2,16,W.light).rect(7,0,1,16,tone(W.light,1.05));
   for(const [x,y,l] of [[2,1,9],[4,6,8],[10,0,6],[12,7,9],[14,2,7],[1,11,5],[9,9,6]] as const)p.rect(x,y,1,l,W.dark);p.rect(0,0,1,16,W.dark).rect(15,0,1,16,W.dark);};
 /** 青石条：0.5 米一道错缝，上沿一道亮边，石面一两道很淡的凿痕。 */
-const greenStone:Painter=p=>{p.fill(S.base);for(const [y,x] of [[0,0],[8,6]] as const){p.rect(0,y,16,1,S.light);p.rect(0,y+7,16,1,S.edge);p.rect(x,y,1,8,S.edge);p.rect(x+1,y+1,1,6,S.light);}
-  for(const [x,y] of [[3,3],[11,4],[2,12],[13,11]] as const)p.rect(x,y,2,1,S.dark);};
-const greenStoneSide:Painter=p=>{p.fill(S.dark);p.rect(0,0,16,1,S.light).rect(0,7,16,1,S.edge).rect(0,8,16,1,S.base).rect(0,15,16,1,S.edge);};
+const greenStone:Painter=p=>{const seam=tone(S.base,.9);p.fill(S.base);p.rect(0,8,16,8,tone(S.base,.97));
+  for(const [y,x] of [[0,0],[8,9]] as const){p.rect(0,y+7,16,1,seam);p.rect(x,y,1,8,seam);p.rect(0,y,16,1,tone(S.base,1.03));}
+  for(const [x,y] of [[3,3],[12,4],[2,12],[14,11],[6,10]] as const)p.px(x,y,tone(S.base,.94));};
+const greenStoneSide:Painter=p=>{p.fill(tone(S.base,.92));p.rect(0,0,16,1,tone(S.base,1.02)).rect(0,7,16,1,tone(S.base,.84)).rect(0,15,16,1,tone(S.base,.84));};
 /** 方砖：一格铺四块 0.5 米的方砖，砖缝 1 像素，每块砖深浅略不同，左上一道很淡的亮边。 */
-const squareBrick:Painter=p=>{const r=rng(75);p.fill(B.joint);for(const y of [0,8])for(const x of [0,8]){const c=pick(r,[B.base,B.light,B.dark,B.base],[3,1,1,2]);p.rect(x,y,7,7,c).rect(x,y,7,1,tone(c,1.04)).rect(x,y,1,7,tone(c,1.02));}};
+const squareBrick:Painter=p=>{const r=rng(75);p.fill(tone(B.base,.93));for(const y of [0,8])for(const x of [0,8]){const c=pick(r,[B.base,B.light,B.dark,B.base],[3,1,1,2]);p.rect(x,y,7,7,c).rect(x,y,7,1,tone(c,1.03));}};
 /** 花街铺地：浅灰碎石底，竖砌的瓦片拼成斜方格（每 8 像素一个菱形），格心一粒深色卵石；对比收着，远看是一层细花纹。 */
 const pebbleMosaic:Painter=p=>{p.fill('#9f9a90');
   for(let y=0;y<16;y++)for(let x=0;x<16;x++){const d=(x+y)%8,e=(x-y+16)%8;if(d===0||e===0){p.px(x,y,'#837e76');continue;}if((x*7+y*3)%5===0)p.px(x,y,'#aba69c');}
