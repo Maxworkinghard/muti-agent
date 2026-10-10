@@ -75,7 +75,7 @@ docs/                 人物上传指南、维护审计与产品截图
 | 要做的事 | 从这里开始 |
 |---|---|
 | 修改项目 | [AGENTS.md](AGENTS.md) → [STANDARDS.md](STANDARDS.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
-| 前端、服务、实验台维护 | [frontend/README.md](frontend/README.md)和[前端文档](frontend/docs/README.md) |
+| 前端与服务维护 | [frontend/README.md](frontend/README.md)和[前端文档](frontend/docs/README.md) |
 | 创建或上传人物 | [人物指南](docs/人物角色创建与上传说明.md) |
 | 查遗留分类、素材取舍和恢复点 | [维护审计](docs/MAINTENANCE_AUDIT.md)及[历史资料索引](frontend/docs/archive/README.md) |
 | 查 Python 工具 | [backend/README.md](backend/README.md) |
