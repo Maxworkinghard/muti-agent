@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AgentState, ChatMessage, DiscussionEngine, DiscussionResult, EngineEvent, MindView, SessionConfig, TaskEvent,
 } from '../types';
@@ -11,24 +11,19 @@ import { SoundToggle, warmAudio } from '../sound';
 import { PixelAvatar } from './PixelAvatar';
 import { OfficeBubbles, type OfficeSpeech } from './OfficeBubbles';
 import { playThinking } from './stageFx';
-import { createStageGate } from '../mc/stageGate';
 import { STATE_LABEL, withFace, type ErrorItem, type Flight, type SessionPhase, type Status } from './discussionUtils';
 import { useChatter, useEntrance, useLandingSitting, useWalkAnimations } from './discussionHooks';
 import { Line, MindPanel, PersonaStrip, ResultCard } from './discussionComponents';
-
-const McStage3D = lazy(() => import('./McStage3D').then((module) => ({ default: module.McStage3D })));
 
 export function DiscussionView({ config, onExit }: { config: SessionConfig; onExit: () => void }) {
   const scene = sceneById(config.sceneId);
   const mode = modeById(config.mode);
   const engineRef = useRef<DiscussionEngine | null>(null);
-  const mcEventsRef = useRef<EngineEvent[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [round, setRound] = useState({ n: 0, label: '准备中' });
   const [session, setSession] = useState<SessionPhase>('waiting');
   const [result, setResult] = useState<DiscussionResult | null>(null);
-  const [mcTheme, setMcTheme] = useState(config.theme.title);
   const [tasks, setTasks] = useState<TaskEvent[]>([]);
   const [flights, setFlights] = useState<Flight[]>([]);
   // 工作模式：谁离开了工位、正走在路上（只在有 stations 的二维场景里画出来）。
@@ -39,23 +34,10 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState('');
   const [errors, setErrors] = useState<ErrorItem[]>([]);
-  const [view3D, setView3D] = useState(Boolean(scene.mcStage));
-  const [threeReady, setThreeReady] = useState(false);
-  const [threeError, setThreeError] = useState('');
-  const mcActive = Boolean(scene.mcStage) && view3D && threeReady;
-  const mcGateRef = useRef<ReturnType<typeof createStageGate> | null>(null);
-  const mcLoadedRef = useRef(false);
-  useEffect(() => {
-    if (!mcActive) { engineRef.current?.setStageGate?.(null); mcGateRef.current?.dispose(); mcGateRef.current = null; return; }
-    const bridge = createStageGate(); mcGateRef.current = bridge; engineRef.current?.setStageGate?.(bridge.gate);
-    const visibility = () => { if (document.hidden) bridge.release(); };
-    document.addEventListener('visibilitychange', visibility);
-    return () => { document.removeEventListener('visibilitychange', visibility); bridge.dispose(); engineRef.current?.setStageGate?.(null); mcGateRef.current = null; };
-  }, [mcActive]);
   // 正面坐姿的二维场景：人物全身坐在底图的椅子上，大小按舞台宽度等比缩放
-  const sitCast = !mcActive && scene.posture === 'sit';
-  // 办公室这类标了 stations 的二维场景：工作模式里人会离开工位走动；我的世界房间不画这层二维人物
-  const walkCast = !mcActive && Boolean(scene.stations);
+  const sitCast = scene.posture === 'sit';
+  // 办公室这类标了 stations 的二维场景：工作模式里人会离开工位走动
+  const walkCast = Boolean(scene.stations);
   const actorWidth = scene.actorWidth ?? 0.15;
   const seatEls = useRef(new Map<number, HTMLElement>());
   const { walking, setWalking, walkStarts, walkEnabled } = useWalkAnimations({ walkCast, session, away, participants: config.participants, seatEls });
@@ -66,26 +48,24 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
   const logRef = useRef<HTMLDivElement>(null);
   // 娱乐模式：入场时放背景音乐，讨论开始后压低音量；静音跟顶部音效开关走
   const showEntrance = config.mode === 'entertainment';
-  const { seated, allSeated, skipIntro, muted, bgmRef } = useEntrance({ count: config.participants.length, showEntrance });
+  const { seated, allSeated, skipIntro, bgmRef } = useEntrance({ count: config.participants.length, showEntrance });
   const { landing, sitting } = useLandingSitting({ seated, status, participants: config.participants });
   const entering = !allSeated && seated > 0 ? config.participants[seated - 1] : null;
 
   const byId = useMemo(() => Object.fromEntries(config.participants.map((p) => [p.agentId, p])), [config]);
 
-  const { chatter, speakerOf } = useChatter({ mcStage: Boolean(scene.mcStage), byId });
+  const { chatter, speakerOf } = useChatter({ byId });
 
   // 用户发完第一句（对项目的理解）后才启动引擎
   const startWith = (brief: string) => {
     warmAudio();
     const engine = engineFor(config.mode).create();
     engineRef.current = engine;
-    engine.setStageGate?.(mcActive ? mcGateRef.current?.gate ?? null : null);
     skipIntro();
     bgmRef.current?.duck();
     setMessages([{ id: 'brief', round: 0, speakerId: 'user', text: brief, kind: 'user', at: Date.now() }]);
     setSession('running');
     const onEvent = (e: EngineEvent) => {
-      if (scene.mcStage) mcEventsRef.current.push(e);
       switch (e.type) {
         case 'session': setSession(e.state); break;
         case 'round':
@@ -109,7 +89,6 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
           setMessages((m) => m.map((x) => (x.id === e.id ? { ...x, text: e.text, cut: e.cut ?? x.cut } : x)));
           break;
         case 'result': setResult(e.result); break;
-        case 'theme': if (scene.mcStage) setMcTheme(e.title); break;
         case 'error':
           setErrors((es) => [...es.filter((x) => x.id !== e.id), { id: e.id, agentId: e.agentId, message: e.message, retry: e.retry }]);
           break;
@@ -215,32 +194,11 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
 
       {/* 中左：场景动态演示 */}
       <section className="stage">
-        <div className={'stage-inner' + (mcActive ? ' stage-3d-ready' : '') + (sitCast ? ' sit-cast' : '') + (walkCast ? ' walk-cast' : '')}
+        <div className={'stage-inner' + (sitCast ? ' sit-cast' : '') + (walkCast ? ' walk-cast' : '')}
           style={sitCast ? { ['--aw' as string]: actorWidth } : undefined}>
           <img className="stage-bg" src={scene.image} alt={scene.name} draggable={false} />
-          {scene.mcStage && (view3D || mcLoadedRef.current) && <Suspense fallback={null}><McStage3D
-            sceneKind={scene.mcStage}
-            visible={view3D}
-            events={mcEventsRef.current}
-            participants={config.participants} status={status} round={round} totalRounds={config.maxRounds}
-            session={session} messages={messages} minds={minds} focus={focus} errors={errors} result={result}
-            theme={mcTheme} muted={muted} onFocus={setFocus}
-            onStageDone={(kind, key) => mcGateRef.current?.done(kind, key)}
-            onLoaded={(error) => {
-              mcLoadedRef.current = !error;
-              if (error) { setThreeError(error); setView3D(false); setThreeReady(false); }
-              else { setThreeError(''); setThreeReady(true); skipIntro(); }
-            }}
-          /></Suspense>}
-          {scene.mcStage && <button
-            className="stage-view-toggle"
-            onClick={() => { setView3D(!view3D); setThreeReady(!view3D && mcLoadedRef.current); setThreeError(''); }}
-            aria-label={view3D ? '切换到 2D 场景' : '切换到 3D 场景'}
-            title={view3D ? '切换到 2D 场景' : '切换到 3D 场景'}
-          >{view3D ? '◧ 2D' : '◈ 3D'}</button>}
-          {threeError && <span className="stage-model-error" role="status">{threeError}</span>}
-          {(scene.sourceSceneId ?? scene.id) === 'debate' && !mcActive && <div className="debate-board">{config.theme.title}</div>}
-          {!mcActive && config.participants.map((p, i) => {
+          {scene.id === 'debate' && <div className="debate-board">{config.theme.title}</div>}
+          {config.participants.map((p, i) => {
             if (i >= seated) return null;
             const st = status[p.agentId]?.state ?? 'idle';
             // 工作模式里离开了工位的人：站在同事旁、站会圈里，或坐在会议室；走在路上时也一直站着
@@ -282,7 +240,7 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
             );
           })}
           {walkCast && <OfficeBubbles speeches={officeSpeeches} onFocus={(id) => setFocus(focus === id ? null : id)} />}
-          {!mcActive && flights.map((f) => {
+          {flights.map((f) => {
             const { from, to } = f;
             const via = f.via ?? to;
             return <span
@@ -296,8 +254,8 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               }}
             ><i /></span>;
           })}
-          {!mcActive && session === 'finished' && <div className="stage-banner">讨论结束 · 结果已写入工作区</div>}
-          {!mcActive && entering && (
+          {session === 'finished' && <div className="stage-banner">讨论结束 · 结果已写入工作区</div>}
+          {entering && (
             <div key={entering.agentId} className="intro-card" style={{ ['--ac' as string]: entering.color }}>
               <em>{String(seated).padStart(2, '0')}</em>
               <span className="pc-avatar"><PixelAvatar v={entering.persona.visual} size={44} /></span>
@@ -308,9 +266,9 @@ export function DiscussionView({ config, onExit }: { config: SessionConfig; onEx
               </div>
             </div>
           )}
-          {!mcActive && !allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
-          {!mcActive && session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
-          {!mcActive && session === 'paused' && <div className="stage-banner wait">已暂停 · 可以先说你的想法，点「继续」接着讨论</div>}
+          {!allSeated && <button className="px-btn tiny intro-skip" onClick={skipIntro}>跳过入场 ▶▶</button>}
+          {session === 'waiting' && allSeated && <div className="stage-banner wait">大家已就座 · 等你一句话就开始</div>}
+          {session === 'paused' && <div className="stage-banner wait">已暂停 · 可以先说你的想法，点「继续」接着讨论</div>}
         </div>
       </section>
 

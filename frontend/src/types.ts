@@ -1,11 +1,9 @@
 export type ModeId = 'entertainment' | 'rational' | 'emotion' | 'product';
 /** 内置场景 ID */
 export type BuiltinSceneId =
-  | 'roundtable' | 'debate' | 'office' | 'classroom' | 'meadow' | 'podcast'
-  | 'roundtable-mc';
+  | 'roundtable' | 'debate' | 'office' | 'classroom' | 'meadow' | 'podcast';
 /** 场景 ID：内置场景用固定值，用户场景以 custom- 开头 */
 export type SceneId = BuiltinSceneId | `custom-${string}` | (string & {});
-export type McSceneKind = 'roundtable';
 export type Side = 'pro' | 'con' | 'host';
 /** 人物在场景里的朝向（屏幕上的八个方向）：S 面朝观众，N 背对观众 */
 export type Facing = 'S' | 'SE' | 'E' | 'NE' | 'N' | 'NW' | 'W' | 'SW';
@@ -66,12 +64,6 @@ export interface SceneDef {
   id: SceneId;
   name: string;
   image: string;
-  /** 新增三维场景的原图场景，用于 2D 回退和场景语义。 */
-  sourceSceneId?: SceneId;
-  /** 场景卡片预览，未设置时使用 image。 */
-  previewImage?: string;
-  /** 用已有游戏素材搭建的我的世界场景。 */
-  mcStage?: McSceneKind;
   description: string;
   recommendedMode: ModeId;
   maxSeats: number;
@@ -235,7 +227,6 @@ export type EngineEvent =
 
 /** 各小组实现的讨论引擎都遵守这个接口 */
 export interface DiscussionEngine {
-  setStageGate?(gate: StageGate | null): void;
   start(config: SessionConfig, emit: (event: EngineEvent) => void): void;
     /** 用户插话；targetAgentId 为空表示对全体。暂停中和讨论结束后也可以发，被问到的人会回应 */
   sendUserMessage(input: { text: string; targetAgentId?: string }): void;
@@ -248,8 +239,6 @@ export interface DiscussionEngine {
 }
 
 export type EngineFactory = () => DiscussionEngine;
-
-export interface StageGate { round(round: number): Promise<void>; speech(agentId: string): Promise<void>; }
 
 /** 每个模式的引擎包：工厂函数 + 可调参数默认值 */
 export interface EngineModule {

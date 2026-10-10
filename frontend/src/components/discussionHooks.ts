@@ -125,12 +125,11 @@ export function useLandingSitting({ seated, status, participants }: {
  * 说话音效：每条发言一出字就叽咕一声（包括每轮第一个人）；流式输出时每长出一段再叽咕一下，同一条至少隔 350ms。
  * speakerOf 记下每条消息是谁说的，流式更新（message_update）时才能找到人。
  */
-export function useChatter({ mcStage, byId }: { mcStage: boolean; byId: Record<string, Participant> }) {
+export function useChatter({ byId }: { byId: Record<string, Participant> }) {
   const voiceAt = useRef<Record<string, number>>({});
   const voiceLen = useRef<Record<string, number>>({});
   const speakerOf = useRef<Record<string, string>>({});
   const chatter = (agentId: string, id: string, text: string) => {
-    if (mcStage) return;
     if (!byId[agentId] || !text) return; // 空气泡先不响，等第一段文字出来再响
     const now = Date.now();
     const first = voiceLen.current[id] === undefined;

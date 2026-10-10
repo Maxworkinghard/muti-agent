@@ -29,18 +29,14 @@ npm --prefix frontend run dev
 
 打开终端显示的 localhost 地址，默认端口 5173，端口占用时会顺延。一个 Vite 进程提供页面、Node 会话和模型代理；网页运行不需要启动 Python。娱乐、辩论和情感分析在浏览器调度，工作通过 Node/SSE 运行。凭据仅由服务器读取，不进入前端或 Git；开发配置可由 `.env.local` 覆盖，兼容旧 `ROUNDTABLE_*` 变量。
 
-## 场景与实验
+## 场景
 
-六个原有 2D 场景继续可用：圆桌、辩论室、办公室、教室、草地野餐和播客访谈间，也支持上传自定义场景。3D 仅保留正在重建的圆桌 v2；选择「圆桌会议室 · 3D 重建样板（未完成）」可预览，讨论中可以切回原图。旧版圆桌和其他 MC 3D 场景已移除，四种讨论业务继续保留。
+六个 2D 场景：圆桌、辩论室、办公室、教室、草地野餐和播客访谈间，也支持上传自定义场景。
 
 | 页面（服务地址后追加） | 用途 | 生产构建 |
 |---|---|---|
-| `/` | 四模式工作台、六个 2D 场景与唯一圆桌 3D 样板入口 | 包含 |
-| `/stage-lab.html?scene=roundtable-mc` | 圆桌重建样板预览 | 包含 |
-| `/mc-lab.html?scene=roundtable` | 圆桌内置人物、动作和材质对比 | 仅开发 |
-| `/avatar-lab.html` | 人物、表情、姿态、椅子和地面实验 | 仅开发 |
-
-各入口都使用同一份圆桌重建实现，不再使用版本开关或回退旧版。圆桌仍未完成，也未通过用户视觉验收；保留它作为唯一 3D 实现不代表正式版完成。素材来源见[MC 署名](frontend/public/mc/THIRD-PARTY.md)、[叠加包说明](frontend/mc-packs/README.md)及[高清对比包许可](frontend/public/mc/hd/CREDITS.md)。
+| `/` | 四模式工作台和六个 2D 场景 | 包含 |
+| `/expression-demo.html` | 静态 2D 表情样本 | 静态复制 |
 
 ## 构建、检查与发布
 
@@ -49,7 +45,7 @@ npm test
 npm run build
 ```
 
-测试使用本地数据或假模型。完整构建同时更新 `frontend/dist` 和 `server-dist/api.mjs`；单独运行 `npm --prefix frontend run build` 只构建页面。检查范围和限制见 [VERIFY.md](VERIFY.md)，场景收敛与自由镜头验证见[维护记录](docs/MAINTENANCE_AUDIT.md#圆桌-3d-收敛用户调整范围)。
+测试使用本地数据或假模型。完整构建同时更新 `frontend/dist` 和 `server-dist/api.mjs`；单独运行 `npm --prefix frontend run build` 只构建页面。检查范围和限制见 [VERIFY.md](VERIFY.md)，清理记录与恢复基线见[维护记录](docs/MAINTENANCE_AUDIT.md)。
 
 发布时在根目录设置至少 16 个字符的访问密码并启动服务。PowerShell 示例：
 
@@ -64,10 +60,10 @@ npm start
 ## 项目导航
 
 ```text
-frontend/src/          工作台、四模式引擎、2D 与 MC 运行实现
+frontend/src/          工作台、四模式引擎和 2D 场景
 frontend/server/       Node 模型代理、会话和工作流程
 frontend/personas/     娱乐、情感、工作人物
-frontend/public/      产品场景、MC 运行资产及许可证
+frontend/public/      产品场景图和静态资源
 frontend/docs/        当前前端文档；历史资料统一在 archive/
 backend/              共享辩论人物/性格，以及独立 Python 工具
 persona-protocol/     人物格式与校验

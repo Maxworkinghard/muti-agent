@@ -12,6 +12,6 @@
 
 人物由 `data/rationalPersonas.ts` 从 `backend/人物/理性/` 和性格库加载，再经人物库合并。保持人物 id、用户所选性格与正反方立场；主持负责串场。当前结束结果只整理公开讨论的共识、分歧、问题与建议，不评分、排名或判胜负。
 
-舞台动作由 MC 导演消费事件，不在这里决定几何、外观或机位。私聊不进入其他成员的公开上下文；停止中断请求。接口遵守 `types.ts` 的 `DiscussionEngine` / `EngineEvent`。
+2D 场景消费引擎事件。私聊不进入其他成员的公开上下文；停止中断请求。接口遵守 `types.ts` 的 `DiscussionEngine` / `EngineEvent`。
 
 在 `frontend/` 执行 `npm run test:rational` 和 `npm run test:debate-mind`，验证赛制、立场、上下文、私聊、暂停、停止与无评比总结。完整验收见根目录 [VERIFY.md](../../../../VERIFY.md)。

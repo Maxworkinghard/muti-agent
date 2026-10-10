@@ -1,6 +1,6 @@
 # Agent 工作入口
 
-本项目是四种模式（娱乐、辩论、情感分析、工作）的多人格讨论工作台，包含独立的 2D 场景和 MC 3D 场景。当前结构见 [ARCHITECTURE.md](ARCHITECTURE.md)，运行见 [README.md](README.md)。
+本项目是四种模式（娱乐、辩论、情感分析、工作）的多人格讨论工作台，场景是六个 2D 像素场景。当前结构见 [ARCHITECTURE.md](ARCHITECTURE.md)，运行见 [README.md](README.md)。
 
 ## 开始修改前
 
@@ -11,7 +11,7 @@
 |---|---|
 | 引擎、模型接口、会话 | [引擎索引](frontend/src/engines/README.md)及对应模式 README；`frontend/server/` |
 | 人物、导入与映射 | [人物库说明](frontend/personas/README.md)、[人物上传说明](docs/人物角色创建与上传说明.md) |
-| MC、资源、实验页 | [前端维护索引](frontend/README.md)、[文档索引](frontend/docs/README.md)；当前源码契约优先 |
+| 前端页面与静态资源 | [前端维护索引](frontend/README.md)、[文档索引](frontend/docs/README.md)；当前源码契约优先 |
 | Python 工具 | [backend/README.md](backend/README.md) |
 | 清理历史对象 | [维护审计记录](docs/MAINTENANCE_AUDIT.md)，再重新核对对象的当前依赖 |
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Draft } from '../App';
 import type { SceneDef } from '../types';
 import { MODES } from '../data/modes';
@@ -21,9 +21,6 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
   const topics = useMemo(() => pickTopics(mode.presets, topicSeed), [mode, topicSeed]);
   // null：关闭；'new'：添加；其他：编辑这个场景
   const [editing, setEditing] = useState<SceneDef | 'new' | null>(null);
-  const [mcReady, setMcReady] = useState(false);
-  useEffect(() => { let active = true; void fetch('/mc/manifest.json').then(async r => r.ok && (await r.json()).version)
-    .then(ok => { if (active) setMcReady(Boolean(ok)); }).catch(() => {}); return () => { active = false; }; }, []);
   return (
     <main className="setup">
       <section className="panel">
@@ -70,9 +67,9 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
       </section>
 
       <section className="panel">
-        <h2><b>03</b> 选择场景 <small>像素场景和新增 3D 场景可分别选择</small></h2>
+        <h2><b>03</b> 选择场景</h2>
         <div className="scene-grid">
-          {scenes.filter((s) => !s.mcStage).map((s) => (
+          {scenes.map((s) => (
             <button key={s.id} className={'scene-card' + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id })}>
               <img src={s.image} alt={s.name} />
               <div className="scene-meta">
@@ -93,25 +90,11 @@ export function SetupScene({ draft, onChange, onNext, customScenes, onSaveScene,
             <small>上传一张图，点出座位就能用</small>
           </button>
         </div>
-        <h3 className="scene-section-title">新增 3D 场景</h3>
-        <div className="scene-grid" aria-label="新增 3D 场景">
-          {scenes.filter((s) => s.mcStage).map((s) => (
-            <button key={s.id} disabled={!mcReady} className={'scene-card scene-card-3d' + (!mcReady ? ' mc-unavailable' : '') + (s.id === draft.sceneId ? ' on' : '')} onClick={() => onChange({ ...draft, sceneId: s.id, mode: s.recommendedMode })}>
-              <img src={s.previewImage ?? s.image} alt={s.name} loading="lazy" />
-              <div className="scene-meta">
-                <strong>{s.name}</strong>
-                <span>{s.maxSeats} 席</span>
-                <i className="scene-3d-badge">3D</i>
-              </div>
-              <small>{!mcReady ? '需要先导入游戏资源（npm run mc:import）' : s.description}</small>
-            </button>
-          ))}
-        </div>
       </section>
 
       <footer className="setup-foot">
         <span>{mode.name} · {scenes.find((s) => s.id === draft.sceneId)?.name} · {draft.theme || '（还没有主题）'}</span>
-        <button className="px-btn primary" disabled={Boolean(scenes.find(s=>s.id===draft.sceneId)?.mcStage)&&!mcReady} onClick={onNext}>下一步：选择人物 ▶</button>
+        <button className="px-btn primary" onClick={onNext}>下一步：选择人物 ▶</button>
       </footer>
       {editing && (
         <SceneEditor

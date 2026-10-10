@@ -5,17 +5,6 @@
   "type": "module",
   "scripts": {
     "test": "node scripts/test-all.mjs",
-    "mc:import": "node scripts/mc-import.mjs",
-    "mc:style": "node scripts/mc-style.mjs",
-    "test:mc-room": "node scripts/check-mc-room.mjs",
-    "test:mc-look": "node scripts/check-mc-look.mjs",
-    "test:mc-design": "node scripts/check-mc-design.mjs",
-    "test:mc-scenes": "node scripts/check-mc-scenes.mjs",
-    "test:mc-stage": "node scripts/check-mc-stage.mjs",
-    "test:mc-physics": "node scripts/check-mc-physics.mjs",
-    "test:mc-spectator": "node scripts/check-mc-spectator.mjs",
-    "test:mc-v2": "node scripts/check-mc-v2.mjs",
-    "test:mc-avatar": "node scripts/check-mc-avatar.mjs",
     "test:pixel-avatar": "node scripts/check-pixel-avatar.mjs",
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
@@ -31,18 +20,13 @@
   },
   "dependencies": {
     "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "three": "^0.186.1"
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
-    "fflate": "^0.8.3",
-    "opentype.js": "^2.0.0",
-    "pngjs": "^7.0.0",
     "typescript": "~5.9.3",
     "vite": "^8.3.1"
   }

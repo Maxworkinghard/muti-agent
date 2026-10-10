@@ -1,4 +1,4 @@
-﻿@font-face {
+@font-face {
   font-family: 'Zpix';
   src: url('/fonts/zpix.ttf') format('truetype');
   font-display: swap;
@@ -69,17 +69,13 @@
   --emo-slot-border: #b9a9b3;
   --emo-slot-bg: #fff7fa;
   --emo-slot-icon: #c9b3c0;
-  --badge-3d-bg: #c9d8d0;
-  --badge-3d-fg: #1f3431;
   --placeholder: #9a8fa6;
-  --scene-3d-bg: #24202c;
 
   --shadow: 3px 3px 0 var(--ink);
   --btn-primary: var(--c-green);
   --btn-primary-hover: var(--c-green-deep);
-  /* 旧版未加载像素网页字体；工作台沿用系统字体回退，3D 界面独立选择字体。 */
+  /* 旧版未加载像素网页字体；工作台沿用系统字体回退。 */
   --font-ui: 'Cascadia Mono', 'Consolas', 'Microsoft YaHei', monospace;
-  --font-mc-ui: 'Zpix', 'Fusion Pixel', 'Cascadia Mono', 'Consolas', 'Microsoft YaHei', monospace;
   font-family: var(--font-ui);
   color: var(--ink);
   background: var(--paper);
@@ -186,8 +182,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .scene-card small { padding: 0 10px 10px; color: var(--ink-2); font-size: 12px; }
 .scene-card.on { outline: 4px solid var(--c-yellow); outline-offset: -1px; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
 .scene-card.on img { filter: saturate(1.05); }
-.scene-section-title { font-size: 14px; margin: 24px 0 12px; padding-top: 16px; border-top: 2px dashed var(--ink-2); }
-.scene-card-3d img { image-rendering: auto; background: var(--scene-3d-bg); filter: none; }
 .setup-foot {
   position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 16px; justify-content: space-between;
   padding: 12px 24px; background: var(--sand); border-top: 3px solid var(--ink);
@@ -259,13 +253,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .stage { grid-area: stage; background: var(--ink); display: flex; align-items: center; justify-content: center; overflow: hidden; container-type: size; }
 .stage-inner { position: relative; aspect-ratio: 3 / 2; width: min(100cqw, 150cqh); }
 .stage-bg { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; user-select: none; }
-.stage-view-toggle { position: absolute; top: 10px; left: 10px; z-index: 12; border: 2px solid var(--ink); background: var(--surface-stage); color: var(--ink); padding: 4px 9px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
-.stage-view-toggle:hover { background: var(--c-yellow); }
-.stage-model-error { position: absolute; top: 11px; left: 82px; z-index: 12; background: var(--surface-stage); color: var(--ink); padding: 4px 8px; font-size: 11px; }
-/* 三维舞台铺满整块区域：镜头按实际画面比例取景，不用像底图那样按 3:2 留黑边 */
-.stage-inner.stage-3d-ready { width: 100cqw; height: 100cqh; aspect-ratio: auto; }
-.stage-3d-ready .stage-bg { object-fit: cover; }
-.scene-3d-badge { background: var(--badge-3d-bg); color: var(--badge-3d-fg); font-style: normal; font-weight: 700; padding: 1px 4px; }
 .debate-board {
   position: absolute; left: 39%; top: 7.5%; width: 22%; height: 11%; display: flex; align-items: center; justify-content: center;
   text-align: center; font-size: clamp(9px, 1.1cqw, 16px); font-weight: bold; line-height: 1.3; padding: 0 1%; overflow: hidden;
@@ -683,69 +670,4 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- 交第一版：写好交出来的文件 ---------- */
 /* 记录里的第一版：像一页文件，和当面说的话区分开 */
 .line.doc p { background: var(--surface-doc); border-style: dashed; }
-
-@font-face { font-family: MCFont; src: url('/mc/font/mc.ttf'); font-display: swap; }
-/* 我的世界舞台的界面：和工作台一样的奶油底、墨色描边、硬投影，不用游戏里的灰石按钮 */
-.mc-stage { position: absolute; inset: 0; container-type: inline-size; background: var(--ink); overflow: hidden; font-family: var(--font-mc-ui); font-size: 14px; color: var(--ink); }
-.mc-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
-.mc-hud { position: absolute; inset: 0; pointer-events: none; }
-.mc-views { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; width: 150px; gap: 6px; pointer-events: auto; z-index: 10; }
-.mc-button { font-family: inherit; font-size: 13px; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); padding: 5px 10px; cursor: pointer; text-align: center; }
-.mc-button:hover { background: var(--sand); }
-.mc-button[aria-pressed=true] { background: var(--c-yellow); }
-.mc-button:active { transform: translate(2px, 2px); box-shadow: none; }
-.mc-button:focus-visible { outline: 2px solid var(--c-yellow); outline-offset: 2px; }
-.mc-button:disabled { opacity: .5; cursor: default; }
-.mc-button option { background: var(--cream); color: var(--ink); }
-.mc-name { position: absolute; transform: translate(-50%, -100%); padding: 1px 7px; white-space: nowrap; background: var(--cream); color: var(--ink); border: 2px solid var(--ink); box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 35%, transparent); font-size: 12px; line-height: 1.45; }
-.mc-name .mc-role { margin: 0 5px 0 -4px; padding: 0 4px; color: var(--cream); font-size: 11px; }
-.mc-free-hint { position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%); max-width: calc(100% - 48px); padding: 4px 12px; background: color-mix(in srgb, var(--ink) 88%, transparent); color: var(--cream); border: 2px solid var(--ink); font-size: 13px; white-space: normal; text-align: center; animation: mcFreeHint 6s forwards; pointer-events: none; }
-.mc-flight-hint { animation: none; width: max-content; }
-.mc-paused-camera { position: absolute; left: 14px; top: 14px; padding: 5px 10px; color: var(--cream); background: color-mix(in srgb, var(--ink) 88%, transparent); font-size: 13px; pointer-events: none; }
-@keyframes mcFreeHint { 0%, 72% { opacity: 1; } 100% { opacity: 0; } }
-.mc-tooltip { color: var(--ink); background: var(--cream); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 8px 11px; font-size: 13px; line-height: 1.5; text-align: left; }
-.mc-tooltip p { margin: 6px 0 0; overflow-wrap: anywhere; }
-.mc-bubble { position: absolute; transform: translate(-50%, -100%); width: min(320px, 38%); max-height: 260px; overflow: auto; pointer-events: auto; z-index: 4; }
-.mc-chat { position: absolute; left: 12px; bottom: 48px; width: 40%; max-height: 180px; overflow: auto; font-size: 13px; line-height: 1.4; }
-.mc-chat > div { background: color-mix(in srgb, var(--ink) 78%, transparent); padding: 3px 7px; margin-top: 3px; overflow-wrap: anywhere; }
-.mc-title { position: absolute; top: 20%; left: 0; right: 0; text-align: center; text-shadow: 3px 3px 0 var(--ink); z-index: 5; }
-.mc-title strong { font-size: 48px; font-weight: normal; }
-.mc-title > div { font-size: 22px; }
-.mc-actionbar { position: absolute; bottom: 16px; width: 100%; text-align: center; z-index: 8; color: var(--cream); text-shadow: 2px 2px 0 var(--ink); font-size: 14px; }
-.mc-own-speech { position: absolute; left: 15%; width: 70%; bottom: 56px; text-align: center; background: var(--cream); color: var(--ink); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 8px; }
-.mc-toast { position: absolute; right: 12px; bottom: 52px; display: flex; gap: 12px; align-items: center; background: var(--cream); color: var(--ink); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); min-width: 260px; max-width: calc(100% - 56px); padding: 12px 14px; animation: mc-toast-enter .4s steps(8); }
-.mc-toast > span { display: block; font-size: 26px; }
-.mc-toast small { display: block; font-size: 13px; margin-top: 4px; color: var(--c-green); }
-.mc-hover { position: absolute; width: 280px; z-index: 12; }
-.mc-paused, .mc-offline-view { position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 40%, transparent); display: grid; place-items: center; }
-.mc-paused strong { font-size: 40px; font-weight: normal; color: var(--cream); text-shadow: 3px 3px 0 var(--ink); }
-.mc-offline-view { background: #8885; }
-.mc-disconnect { position: absolute; left: 15%; right: 15%; top: 30%; text-align: center; background: var(--cream); color: var(--ink); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 24px; z-index: 12; }
-.mc-disconnect strong { font-size: 26px; color: var(--c-red); }
-.mc-disconnect p { overflow-wrap: anywhere; }
-.mc-loading { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 20px; background: var(--ink); color: var(--cream); z-index: 20; }
-.mc-loading strong { font-size: 20px; font-weight: normal; }
-.mc-progress { width: 60%; height: 16px; border: 2px solid var(--cream); padding: 2px; }
-.mc-progress i { display: block; height: 100%; background: var(--c-yellow); }
-.mc-error-mark, .mc-lab-error { color: var(--c-red); }
-.mc-pack-credit { position: absolute; left: 12px; bottom: 12px; font-size: 11px; color: var(--cream); opacity: .7; z-index: 9; }
-.mc-unavailable { opacity: .45; filter: grayscale(1); cursor: default; }
-.mc-lab { --font-mc-ui: MCFont, monospace; padding: 24px; min-height: 100vh; background: var(--wall-cream); color: var(--ink); font-family: var(--font-mc-ui); }
-.mc-lab h1 { font-size: 32px; margin: 0; }
-.mc-lab header { display: flex; align-items: baseline; gap: 24px; margin-bottom: 16px; }
-.mc-lab header p { flex: 1; }
-.mc-lab-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; }
-.mc-lab-stage { position: relative; height: calc(100vh - 132px); min-height: 600px; }
-.mc-lab-controls { max-height: calc(100vh - 132px); overflow: auto; }
-.mc-lab-controls label { display: block; margin-bottom: 16px; }
-.mc-lab-controls select { width: 100%; padding: 8px; margin-top: 8px; }
-.mc-lab-controls > div { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.mc-lab-cover { padding: 0; min-height: 0; }
-.mc-lab-cover > header, .mc-lab-cover .mc-lab-controls, .mc-lab-cover .mc-hud { display: none; }
-.mc-lab-cover .mc-lab-layout { display: block; }
-.mc-lab-cover .mc-lab-stage { width: min(100%, 960px); height: auto; min-height: 0; aspect-ratio: 3/2; }
-@keyframes mc-toast-enter { from { transform: translateX(110%); } to { transform: translateX(0); } }
-@media (max-width: 900px) { .mc-views { max-width: 80%; flex-wrap: wrap; justify-content: flex-end; }.mc-name { font-size: 10px; }.mc-lab-layout { grid-template-columns: 1fr; }.mc-lab-stage { min-height: 550px; } }
-@media (prefers-reduced-motion: reduce) { .mc-toast { animation: none; } }
-@container (max-width: 1100px) { .mc-views { width: min(360px, calc(100cqw - 24px)); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }.mc-views .mc-button { min-width: 0; font-size: 12px; padding: 5px 6px; } }
 

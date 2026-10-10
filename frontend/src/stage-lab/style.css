@@ -1,8 +1,0 @@
-.stage-lab { font-family: var(--font-mc-ui); height: 100vh; display: flex; flex-direction: column; padding: 16px; gap: 12px; background: #eee7d7; }
-.stage-lab > header { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
-.stage-lab h1 { font-size: 20px; margin: 0; }
-.stage-lab > header label { display: flex; gap: 8px; align-items: center; font-size: 13px; }
-.stage-lab > header select { padding: 5px; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); }
-.stage-lab > header a { margin-left: auto; color: var(--ink); font-size: 13px; }
-.stage-lab-world { flex: 1; position: relative; min-height: 0; overflow: hidden; border: 3px solid var(--ink); background: #e6d3ae; }
-.stage-lab-world > p { position: absolute; bottom: 20px; left: 20px; color: #943e34; background: var(--cream); padding: 10px; }

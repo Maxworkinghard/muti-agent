@@ -3,7 +3,7 @@ import type { SceneDef, SceneId } from '../types';
 // 坐标是座位中心在 1536x1024 底图上的百分比位置
 const p = (x: number, y: number) => ({ x: +(x / 15.36).toFixed(2), y: +(y / 10.24).toFixed(2) });
 
-const ORIGINAL_SCENES: Record<string, SceneDef> = {
+export const SCENES: Record<string, SceneDef> = {
   roundtable: {
     id: 'roundtable',
     name: '圆桌会议室',
@@ -90,17 +90,6 @@ const ORIGINAL_SCENES: Record<string, SceneDef> = {
     posture: 'sit',
     actorWidth: 0.15,
     seats: [p(472, 704), p(1064, 704)],
-  },
-};
-
-// 只保留正在重建的圆桌 3D 样板；六个 2D 场景和其业务元数据不变。
-export const SCENES: Record<string, SceneDef> = {
-  ...ORIGINAL_SCENES,
-  'roundtable-mc': {
-    ...ORIGINAL_SCENES.roundtable,
-    id: 'roundtable-mc', name: '圆桌会议室 · 3D 重建样板（未完成）',
-    sourceSceneId: 'roundtable', mcStage: 'roundtable',
-    description: '水上园林茶叙榭的圆桌重建样板，仅保留这一版；尚未完成，也未通过用户视觉验收',
   },
 };
 

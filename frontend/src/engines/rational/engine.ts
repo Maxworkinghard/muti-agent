@@ -1,4 +1,4 @@
-import type { ChatMessage, DiscussionEngine, EngineEvent, MindView, Participant, SessionConfig, StageGate } from '../../types';
+import type { ChatMessage, DiscussionEngine, EngineEvent, MindView, Participant, SessionConfig } from '../../types';
 import { chat, isAbort, type LlmMessage } from '../../llm/client';
 // 情绪记账和娱乐/情感分析共用一套：情绪怎么涨落、好恶怎么回落只维护一份
 import { cool, createMind, dominant, feel, level, like, type Mind as MindState } from '../live/mind';
@@ -58,21 +58,6 @@ class DebateRoom {
   private draining: Promise<void> | null = null;
   private wake: (() => void) | null = null;
   private retryWake: ((retry: boolean) => void) | null = null;
-  private stageGate: StageGate | null = null;
-  setStageGate(gate: StageGate | null) { this.stageGate = gate; }
-  private async waitStage(request: () => Promise<void> | undefined) {
-    if (!this.stageGate || (typeof document !== 'undefined' && document.hidden)) return;
-    let done = false, elapsed = 0;
-    void request()?.then(() => { done = true; }, () => { done = true; });
-    while (!done && !this.stopped && elapsed < 4000) {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      const start = Date.now(), active = !this.paused;
-      await new Promise<void>(resolve => { const finish = () => { clearTimeout(timer); this.ctrl.signal.removeEventListener('abort', finish); resolve(); };
-        const timer = setTimeout(finish, 20); this.ctrl.signal.addEventListener('abort', finish, { once: true }); });
-      if (active && !this.paused) elapsed += Date.now() - start;
-    }
-  }
-
   constructor(private cfg: SessionConfig, private emit: (e: EngineEvent) => void, private chatFn: DebateChat) {
     this.turns = debateSchedule(cfg);
     this.maxChars = Math.min(400, Math.max(50, Math.round(cfg.maxChars ?? 150)));
@@ -145,7 +130,6 @@ class DebateRoom {
       if (this.round !== turn.round) {
         this.round = turn.round;
         this.emit({ type: 'round', round: this.round, label: turn.stage });
-        await this.waitStage(() => this.stageGate?.round(this.round));
       }
       const ok = await this.withRetry(() => this.speak(turn), turn.speaker.persona.name + '发言', turn.speaker.agentId);
       if (!ok || this.stopped) return;
@@ -209,7 +193,6 @@ class DebateRoom {
     this.showMind(p);
     if (turn.target) { const t = this.cfg.participants.find((x) => x.agentId === turn.target!.agentId); if (t) this.showMind(t); }
     this.status(p, 'speaking', turn.tag);
-    await this.waitStage(() => this.stageGate?.speech(p.agentId));
     for (let i = 0; i < speech.say.length; i++) {
       await this.display(p, speech.say[i], turn.tag, turn.target?.agentId);
       if (this.stopped) break;
@@ -305,8 +288,6 @@ class DebateRoom {
     if (privateReply) this.privateTalk.get(p.agentId)?.push(p.persona.name + '：' + answer);
     if (!privateReply) {
       this.status(p, 'speaking', '回应用户');
-      await this.waitStage(() => this.stageGate?.speech(p.agentId));
-      if (this.stopped) return false;
     }
     const message: ChatMessage = { id: uid('r'), round: this.round, speakerId: p.agentId, text: answer, kind: 'reply',
       targetId: 'user', private: privateReply || undefined, tag: this.finished ? '赛后追问' : undefined, at: Date.now() };
@@ -396,10 +377,8 @@ class DebateRoom {
 /** 独立的辩论模式：自己的导演、辩手、赛后总结与轮次，不依赖娱乐引擎或 Python 服务。 */
 export function createRationalEngine(chatFn: DebateChat = browserChat): DiscussionEngine {
   let room: DebateRoom | null = null;
-  let stageGate: StageGate | null = null;
   return {
-    setStageGate(gate) { stageGate = gate; room?.setStageGate(gate); },
-    start(cfg, emit) { room?.stop(); room = new DebateRoom(cfg, emit, chatFn); room.setStageGate(stageGate); room.start(); },
+    start(cfg, emit) { room?.stop(); room = new DebateRoom(cfg, emit, chatFn); room.start(); },
     sendUserMessage(input) { room?.sendUserMessage(input); },
     pause() { room?.pause(); },
     resume() { room?.resume(); },
